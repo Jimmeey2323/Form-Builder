@@ -370,7 +370,7 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: ${theme.fontFamily};
-            background: ${theme.backgroundColor.includes('gradient') ? theme.backgroundColor : `linear-gradient(135deg, ${theme.backgroundColor} 0%, #e2e8f0 100%)`};
+            background: ${(theme.backgroundColor || '#f1f5f9').includes('gradient') ? theme.backgroundColor : `linear-gradient(135deg, ${theme.backgroundColor || '#f1f5f9'} 0%, #e2e8f0 100%)`};
             min-height: 100vh;
             display: flex;
             justify-content: center;

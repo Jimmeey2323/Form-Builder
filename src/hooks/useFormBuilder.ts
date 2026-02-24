@@ -116,6 +116,7 @@ export function useFormBuilder() {
       // Migrate old forms that don't have new config
       return parsed.map((f: any) => ({
         ...f,
+        theme: { ...defaultTheme, ...(f.theme || {}) },
         webhookConfig: f.webhookConfig || { enabled: false, url: '', method: 'POST', headers: {}, includeUtmParams: true },
         pixelConfig: f.pixelConfig || {},
         googleSheetsConfig: f.googleSheetsConfig || { enabled: false },
