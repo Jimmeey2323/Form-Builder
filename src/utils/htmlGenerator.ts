@@ -304,12 +304,13 @@ function generateWebhookScript(config: FormConfig): string {
     ? `launchConfetti(); setTimeout(function(){ window.top.location.href = '${escapeHtml(webhookConfig.redirectUrl)}'; }, 1400);`
     : `launchConfetti(); document.getElementById('generated-form').innerHTML = '<div class="success-message"><h2>✓</h2><p>${escapeHtml(config.successMessage).replace(/'/g, "\\'")}</p></div>';`;
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZWlvZGl2dWJodGNhZ3JsZnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMTkxMjYsImV4cCI6MjA4MTU5NTEyNn0.QH_201DUxgNACmV9_48z1UUM5rFoy0-0yACIBBRkT2s';
 
   const supabaseSaveScript = `
                 // Record submission in Supabase
                 try {
+                  console.log('Saving submission to Supabase...');
                   fetch('${supabaseUrl}/rest/v1/form_submissions', {
                     method: 'POST',
                     headers: {
@@ -325,8 +326,21 @@ function generateWebhookScript(config: FormConfig): string {
                       utm_params: typeof utmParams !== 'undefined' ? utmParams : null,
                       submitted_at: new Date().toISOString()
                     })
-                  }).catch(function(e) { console.warn('Supabase log error:', e); });
-                } catch(e) {}`;
+                  }).then(function(response) {
+                    if (response.ok) {
+                      console.log('Supabase submission saved successfully');
+                    } else {
+                      console.warn('Supabase submission failed:', response.status, response.statusText);
+                      return response.text().then(function(text) {
+                        console.warn('Supabase error details:', text);
+                      });
+                    }
+                  }).catch(function(e) { 
+                    console.warn('Supabase network error:', e); 
+                  });
+                } catch(e) {
+                  console.warn('Supabase save exception:', e);
+                }`;
 
   if (!webhookConfig.enabled) {
     return `
@@ -392,7 +406,7 @@ function generateSheetsSubmitScript(config: FormConfig): string {
   const { googleSheetsConfig } = config;
   if (!googleSheetsConfig.enabled || !googleSheetsConfig.spreadsheetId) return '';
   
-  const supabaseUrl = 'https://pwgdytetevxwuujdevis.supabase.co';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
   const fieldNames = config.fields
     .filter(f => f.type !== 'page-break' && f.type !== 'section-break')
     .sort((a, b) => a.order - b.order)

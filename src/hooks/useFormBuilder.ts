@@ -156,18 +156,27 @@ export function useFormBuilder() {
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
-        const { data, error } = await supabase
-          .from('forms')
-          .select('*')
-          .order('updated_at', { ascending: false });
-        if (!error && data && data.length > 0) {
-          const loaded: FormConfig[] = data.map((row: any) => ({
-            ...(row.config as FormConfig),
-            id: row.id,
-          }));
-          setForms(loaded);
-          setActiveFormId(prev => prev || (loaded.length > 0 ? loaded[0].id : null));
-          localStorage.setItem('formcraft_forms', JSON.stringify(loaded));
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const response = await fetch(`${supabaseUrl}/functions/v1/forms-api`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            const loaded: FormConfig[] = data.map((row: any) => ({
+              ...(row.config as FormConfig),
+              id: row.id,
+            }));
+            setForms(loaded);
+            setActiveFormId(prev => prev || (loaded.length > 0 ? loaded[0].id : null));
+            localStorage.setItem('formcraft_forms', JSON.stringify(loaded));
+          }
         }
       } catch {
         // Supabase unavailable — localStorage remains the fallback
@@ -179,16 +188,25 @@ export function useFormBuilder() {
   const save = useCallback((updatedForms: FormConfig[]) => {
     setForms(updatedForms);
     localStorage.setItem('formcraft_forms', JSON.stringify(updatedForms));
-    // Persist to Supabase (fire and forget)
+    // Persist to Supabase via server endpoint (fire and forget)
     const upsertToSupabase = async () => {
       try {
-        const rows = updatedForms.map(f => ({
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const formsData = updatedForms.map(f => ({
           id: f.id,
           title: f.title,
           config: f as any,
-          updated_at: new Date().toISOString(),
         }));
-        await supabase.from('forms').upsert(rows, { onConflict: 'id' });
+        
+        await fetch(`${supabaseUrl}/functions/v1/forms-api`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ forms: formsData })
+        });
       } catch {
         // Supabase unavailable — localStorage is the fallback
       }
@@ -212,8 +230,23 @@ export function useFormBuilder() {
     if (activeFormId === formId) {
       setActiveFormId(updated.length > 0 ? updated[0].id : null);
     }
-    // Remove from Supabase too
-    supabase.from('forms').delete().eq('id', formId).then(() => {});
+    // Remove from Supabase via server endpoint
+    const deleteFromSupabase = async () => {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        await fetch(`${supabaseUrl}/functions/v1/forms-api?id=${encodeURIComponent(formId)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch {
+        // Supabase unavailable — form already removed from local state
+      }
+    };
+    deleteFromSupabase();
   }, [forms, activeFormId, save]);
 
   const updateForm = useCallback((formId: string, updates: Partial<FormConfig>) => {

@@ -5,6 +5,7 @@ import { FormPreview } from '@/components/form-builder/FormPreview';
 import { HtmlExportDialog } from '@/components/form-builder/HtmlExportDialog';
 import { FormSettingsPanel } from '@/components/form-builder/FormSettingsPanel';
 import { FormCanvas } from '@/components/form-builder/FormCanvas';
+import { TestSubmission } from '@/components/TestSubmission';
 import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
 import { FormField } from '@/types/formField';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -291,6 +292,9 @@ const Index = () => {
                     <TabsTrigger value="settings">
                       <Settings className="h-3.5 w-3.5 mr-1.5" /> Settings
                     </TabsTrigger>
+                    <TabsTrigger value="test">
+                      <BarChart3 className="h-3.5 w-3.5 mr-1.5" /> Test
+                    </TabsTrigger>
                   </TabsList>
 
                   <div className="flex items-center gap-2">
@@ -337,6 +341,10 @@ const Index = () => {
                       />
                     </CardContent>
                   </Card>
+                </TabsContent>
+
+                <TabsContent value="test">
+                  <TestSubmission />
                 </TabsContent>
               </Tabs>
             )}
