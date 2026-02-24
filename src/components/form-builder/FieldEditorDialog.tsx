@@ -21,8 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType } from '@/types/formField';
-import { Plus, Trash2, X } from 'lucide-react';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig } from '@/types/formField';
+import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface FieldEditorDialogProps {
@@ -35,6 +35,8 @@ interface FieldEditorDialogProps {
 
 export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: FieldEditorDialogProps) {
   const [draft, setDraft] = useState<Partial<FormField>>({});
+  const [expandedOptionIndex, setExpandedOptionIndex] = useState<number | null>(null);
+  const [newCustomSrcVal, setNewCustomSrcVal] = useState('');
 
   useEffect(() => {
     if (field) setDraft({ ...field });
@@ -56,7 +58,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
     update('options', opts);
   };
 
-  const updateOption = (index: number, key: keyof FieldOption, value: string) => {
+  const updateOption = (index: number, key: keyof FieldOption | string, value: any) => {
     const opts = [...(draft.options || [])];
     opts[index] = { ...opts[index], [key]: value };
     update('options', opts);
@@ -99,19 +101,70 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   };
 
   const otherFields = allFields.filter(f => f.id !== field.id);
+  const sourceField = otherFields.find(f => f.id === (draft.dependsOnFieldId || ''));
+  const sourceHasOptions = !!(sourceField && ['select', 'radio', 'checkbox'].includes(sourceField.type) && (sourceField.options?.length ?? 0) > 0);
+
+  // ─── Dependent Options Groups helpers ───────────────────────────────
+  const sourceForGroups = draft.dependentOptionsConfig?.sourceFieldId
+    ? otherFields.find(f => f.id === draft.dependentOptionsConfig!.sourceFieldId)
+    : null;
+
+  const sourceGroupValues: { label: string; value: string }[] = [
+    ...(sourceForGroups?.options?.map(o => ({ label: o.label, value: o.value })) ?? []),
+    ...(draft.dependentOptionsConfig?.customSourceValues?.map(v => ({ label: v, value: v })) ?? []),
+  ];
+
+  const toggleGroupOption = (sourceValue: string, optionValue: string) => {
+    const config = draft.dependentOptionsConfig!;
+    const groups = [...(config.groups || [])];
+    const gi = groups.findIndex(g => g.sourceValue === sourceValue);
+    if (gi === -1) {
+      groups.push({ sourceValue, visibleOptionValues: [optionValue] });
+    } else {
+      const vals = [...groups[gi].visibleOptionValues];
+      const vi = vals.indexOf(optionValue);
+      if (vi === -1) vals.push(optionValue);
+      else vals.splice(vi, 1);
+      groups[gi] = { ...groups[gi], visibleOptionValues: vals };
+    }
+    update('dependentOptionsConfig', { ...config, groups });
+  };
+
+  const addCustomSourceValue = () => {
+    const val = newCustomSrcVal.trim();
+    if (!val) return;
+    const config = draft.dependentOptionsConfig!;
+    const existing = config.customSourceValues || [];
+    if (!existing.includes(val)) {
+      update('dependentOptionsConfig', { ...config, customSourceValues: [...existing, val] });
+    }
+    setNewCustomSrcVal('');
+  };
+
+  const removeCustomSourceValue = (val: string) => {
+    const config = draft.dependentOptionsConfig!;
+    update('dependentOptionsConfig', {
+      ...config,
+      customSourceValues: (config.customSourceValues || []).filter(v => v !== val),
+      groups: config.groups.filter(g => g.sourceValue !== val),
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            Edit Field
-            <Badge variant="secondary">{FIELD_TYPE_LABELS[draft.type as FieldType || field.type]}</Badge>
-          </DialogTitle>
-          <DialogDescription>Configure all properties for this form field.</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-2xl h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
+        <div className="px-6 pt-6 pb-4 border-b border-border/50 shrink-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Edit Field
+              <Badge variant="secondary">{FIELD_TYPE_LABELS[draft.type as FieldType || field.type]}</Badge>
+            </DialogTitle>
+            <DialogDescription>Configure all properties for this form field.</DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <ScrollArea className="flex-1 pr-4 -mr-4">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-6 py-4">
           <Tabs defaultValue="basic" className="w-full">
             <TabsList className="w-full justify-start">
               <TabsTrigger value="basic">Basic</TabsTrigger>
@@ -224,48 +277,388 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
             {hasOptions && (
               <TabsContent value="options" className="space-y-4 mt-4">
-                <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Add choices. Optionally, set a condition on each option to show it only when another field has a specific value.
+                </p>
+                <div className="space-y-3">
                   {(draft.options || []).map((opt, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <Input
-                        value={opt.label}
-                        onChange={e => updateOption(i, 'label', e.target.value)}
-                        placeholder="Label"
-                        className="flex-1"
-                      />
-                      <Input
-                        value={opt.value}
-                        onChange={e => updateOption(i, 'value', e.target.value)}
-                        placeholder="Value"
-                        className="flex-1 font-mono text-sm"
-                      />
-                      <Button variant="ghost" size="icon" onClick={() => removeOption(i)} className="h-8 w-8 shrink-0 text-destructive">
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
+                    <div key={i} className="rounded-lg border bg-card overflow-hidden">
+                      {/* Option row */}
+                      <div className="flex items-center gap-2 p-2">
+                        <Input
+                          value={opt.label}
+                          onChange={e => updateOption(i, 'label', e.target.value)}
+                          placeholder="Label"
+                          className="flex-1 text-sm"
+                        />
+                        <Input
+                          value={opt.value}
+                          onChange={e => updateOption(i, 'value', e.target.value)}
+                          placeholder="Value"
+                          className="flex-1 font-mono text-sm"
+                        />
+                        <Button
+                          variant={opt.conditionalRule ? 'default' : 'ghost'}
+                          size="icon"
+                          onClick={() => setExpandedOptionIndex(expandedOptionIndex === i ? null : i)}
+                          className="h-8 w-8 shrink-0"
+                          title="Set conditional visibility for this option"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => removeOption(i)} className="h-8 w-8 shrink-0 text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Address row — show full address below form when this option is selected */}
+                      <div className="flex items-center gap-2 px-2 pb-2">
+                        <MapPin className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 ml-0.5" />
+                        <Input
+                          value={opt.address || ''}
+                          onChange={e => updateOption(i, 'address', e.target.value)}
+                          placeholder="Address shown on selection (optional)"
+                          className="text-xs h-7 border-dashed"
+                        />
+                      </div>
+
+                      {/* Conditional rule for this option */}
+                      {expandedOptionIndex === i && (
+                        <div className="border-t bg-muted/30 p-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                              <GitBranch className="h-3 w-3" /> Conditional Visibility
+                            </span>
+                            {opt.conditionalRule && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 text-xs text-destructive"
+                                onClick={() => updateOption(i, 'conditionalRule' as any, undefined)}
+                              >
+                                Clear
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground">Show this option only when:</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Select
+                              value={opt.conditionalRule?.fieldId || ''}
+                              onValueChange={v =>
+                                updateOption(i, 'conditionalRule' as any, {
+                                  ...(opt.conditionalRule || { operator: 'equals', value: '' }),
+                                  fieldId: v,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="text-xs h-8"><SelectValue placeholder="Field…" /></SelectTrigger>
+                              <SelectContent>
+                                {otherFields.map(f => (
+                                  <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={opt.conditionalRule?.operator || 'equals'}
+                              onValueChange={v =>
+                                updateOption(i, 'conditionalRule' as any, {
+                                  ...(opt.conditionalRule || { fieldId: '', value: '' }),
+                                  operator: v,
+                                })
+                              }
+                            >
+                              <SelectTrigger className="text-xs h-8"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="equals">Equals</SelectItem>
+                                <SelectItem value="not_equals">Not Equals</SelectItem>
+                                <SelectItem value="contains">Contains</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              value={opt.conditionalRule?.value || ''}
+                              onChange={e =>
+                                updateOption(i, 'conditionalRule' as any, {
+                                  ...(opt.conditionalRule || { fieldId: '', operator: 'equals' }),
+                                  value: e.target.value,
+                                })
+                              }
+                              placeholder="Value"
+                              className="text-xs h-8"
+                            />
+                          </div>
+                          {opt.conditionalRule?.fieldId && (
+                            <p className="text-[11px] text-primary/70">
+                              ✓ This option is conditionally shown
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
                 <Button variant="outline" size="sm" onClick={addOption}>
                   <Plus className="h-3.5 w-3.5 mr-1" /> Add Option
                 </Button>
+
+                {/* ── Dependent Options Groups ────────────────────────────────── */}
+                <div className="rounded-xl border-2 border-dashed border-primary/25 bg-primary/4 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                      <GitBranch className="h-3 w-3" /> Dependent Options
+                    </p>
+                    <Switch
+                      checked={!!draft.dependentOptionsConfig}
+                      onCheckedChange={on => update('dependentOptionsConfig', on
+                        ? { sourceFieldId: '', groups: [], customSourceValues: [] }
+                        : undefined
+                      )}
+                    />
+                  </div>
+
+                  {draft.dependentOptionsConfig && (
+                    <div className="space-y-3">
+                      <p className="text-[11px] text-muted-foreground leading-snug">
+                        Pick a field to watch. Then assign which options of <em>this</em> field should appear for each of its values.
+                        Options not assigned to any group are always visible.
+                      </p>
+
+                      {/* Source field picker */}
+                      <Select
+                        value={draft.dependentOptionsConfig.sourceFieldId}
+                        onValueChange={v => update('dependentOptionsConfig', {
+                          ...draft.dependentOptionsConfig!,
+                          sourceFieldId: v,
+                          groups: [],
+                          customSourceValues: [],
+                        })}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Watch which field…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {otherFields.map(f => (
+                            <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {/* Groups matrix — rendered once source field is chosen */}
+                      {draft.dependentOptionsConfig.sourceFieldId && (
+                        <div className="space-y-2">
+                          {sourceGroupValues.length === 0 && !sourceForGroups?.options?.length && (
+                            <p className="text-[11px] text-muted-foreground italic">
+                              The selected field has no predefined options. Add custom trigger values below.
+                            </p>
+                          )}
+
+                          {sourceGroupValues.map(sv => {
+                            const group = draft.dependentOptionsConfig!.groups.find(g => g.sourceValue === sv.value);
+                            const selectedVals = group?.visibleOptionValues ?? [];
+                            return (
+                              <div key={sv.value} className="rounded-lg bg-card border border-border/70 p-3 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-[11px] font-semibold text-foreground/70">
+                                    When = <span className="text-primary font-bold">"{sv.label}"</span>
+                                  </p>
+                                  {/* Only show × for custom values */}
+                                  {(draft.dependentOptionsConfig!.customSourceValues || []).includes(sv.value) && (
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive"
+                                      onClick={() => removeCustomSourceValue(sv.value)}>
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  )}
+                                </div>
+
+                                {(draft.options || []).length === 0 ? (
+                                  <p className="text-[10px] text-muted-foreground italic">Add options above first.</p>
+                                ) : (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {(draft.options || []).map(opt => {
+                                      const checked = selectedVals.includes(opt.value);
+                                      return (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          onClick={() => toggleGroupOption(sv.value, opt.value)}
+                                          className={`text-[11px] font-medium px-2.5 py-1 rounded-full border-2 transition-all cursor-pointer select-none ${
+                                            checked
+                                              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                                              : 'border-border/70 text-muted-foreground hover:border-primary/50 hover:text-foreground bg-background'
+                                          }`}
+                                        >
+                                          {opt.label || opt.value}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
+                                {selectedVals.length === 0 && (draft.options || []).length > 0 && (
+                                  <p className="text-[10px] text-muted-foreground/60 italic">
+                                    ⚠ No options assigned — all will be hidden when this value is selected.
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Add custom trigger value — useful when source is a text / number field */}
+                          {!sourceForGroups?.options?.length && (
+                            <div className="flex gap-2 pt-1">
+                              <Input
+                                value={newCustomSrcVal}
+                                onChange={e => setNewCustomSrcVal(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCustomSourceValue())}
+                                placeholder="Add trigger value (e.g. Yes)"
+                                className="h-8 text-xs flex-1"
+                              />
+                              <Button variant="outline" size="sm" className="h-8 text-xs" onClick={addCustomSourceValue}>
+                                <Plus className="h-3 w-3 mr-1" /> Add
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
             )}
 
             <TabsContent value="advanced" className="space-y-4 mt-4">
-              {(draft.type === 'dependent' || field.type === 'dependent') && (
-                <div className="space-y-2">
-                  <Label>Depends On Field</Label>
-                  <Select value={draft.dependsOnFieldId || ''} onValueChange={v => update('dependsOnFieldId', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select parent field" /></SelectTrigger>
-                    <SelectContent>
-                      {otherFields.map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.label} ({f.name})</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* ─── Convert to Dependent ─── */}
+              {draft.type !== 'dependent' && draft.type !== 'conditional' && (
+                <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 space-y-2">
+                  <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                    <GitBranch className="h-3.5 w-3.5" /> Make this a Dependent Field
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    A dependent field's value, visibility, or options are driven by another field's value.
+                  </p>
+                  <Button size="sm" variant="outline" className="h-7 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                    onClick={() => update('type', 'dependent')}>
+                    Convert to Dependent
+                  </Button>
                 </div>
               )}
 
+              {(draft.type === 'dependent' || draft.type === 'conditional') && (
+                <div className="space-y-4">
+                  {/* Source field */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Source Field</Label>
+                    <Select value={draft.dependsOnFieldId || ''} onValueChange={v => update('dependsOnFieldId', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select the field to watch…" /></SelectTrigger>
+                      <SelectContent>
+                        {otherFields.map(f => (
+                          <SelectItem key={f.id} value={f.id}>{f.label} <span className="text-muted-foreground">({f.name})</span></SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">When this field's value changes, rules below are evaluated.</p>
+                  </div>
+
+                  {/* Value mapping table */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value Mapping</Label>
+                    <p className="text-[11px] text-muted-foreground">When source = (value), set this field's value to (mapped value).</p>
+                    {Object.entries((draft.lookupConfig?.lookupData) || {}).map(([srcVal, mappedVal], i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-14 shrink-0">When =</span>
+                        {sourceHasOptions ? (
+                          <Select
+                            value={srcVal}
+                            onValueChange={newKey => {
+                              const data = { ...(draft.lookupConfig?.lookupData || {}) };
+                              delete data[srcVal];
+                              data[newKey] = mappedVal;
+                              update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
+                            }}
+                          >
+                            <SelectTrigger className="flex-1 h-8 text-xs"><SelectValue placeholder="Pick option…" /></SelectTrigger>
+                            <SelectContent>
+                              {sourceField!.options!.map(opt => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            value={srcVal}
+                            onChange={e => {
+                              const data = { ...(draft.lookupConfig?.lookupData || {}) };
+                              delete data[srcVal];
+                              data[e.target.value] = mappedVal;
+                              update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
+                            }}
+                            placeholder="Source value"
+                            className="flex-1 font-mono text-xs"
+                          />
+                        )}
+                        <span className="text-xs text-muted-foreground shrink-0">→</span>
+                        <Input
+                          value={mappedVal}
+                          onChange={e => {
+                            const data = { ...(draft.lookupConfig?.lookupData || {}) };
+                            data[srcVal] = e.target.value;
+                            update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
+                          }}
+                          placeholder="Set value to"
+                          className="flex-1 text-xs"
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0"
+                          onClick={() => {
+                            const data = { ...(draft.lookupConfig?.lookupData || {}) };
+                            delete data[srcVal];
+                            update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
+                          }}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" className="h-7 text-xs"
+                      onClick={() => {
+                        const data = { ...(draft.lookupConfig?.lookupData || {}) };
+                        const key = `value_${Object.keys(data).length + 1}`;
+                        data[key] = '';
+                        update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
+                      }}>
+                      <Plus className="h-3 w-3 mr-1" /> Add Mapping
+                    </Button>
+                  </div>
+
+                  {/* Default value when no mapping matches */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Default Value (no match)</Label>
+                    <Input
+                      value={draft.defaultValue || ''}
+                      onChange={e => update('defaultValue', e.target.value)}
+                      placeholder="Shown when no mapping applies"
+                      className="text-sm"
+                    />
+                  </div>
+
+                  {/* Behavior */}
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">On Change Behavior</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center justify-between rounded-lg border p-2.5">
+                        <Label className="text-xs">Read-only</Label>
+                        <Switch checked={draft.isReadOnly ?? false} onCheckedChange={v => update('isReadOnly', v)} />
+                      </div>
+                      <div className="flex items-center justify-between rounded-lg border p-2.5">
+                        <Label className="text-xs">Auto-clear on change</Label>
+                        <Switch
+                          checked={draft.cssClass?.includes('auto-clear') ?? false}
+                          onCheckedChange={v => update('cssClass', v ? ((draft.cssClass || '') + ' auto-clear').trim() : (draft.cssClass || '').replace('auto-clear', '').trim())}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Formula field config */}
               {(draft.type === 'formula' || field.type === 'formula') && (
                 <div className="space-y-2">
                   <Label>Formula Expression</Label>
@@ -279,6 +672,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 </div>
               )}
 
+              {/* Lookup field config */}
               {(draft.type === 'lookup' || field.type === 'lookup') && (
                 <div className="space-y-3">
                   <Label>Lookup Source Field</Label>
@@ -332,7 +726,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 </div>
               )}
 
-              {!isAdvanced && (
+              {!isAdvanced && draft.type !== 'dependent' && draft.type !== 'conditional' && (
                 <p className="text-sm text-muted-foreground py-4">
                   Switch this field's type to Lookup, Formula, Conditional, or Dependent to see advanced configuration options.
                 </p>
@@ -418,12 +812,15 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               </div>
             </TabsContent>
           </Tabs>
+          </div>
         </ScrollArea>
 
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { onSave(draft); onClose(); }}>Save Changes</Button>
-        </DialogFooter>
+        <div className="px-6 py-4 border-t border-border/50 shrink-0">
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose}>Cancel</Button>
+            <Button onClick={() => { onSave(draft); onClose(); }}>Save Changes</Button>
+          </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );

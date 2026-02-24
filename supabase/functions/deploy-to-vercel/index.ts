@@ -14,18 +14,86 @@ serve(async (req) => {
     const vercelToken = Deno.env.get('VERCEL_TOKEN');
     if (!vercelToken) throw new Error('VERCEL_TOKEN not configured');
 
-    const { html, formTitle } = await req.json();
+    const { html, formTitle, formId, vercelProjectDomain, deployedUrl } = await req.json();
     if (!html) throw new Error('html is required');
 
-    const projectName = `formcraft-${(formTitle || 'form').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 40)}-${Date.now().toString(36)}`;
+    // authHeaders must be declared first — used throughout
+    const authHeaders = {
+      'Authorization': `Bearer ${vercelToken}`,
+      'Content-Type': 'application/json',
+    };
 
-    // Create deployment using Vercel API v13
+    // Resolve which domain to target:
+    // 1. Explicit user-supplied domain from settings
+    // 2. Previously saved deployed URL (so re-deploys always hit the same project)
+    // 3. Auto-derived stable slug from title + formId
+    const resolvedDomain = (vercelProjectDomain || deployedUrl || '').trim()
+      .replace(/^https?:\/\//, '')
+      .replace(/\/.*$/, '')
+      .toLowerCase();
+
+    let projectName: string;
+    let knownProductionUrl: string | null = null;
+
+    if (resolvedDomain) {
+      if (resolvedDomain.endsWith('.vercel.app')) {
+        // e.g. "mysite.vercel.app" → project name is "mysite"
+        projectName = resolvedDomain.replace(/\.vercel\.app$/, '');
+      } else {
+        // Custom domain — look up the owning project via Vercel's Projects API
+        const searchRes = await fetch(
+          `https://api.vercel.com/v9/projects?search=${encodeURIComponent(resolvedDomain)}&limit=5`,
+          { headers: authHeaders }
+        );
+        if (searchRes.ok) {
+          const searchData = await searchRes.json();
+          const matched = (searchData.projects ?? []).find(
+            (p: any) => (p.alias ?? []).some((a: any) => (a.domain ?? a) === resolvedDomain)
+          );
+          projectName = matched?.name ?? resolvedDomain.replace(/\.[^.]+$/, '');
+        } else {
+          projectName = resolvedDomain.replace(/\.[^.]+$/, '');
+        }
+      }
+      knownProductionUrl = `https://${resolvedDomain}`;
+    } else {
+      // Auto-derive a stable slug from title + formId
+      const titleSlug = (formTitle || 'form')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 32);
+      const idSlug = (formId || '').toString().slice(-6).replace(/[^a-z0-9]/g, '');
+      projectName = `jform-${titleSlug}${idSlug ? `-${idSlug}` : ''}`.slice(0, 52);
+    }
+
+    projectName = projectName.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 52);
+
+    // Step 1: Check if the project already exists and get its real production domain
+    let productionAlias = `${projectName}.vercel.app`;
+    let projectExists = false;
+    try {
+      const projectRes = await fetch(`https://api.vercel.com/v9/projects/${projectName}`, {
+        headers: authHeaders,
+      });
+      if (projectRes.ok) {
+        projectExists = true;
+        const projectData = await projectRes.json();
+        // Prefer a custom domain alias over the default .vercel.app one
+        const aliases: string[] = projectData.alias
+          ? projectData.alias.map((a: any) => a.domain ?? a)
+          : [];
+        const customAlias = aliases.find((d: string) => !d.endsWith('.vercel.app'));
+        productionAlias = customAlias || `${projectName}.vercel.app`;
+      }
+      // If 404 → project doesn't exist yet; the deployment will create it
+    } catch (_) { /* ignore — fall back to derived URL */ }
+
+    // Step 2: Deploy to the project (creates it if it doesn't exist)
     const deployRes = await fetch('https://api.vercel.com/v13/deployments', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${vercelToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: authHeaders,
       body: JSON.stringify({
         name: projectName,
         files: [
@@ -48,13 +116,32 @@ serve(async (req) => {
       throw new Error(deployData.error.message || JSON.stringify(deployData.error));
     }
 
-    const url = deployData.url ? `https://${deployData.url}` : null;
+    // URL resolution strategy:
+    // • Existing project → use the confirmed stable alias from the Projects API (already validated)
+    // • New project → try stable alias from deployment response, then fall back to deployData.url
+    //   (the deployment-specific URL which is always accessible once the build completes)
+    let url: string;
+    if (projectExists) {
+      url = `https://${productionAlias}`;
+    } else {
+      const deploymentAliases: string[] = deployData.alias ?? deployData.aliases ?? [];
+      const stableAlias = deploymentAliases.find((a: string) => !a.match(/[a-f0-9]{12,}/));
+      if (stableAlias) {
+        url = `https://${stableAlias}`;
+      } else if (deployData.url) {
+        url = `https://${deployData.url}`;
+      } else {
+        url = `https://${productionAlias}`;
+      }
+    }
+
     const readyState = deployData.readyState || deployData.status;
 
     return new Response(JSON.stringify({
       success: true,
       url,
       deploymentId: deployData.id,
+      deploymentUrl: deployData.url ? `https://${deployData.url}` : undefined,
       status: readyState,
       projectName,
     }), {

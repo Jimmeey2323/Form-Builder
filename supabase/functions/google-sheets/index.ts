@@ -124,7 +124,15 @@ serve(async (req) => {
         }
       }
 
-      const timestamp = new Date().toISOString();
+      // Format timestamp in IST (UTC+5:30) as DD/MM/YYYY HH:MM:SS
+      const now = new Date();
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istDate = new Date(now.getTime() + istOffset);
+      const isoStr = istDate.toISOString();
+      const [datePart, timePart] = isoStr.split('T');
+      const [year, month, day] = datePart.split('-');
+      const timeFormatted = timePart.substring(0, 8);
+      const timestamp = `${day}/${month}/${year} ${timeFormatted}`;
       await appendRow(accessToken, spreadsheetId, sheet, [timestamp, ...rowData]);
 
       return new Response(JSON.stringify({ success: true }), {
