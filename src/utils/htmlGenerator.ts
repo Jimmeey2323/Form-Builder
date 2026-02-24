@@ -304,14 +304,17 @@ function generateWebhookScript(config: FormConfig): string {
     ? `launchConfetti(); setTimeout(function(){ window.top.location.href = '${escapeHtml(webhookConfig.redirectUrl)}'; }, 1400);`
     : `launchConfetti(); document.getElementById('generated-form').innerHTML = '<div class="success-message"><h2>✓</h2><p>${escapeHtml(config.successMessage).replace(/'/g, "\\'")}</p></div>';`;
 
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
   const supabaseSaveScript = `
                 // Record submission in Supabase
                 try {
-                  fetch('https://oleiodivubhtcagrlfug.supabase.co/rest/v1/form_submissions', {
+                  fetch('${supabaseUrl}/rest/v1/form_submissions', {
                     method: 'POST',
                     headers: {
-                      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZWlvZGl2dWJodGNhZ3JsZnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDI2ODYsImV4cCI6MjA2NDk3ODY4Nn0.Xyp5JdTdMmCjpvdbcRBQCw-WqBmr7GUv-3QYnEwqb4s',
-                      'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZWlvZGl2dWJodGNhZ3JsZnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDI2ODYsImV4cCI6MjA2NDk3ODY4Nn0.Xyp5JdTdMmCjpvdbcRBQCw-WqBmr7GUv-3QYnEwqb4s',
+                      'apikey': '${supabaseAnonKey}',
+                      'Authorization': 'Bearer ${supabaseAnonKey}',
                       'Content-Type': 'application/json',
                       'Prefer': 'return=minimal'
                     },
