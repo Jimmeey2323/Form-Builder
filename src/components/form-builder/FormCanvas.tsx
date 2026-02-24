@@ -10,7 +10,6 @@ import {
   DragEndEvent,
   DragOverEvent,
   closestCenter,
-  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -20,7 +19,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FormConfig, FormField, FieldType, FIELD_TYPE_CATEGORIES, FIELD_TYPE_LABELS } from '@/types/formField';
+import { FormConfig, FormField, FieldType, FIELD_TYPE_LABELS } from '@/types/formField';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
@@ -34,61 +33,13 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   GripVertical, Pencil, Trash2, Copy,
-  Type, Mail, Phone, Hash, Link, Eye, AlignLeft,
-  ChevronDown, Circle, CheckSquare, Star, Calendar,
-  FileImage, Palette, Signature, Minus, FileCode,
-  BarChart, Variable, GitBranch, SlidersHorizontal,
-  Clock, FileUp, Plus,
+  ChevronDown, Star, Calendar,
+  FileUp, Plus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
-// ── Field type icon map ───────────────────────────────────────────────────────
-const FIELD_ICONS: Record<FieldType, React.ReactNode> = {
-  text:             <Type className="h-3.5 w-3.5" />,
-  email:            <Mail className="h-3.5 w-3.5" />,
-  tel:              <Phone className="h-3.5 w-3.5" />,
-  number:           <Hash className="h-3.5 w-3.5" />,
-  url:              <Link className="h-3.5 w-3.5" />,
-  password:         <Eye className="h-3.5 w-3.5" />,
-  textarea:         <AlignLeft className="h-3.5 w-3.5" />,
-  select:           <ChevronDown className="h-3.5 w-3.5" />,
-  radio:            <Circle className="h-3.5 w-3.5" />,
-  checkbox:         <CheckSquare className="h-3.5 w-3.5" />,
-  rating:           <Star className="h-3.5 w-3.5" />,
-  date:             <Calendar className="h-3.5 w-3.5" />,
-  time:             <Clock className="h-3.5 w-3.5" />,
-  'datetime-local': <Calendar className="h-3.5 w-3.5" />,
-  file:             <FileUp className="h-3.5 w-3.5" />,
-  range:            <SlidersHorizontal className="h-3.5 w-3.5" />,
-  color:            <Palette className="h-3.5 w-3.5" />,
-  hidden:           <Eye className="h-3.5 w-3.5" />,
-  lookup:           <BarChart className="h-3.5 w-3.5" />,
-  formula:          <Variable className="h-3.5 w-3.5" />,
-  conditional:      <GitBranch className="h-3.5 w-3.5" />,
-  dependent:        <GitBranch className="h-3.5 w-3.5" />,
-  signature:        <FileCode className="h-3.5 w-3.5" />,
-  'section-break':  <Minus className="h-3.5 w-3.5" />,
-  'page-break':     <FileImage className="h-3.5 w-3.5" />,
-};
 
-// ── Palette item (draggable) ──────────────────────────────────────────────────
-function PaletteItem({ type }: { type: FieldType }) {
-  return (
-    <div
-      draggable
-      data-palette-type={type}
-      className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border/60 bg-card text-xs font-medium text-foreground/80 cursor-grab hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all select-none active:cursor-grabbing active:opacity-60"
-      onDragStart={e => {
-        e.dataTransfer.setData('palette-field-type', type);
-        e.dataTransfer.effectAllowed = 'copy';
-      }}
-    >
-      <span className="text-muted-foreground">{FIELD_ICONS[type]}</span>
-      <span className="truncate">{FIELD_TYPE_LABELS[type]}</span>
-    </div>
-  );
-}
 
 // ── Field input preview ───────────────────────────────────────────────────────
 function FieldPreview({ field }: { field: FormField }) {
@@ -324,10 +275,6 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const { setNodeRef } = useDroppable({
-    id: 'canvas',
-  });
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -368,32 +315,10 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
   return (
     <>
-    <div className="flex h-[calc(100vh-168px)] overflow-hidden rounded-xl border border-border/60 shadow-sm bg-background">
-
-      {/* ── Left Palette ───────────────────────────────────────────────────── */}
-      <div className="w-56 shrink-0 border-r border-border/60 bg-muted/20 flex flex-col">
-        <div className="px-3 pt-3 pb-2 border-b border-border/50">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Field Types</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">Drag into the form</p>
-        </div>
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-3">
-            {Object.entries(FIELD_TYPE_CATEGORIES).map(([cat, types]) => (
-              <div key={cat}>
-                <p className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest px-1 mb-1.5">{cat}</p>
-                <div className="space-y-1">
-                  {types.map(type => (
-                    <PaletteItem key={type} type={type} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </div>
+    <div className="h-[calc(100vh-168px)] overflow-hidden rounded-xl border border-border/60 shadow-sm bg-background">
 
       {/* ── Canvas Area ────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-muted/30">
+      <div className="h-full overflow-hidden flex flex-col bg-muted/30">
         <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between bg-background/80">
           <p className="text-[11px] font-semibold text-muted-foreground">
             Canvas — <span className="text-foreground">{form.title}</span>
@@ -404,13 +329,11 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="p-3 flex justify-center">
+          <div className="p-4">
             {/* Form card */}
             <div
-              ref={setNodeRef}
-              id="canvas"
               className="w-full rounded-xl overflow-hidden bg-card shadow-xl"
-              style={{ maxWidth: form.theme.formMaxWidth || '520px', lineHeight: form.theme.lineHeight || '1.6' }}
+              style={{ maxWidth: form.theme.formMaxWidth || '100%', lineHeight: form.theme.lineHeight || '1.6' }}
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
                 e.preventDefault();
@@ -503,7 +426,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       </div>
     </div>
 
-      {/* Field delete confirmation */}
+    {/* Field delete confirmation */}
       <AlertDialog open={!!pendingDeleteId} onOpenChange={open => { if (!open) setPendingDeleteId(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>

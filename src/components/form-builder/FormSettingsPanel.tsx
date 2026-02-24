@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
 import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
+import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 import { useState } from 'react';
 
 // Preset Webhook URLs
@@ -46,6 +47,11 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
     onUpdate({ theme: { ...form.theme, ...updates } });
   };
 
+  const toggleProShadow = () => {
+    const nextShadow = form.theme.formShadow === 'xl' ? 'md' : 'xl';
+    updateTheme({ formShadow: nextShadow });
+  };
+
   const handleSelectTheme = (theme: FormTheme) => {
     updateTheme(theme);
   };
@@ -71,6 +77,10 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
     });
   };
 
+  const handleLayoutChange = (layout: FormConfig['layout']) => {
+    onUpdate(applyHeroImageForLayout(form, { layout }));
+  };
+
   const addHeader = () => {
     if (!newHeaderKey) return;
     const headers = { ...form.webhookConfig.headers, [newHeaderKey]: newHeaderVal };
@@ -91,7 +101,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
 
   return (
     <>
-    <Accordion type="multiple" defaultValue={['general', 'form-elements', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'theme-basic', 'animations']} className="space-y-3">
+    <Accordion type="multiple" defaultValue={['general', 'form-elements', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'advanced', 'theme-basic', 'theme-dimensions', 'theme-typography', 'animations', 'deployment', 'custom-css']} className="space-y-3">
 
       {/* ── General ── */}
       <AccordionItem value="general" className="settings-section">
@@ -176,7 +186,15 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
 
-      {/* ── Webhook ── */}
+      {/* ── Webhook Configuration ── */}
+      <div className="pt-2 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Integrations</span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+      </div>
+      {/* ── Webhook Configuration ── */}
       <AccordionItem value="webhook" className="settings-section">
         <AccordionTrigger className="settings-trigger">
           <span className="flex items-center gap-2.5">
@@ -422,6 +440,56 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               )}
             </>
           )}
+        </AccordionContent>
+      </AccordionItem>
+
+      {/* ── Advanced Controls ── */}
+      <div className="pt-2 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Design & Appearance</span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+      </div>
+      {/* ── Advanced Controls ── */}
+      <AccordionItem value="advanced" className="settings-section">
+        <AccordionTrigger className="settings-trigger">
+          <span className="flex items-center gap-2.5">
+            <span className="settings-icon-wrap"><PanelRight className="h-3.5 w-3.5" /></span>
+            Advanced Controls
+          </span>
+        </AccordionTrigger>
+        <AccordionContent className="space-y-4 pb-5 pt-1">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Cinematic Animations</Label>
+                <Switch checked={form.animations?.enabled ?? false} onCheckedChange={v => updateAnimations({ enabled: v })} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Stage reveals, fading headers, and polished feedback loops.</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Premium Depth</Label>
+                <Switch checked={form.theme.formShadow === 'xl'} onCheckedChange={toggleProShadow} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">Toggle a stronger card shadow for gallery-ready layouts.</p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">Layout Mode</Label>
+                <Select value={form.layout ?? 'classic'} onValueChange={value => handleLayoutChange(value as FormConfig['layout'])}>
+                  <SelectTrigger className="settings-input"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['classic', 'card', 'split-left', 'split-right', 'banner-top', 'floating', 'fullscreen'].map(layout => (
+                      <SelectItem key={layout} value={layout}>{layout}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Switch between hero, floating, and split layouts instantly.</p>
+            </div>
+          </div>
         </AccordionContent>
       </AccordionItem>
 
@@ -672,6 +740,14 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
       </AccordionItem>
 
       {/* ── Form Layout ── */}
+      <div className="pt-2 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Layout & Animation</span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+      </div>
+      {/* ── Form Layout ── */}
       <AccordionItem value="layout" className="settings-section">
         <AccordionTrigger className="settings-trigger">
           <span className="flex items-center gap-2.5">
@@ -718,7 +794,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               <button
                 key={opt.value}
                 type="button"
-                onClick={() => onUpdate({ layout: opt.value })}
+                onClick={() => handleLayoutChange(opt.value as FormConfig['layout'])}
                 className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 text-center transition-all cursor-pointer hover:border-primary/60 hover:bg-primary/5 overflow-hidden ${
                   (form.layout ?? 'classic') === opt.value
                     ? 'border-primary bg-primary/8 text-primary'
@@ -992,6 +1068,14 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
 
+      {/* ── Deployment ── */}
+      <div className="pt-2 pb-1">
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-border/50" />
+          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Publishing</span>
+          <div className="h-px flex-1 bg-border/50" />
+        </div>
+      </div>
       {/* ── Deployment ── */}
       <AccordionItem value="deployment" className="settings-section">
         <AccordionTrigger className="settings-trigger">

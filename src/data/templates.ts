@@ -8,10 +8,6 @@ export interface Template {
   icon: string;
   fields: FormField[];
   config: Partial<FormConfig>;
-  isPremium?: boolean;
-  tags: string[];
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  estimatedTime: string;
 }
 
 export const formTemplates: Template[] = [
@@ -21,9 +17,6 @@ export const formTemplates: Template[] = [
     description: 'Simple contact form with name, email, and message',
     category: 'Marketing',
     icon: '📞',
-    tags: ['contact', 'support', 'communication'],
-    difficulty: 'beginner',
-    estimatedTime: '2 minutes',
     fields: [
       {
         id: 'firstName', name: 'firstName', label: 'First Name', type: 'text',
@@ -65,9 +58,6 @@ export const formTemplates: Template[] = [
     description: 'Minimal newsletter subscription form',
     category: 'Marketing',
     icon: '📧',
-    tags: ['newsletter', 'subscription', 'email'],
-    difficulty: 'beginner' as const,
-    estimatedTime: '1 minute',
     fields: [
       {
         id: 'email', name: 'email', label: 'Email Address', type: 'email',
@@ -94,9 +84,6 @@ export const formTemplates: Template[] = [
     description: 'Complete event registration with personal details',
     category: 'Events',
     icon: '🎟️',
-    tags: ['events', 'registration', 'booking'],
-    difficulty: 'intermediate' as const,
-    estimatedTime: '4 minutes',
     fields: [
       {
         id: 'firstName', name: 'firstName', label: 'First Name', type: 'text',
@@ -153,9 +140,6 @@ export const formTemplates: Template[] = [
     description: 'Collect customer satisfaction and feedback',
     category: 'Feedback',
     icon: '⭐',
-    tags: ['feedback', 'review', 'experience'],
-    difficulty: 'beginner' as const,
-    estimatedTime: '3 minutes',
     fields: [
       {
         id: 'name', name: 'name', label: 'Your Name', type: 'text',
@@ -215,9 +199,6 @@ export const formTemplates: Template[] = [
     description: 'Comprehensive survey for market research',
     category: 'Research',
     icon: '📊',
-    tags: ['survey', 'research', 'data'],
-    difficulty: 'intermediate',
-    estimatedTime: '5 minutes',
     fields: [
       {
         id: 'demographics', name: 'demographics', label: 'Demographics', type: 'section-break',
@@ -291,9 +272,6 @@ export const formTemplates: Template[] = [
     description: 'Capture leads with qualification questions',
     category: 'Sales',
     icon: '🎯',
-    tags: ['leads', 'sales', 'conversion'],
-    difficulty: 'intermediate',
-    estimatedTime: '3 minutes',
     fields: [
       {
         id: 'firstName', name: 'firstName', label: 'First Name', type: 'text',
@@ -352,141 +330,252 @@ export const formTemplates: Template[] = [
       submitButtonText: 'Request Demo',
       successMessage: 'Demo request received! Our sales team will contact you within 24 hours.',
     }
-  },
-  // Advanced Professional Templates
+  }
+
+  ,
   {
-    id: 'job_application',
-    name: 'Job Application Form',
-    description: 'Complete job application with file uploads and detailed fields',
-    category: 'HR & Recruiting',
-    icon: '💼',
-    tags: ['jobs', 'recruitment', 'application', 'hr'],
-    difficulty: 'advanced' as const,
-    estimatedTime: '8 minutes',
-    isPremium: true,
+    id: 'product-launch',
+    name: 'Product Launch Waitlist',
+    description: 'Collect waitlist members for your next product release',
+    category: 'Product',
+    icon: '🚀',
     fields: [
       {
-        id: 'position', name: 'position', label: 'Position Applied For', type: 'text',
-        placeholder: 'Software Engineer', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '100', order: 0,
-      },
-      {
         id: 'fullName', name: 'fullName', label: 'Full Name', type: 'text',
-        placeholder: 'John Smith', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '100', order: 1, autocomplete: 'name',
+        placeholder: 'Alex Rivera', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 0, autocomplete: 'name',
       },
       {
-        id: 'email', name: 'email', label: 'Email Address', type: 'email',
-        placeholder: 'john@example.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 2, autocomplete: 'email',
+        id: 'email', name: 'email', label: 'Email', type: 'email',
+        placeholder: 'alex@company.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1, autocomplete: 'email',
       },
       {
-        id: 'phone', name: 'phone', label: 'Phone Number', type: 'tel',
-        placeholder: '+1 (555) 123-4567', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 3, autocomplete: 'tel',
+        id: 'company', name: 'company', label: 'Company / Team', type: 'text',
+        placeholder: 'Your team name', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 2, autocomplete: 'organization',
       },
       {
-        id: 'experience', name: 'experience', label: 'Years of Experience', type: 'select',
+        id: 'interest', name: 'interest', label: 'Product Interest', type: 'select',
         isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 4,
+        width: '100', order: 3,
         options: [
-          { label: '0-1 years', value: '0-1-years' },
-          { label: '2-5 years', value: '2-5-years' },
-          { label: '6-10 years', value: '6-10-years' },
-          { label: '10+ years', value: '10-plus-years' }
+          { label: 'Beta access', value: 'beta' },
+          { label: 'Early adopter', value: 'early' },
+          { label: 'Enterprise preview', value: 'enterprise' },
         ],
       },
       {
-        id: 'salary', name: 'salary', label: 'Expected Salary Range', type: 'select',
+        id: 'launchDate', name: 'launchDate', label: 'Preferred Launch Timeline', type: 'select',
         isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 5,
+        width: '100', order: 4,
         options: [
-          { label: '$40k-60k', value: '40k-60k' },
-          { label: '$60k-80k', value: '60k-80k' },
-          { label: '$80k-100k', value: '80k-100k' },
-          { label: '$100k+', value: '100k-plus' }
+          { label: 'Next 30 days', value: '30' },
+          { label: '2-3 months', value: '90' },
+          { label: 'Later', value: 'later' },
         ],
       },
       {
-        id: 'cover_letter', name: 'cover_letter', label: 'Cover Letter', type: 'textarea',
-        placeholder: 'Tell us why you\'re interested in this position...', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '100', order: 6,
+        id: 'priority', name: 'priority', label: 'Priority', type: 'radio',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 5,
+        options: [
+          { label: 'High', value: 'high' },
+          { label: 'Medium', value: 'medium' },
+          { label: 'Low', value: 'low' },
+        ],
       },
     ],
     config: {
-      title: 'Job Application',
-      subHeader: 'Join Our Team',
-      description: 'We\'re excited to learn more about you!',
-      submitButtonText: 'Submit Application',
-      successMessage: 'Thank you for your application! We\'ll be in touch soon.',
+      title: 'Launch Waitlist',
+      subHeader: 'Be the first to test the next release',
+      description: 'Join the waitlist and we will invite you to our private beta when the product is ready.',
+      submitButtonText: 'Join Waitlist',
+      successMessage: 'You are on the waitlist! We will email you VIP access details shortly.',
+      layout: 'banner-top',
     }
   },
   {
-    id: 'booking_appointment',
-    name: 'Appointment Booking',
-    description: 'Professional appointment scheduling with time slots',
-    category: 'Booking & Scheduling',
-    icon: '📅',
-    tags: ['appointment', 'booking', 'scheduling', 'calendar'],
-    difficulty: 'intermediate' as const,
-    estimatedTime: '5 minutes',
+    id: 'workshop',
+    name: 'Workshop RSVP',
+    description: 'RSVP form for paid or free workshops',
+    category: 'Education',
+    icon: '🧠',
     fields: [
       {
-        id: 'service', name: 'service', label: 'Select Service', type: 'select',
+        id: 'fullName', name: 'fullName', label: 'Full Name', type: 'text',
+        placeholder: 'Jamie Lee', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 0, autocomplete: 'name',
+      },
+      {
+        id: 'email', name: 'email', label: 'Email', type: 'email',
+        placeholder: 'jamie@example.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1, autocomplete: 'email',
+      },
+      {
+        id: 'tickets', name: 'tickets', label: 'Number of Seats', type: 'select',
         isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 2,
+        options: [
+          { label: '1 seat', value: '1' },
+          { label: '2 seats', value: '2' },
+          { label: 'Group (3+)', value: 'group' },
+        ],
+      },
+      {
+        id: 'sessions', name: 'sessions', label: 'Select Sessions', type: 'checkbox',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 3,
+        options: [
+          { label: 'Founders Lab', value: 'founders' },
+          { label: 'Product Sprint', value: 'product' },
+          { label: 'Growth Tactics', value: 'growth' },
+        ],
+      },
+      {
+        id: 'experience', name: 'experience', label: 'Your Experience Level', type: 'radio',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 4,
+        options: [
+          { label: 'Beginner', value: 'beginner' },
+          { label: 'Intermediate', value: 'intermediate' },
+          { label: 'Advanced', value: 'advanced' },
+        ],
+      },
+      {
+        id: 'notes', name: 'notes', label: 'Anything else we should know?', type: 'textarea',
+        placeholder: 'Dietary restrictions, accessibility needs, or team notes', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 5,
+      },
+    ],
+    config: {
+      title: 'Workshop RSVP',
+      subHeader: 'Live immersive sessions',
+      description: 'Reserve your seat in curated workshop tracks delivered by practitioners.',
+      submitButtonText: 'Reserve Seat',
+      successMessage: 'You are confirmed! Look for the intro email with the schedule.',
+      layout: 'split-right',
+    }
+  },
+  {
+    id: 'consultation',
+    name: 'Consultation Booking',
+    description: 'Schedule a discovery call with your team',
+    category: 'Services',
+    icon: '💼',
+    fields: [
+      {
+        id: 'fullName', name: 'fullName', label: 'Full Name', type: 'text',
+        placeholder: 'Morgan Shea', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 0, autocomplete: 'name',
+      },
+      {
+        id: 'email', name: 'email', label: 'Work Email', type: 'email',
+        placeholder: 'morgan@brand.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1, autocomplete: 'email',
+      },
+      {
+        id: 'company', name: 'company', label: 'Company', type: 'text',
+        placeholder: 'Company name', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 2, autocomplete: 'organization',
+      },
+      {
+        id: 'service', name: 'service', label: 'Service Interest', type: 'select',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 3,
+        options: [
+          { label: 'Strategy Consulting', value: 'strategy' },
+          { label: 'Creative Direction', value: 'creative' },
+          { label: 'Team Enablement', value: 'enablement' },
+        ],
+      },
+      {
+        id: 'preferredDate', name: 'preferredDate', label: 'Preferred Date', type: 'datetime-local',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 4,
+      },
+      {
+        id: 'notes', name: 'notes', label: 'Tell us about your goals', type: 'textarea',
+        placeholder: 'What would you like to accomplish during the call?', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 5,
+      },
+    ],
+    config: {
+      title: 'Book a Consultation',
+      subHeader: 'High-touch advisory',
+      description: 'Share your needs and we will schedule a tailored discovery call with a lead team member.',
+      submitButtonText: 'Book Call',
+      successMessage: 'Thanks! Our team will follow up shortly with the meeting link.',
+      layout: 'floating',
+    }
+  },
+  {
+    id: 'bug-report',
+    name: 'Bug Report',
+    description: 'Collect detailed product issue reports',
+    category: 'Support',
+    icon: '🐞',
+    fields: [
+      {
+        id: 'name', name: 'name', label: 'Your Name', type: 'text',
+        placeholder: 'Avery Mercer', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
         width: '100', order: 0,
+      },
+      {
+        id: 'email', name: 'email', label: 'Email', type: 'email',
+        placeholder: 'avery@product.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1, autocomplete: 'email',
+      },
+      {
+        id: 'product', name: 'product', label: 'Product Area', type: 'select',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 2,
         options: [
-          { label: 'Consultation (30 min)', value: 'consultation-30' },
-          { label: 'Full Session (60 min)', value: 'full-session-60' },
-          { label: 'Follow-up (15 min)', value: 'followup-15' }
+          { label: 'Web App', value: 'web' },
+          { label: 'Mobile App', value: 'mobile' },
+          { label: 'API', value: 'api' },
+          { label: 'Integrations', value: 'integrations' },
         ],
       },
       {
-        id: 'preferred_date', name: 'preferred_date', label: 'Preferred Date', type: 'date',
+        id: 'issueType', name: 'issueType', label: 'Issue Type', type: 'radio',
         isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 1,
-      },
-      {
-        id: 'preferred_time', name: 'preferred_time', label: 'Preferred Time', type: 'select',
-        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 2,
+        width: '100', order: 3,
         options: [
-          { label: '9:00 AM', value: '09:00' },
-          { label: '10:00 AM', value: '10:00' },
-          { label: '11:00 AM', value: '11:00' },
-          { label: '1:00 PM', value: '13:00' },
-          { label: '2:00 PM', value: '14:00' },
-          { label: '3:00 PM', value: '15:00' },
-          { label: '4:00 PM', value: '16:00' }
+          { label: 'Bug', value: 'bug' },
+          { label: 'Performance', value: 'performance' },
+          { label: 'UX', value: 'ux' },
         ],
       },
       {
-        id: 'client_name', name: 'client_name', label: 'Your Name', type: 'text',
-        placeholder: 'Jane Smith', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 3, autocomplete: 'name',
+        id: 'priority', name: 'priority', label: 'Priority', type: 'select',
+        isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 4,
+        options: [
+          { label: 'Critical', value: 'critical' },
+          { label: 'High', value: 'high' },
+          { label: 'Medium', value: 'medium' },
+          { label: 'Low', value: 'low' },
+        ],
       },
       {
-        id: 'client_email', name: 'client_email', label: 'Email Address', type: 'email',
-        placeholder: 'jane@example.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '50', order: 4, autocomplete: 'email',
+        id: 'browser', name: 'browser', label: 'Browser / OS', type: 'text',
+        placeholder: 'Chrome 113 on macOS', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 5,
       },
       {
-        id: 'phone', name: 'phone', label: 'Phone Number', type: 'tel',
-        placeholder: '+1 (555) 123-4567', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-        width: '100', order: 5, autocomplete: 'tel',
-      },
-      {
-        id: 'notes', name: 'notes', label: 'Additional Notes', type: 'textarea',
-        placeholder: 'Any specific requirements or questions...', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        id: 'description', name: 'description', label: 'Describe the issue', type: 'textarea',
+        placeholder: 'Steps to reproduce, expected vs actual behavior, and screenshots if available', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
         width: '100', order: 6,
       },
     ],
     config: {
-      title: 'Book an Appointment',
-      subHeader: '',
-      description: 'Schedule your session with us',
-      submitButtonText: 'Book Appointment',
-      successMessage: 'Your appointment has been booked! We\'ll send you a confirmation email.',
+      title: 'Bug Report',
+      subHeader: 'Log product issues with rich detail',
+      description: 'Submit a bug report and we will triage it with the engineering team.',
+      submitButtonText: 'Submit Report',
+      successMessage: 'Thanks! The engineering team received your report and will respond soon.',
+      layout: 'split-left',
     }
   }
 ];
@@ -498,11 +587,10 @@ export const templateCategories = [
   'Feedback',
   'Research',
   'Sales',
-  'HR & Recruiting',
-  'Booking & Scheduling',
-  'E-commerce',
-  'Healthcare',
-  'Insurance & Finance'
+  'Product',
+  'Education',
+  'Services',
+  'Support'
 ];
 
 export function getTemplatesByCategory(category: string): Template[] {

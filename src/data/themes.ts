@@ -5,9 +5,7 @@ export interface Theme {
   name: string;
   description: string;
   preview: string;
-  category: 'light' | 'dark' | 'colorful' | 'minimal' | 'professional' | 'creative' | 'branded';
-  isPremium?: boolean;
-  tags: string[];
+  category: 'light' | 'dark' | 'colorful' | 'minimal';
   config: FormTheme;
 }
 
@@ -18,7 +16,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Clean and professional with blue accents',
     preview: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     category: 'light',
-    tags: ['modern', 'professional', 'blue', 'clean'],
     config: {
       primaryColor: '#667eea',
       secondaryColor: '#764ba2',
@@ -58,7 +55,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Nature-inspired green theme',
     preview: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
     category: 'colorful',
-    tags: ['nature', 'green', 'fresh', 'organic'],
     config: {
       primaryColor: '#10b981',
       secondaryColor: '#059669',
@@ -98,7 +94,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Warm and energetic orange theme',
     preview: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
     category: 'colorful',
-    tags: ['warm', 'energetic', 'orange', 'vibrant'],
     config: {
       primaryColor: '#f97316',
       secondaryColor: '#ea580c',
@@ -138,7 +133,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Elegant and sophisticated purple theme',
     preview: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
     category: 'colorful',
-    tags: ['elegant', 'royal', 'purple', 'sophisticated'],
     config: {
       primaryColor: '#8b5cf6',
       secondaryColor: '#7c3aed',
@@ -178,7 +172,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Minimal black and white design',
     preview: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
     category: 'minimal',
-    tags: ['minimal', 'clean', 'simple', 'white'],
     config: {
       primaryColor: '#000000',
       secondaryColor: '#374151',
@@ -218,7 +211,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Sleek dark theme for modern interfaces',
     preview: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
     category: 'dark',
-    tags: ['dark', 'modern', 'sleek', 'night'],
     config: {
       primaryColor: '#3b82f6',
       secondaryColor: '#1d4ed8',
@@ -258,7 +250,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Sophisticated rose and pink tones',
     preview: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 100%)',
     category: 'colorful',
-    tags: ['elegant', 'rose', 'pink', 'sophisticated'],
     config: {
       primaryColor: '#f43f5e',
       secondaryColor: '#e11d48',
@@ -298,7 +289,6 @@ export const predefinedThemes: Theme[] = [
     description: 'Calming teal and blue-green theme',
     preview: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
     category: 'colorful',
-    tags: ['calming', 'ocean', 'teal', 'nature'],
     config: {
       primaryColor: '#14b8a6',
       secondaryColor: '#0f766e',

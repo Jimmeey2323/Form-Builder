@@ -23,7 +23,33 @@ export type FieldType =
   | 'rating'
   | 'signature'
   | 'section-break'
-  | 'page-break';
+  | 'page-break'
+  | 'heading'
+  | 'paragraph'
+  | 'banner'
+  | 'picture-choice'
+  | 'multiselect'
+  | 'switch'
+  | 'multiple-choice'
+  | 'checkboxes'
+  | 'choice-matrix'
+  | 'date-range'
+  | 'ranking'
+  | 'star-rating'
+  | 'opinion-scale'
+  | 'rich-text'
+  | 'address'
+  | 'currency'
+  | 'voice-recording'
+  | 'submission-picker'
+  | 'subform'
+  | 'section-collapse'
+  | 'divider'
+  | 'html-snippet'
+  | 'image'
+  | 'video'
+  | 'pdf-viewer'
+  | 'social-links';
 
 export interface FieldOption {
   label: string;
@@ -267,40 +293,71 @@ export interface FormConfig {
 }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
-  text: 'Text Input',
-  email: 'Email',
+  text: 'Short Answer',
+  textarea: 'Long Answer',
+  'rich-text': 'Rich Text',
+  heading: 'Heading',
+  paragraph: 'Paragraph',
+  banner: 'Banner',
+  select: 'Dropdown',
+  radio: 'Multiple Choice',
+  'multiple-choice': 'Multiple Choice',
+  'picture-choice': 'Picture Choice',
+  multiselect: 'Multiselect',
+  checkboxes: 'Checkbox Grid',
+  checkbox: 'Single Checkbox',
+  'choice-matrix': 'Choice Matrix',
+  switch: 'Switch',
+  date: 'Date Picker',
+  'datetime-local': 'Date & Time Picker',
+  time: 'Time Picker',
+  'date-range': 'Date Range Picker',
+  rating: 'Rating',
+  ranking: 'Ranking',
+  'star-rating': 'Star Rating',
+  'opinion-scale': 'Opinion Scale',
+  email: 'Email Input',
   tel: 'Phone Number',
+  address: 'Address',
   number: 'Number',
-  url: 'URL',
+  currency: 'Currency',
+  url: 'URL Input',
   password: 'Password',
-  textarea: 'Text Area',
-  select: 'Dropdown Select',
-  radio: 'Radio Buttons',
-  checkbox: 'Checkboxes',
-  date: 'Date',
-  time: 'Time',
-  'datetime-local': 'Date & Time',
   file: 'File Upload',
-  range: 'Range Slider',
+  'voice-recording': 'Voice Recording',
+  'submission-picker': 'Submission Picker',
+  subform: 'Subform',
   color: 'Color Picker',
+  image: 'Image',
+  video: 'Video',
+  'pdf-viewer': 'PDF Viewer',
+  'social-links': 'Social Media Links',
+  'section-break': 'Section Break',
+  'section-collapse': 'Section Collapse',
+  divider: 'Divider',
+  'html-snippet': 'HTML Snippet',
   hidden: 'Hidden Field',
   lookup: 'Lookup Field',
   formula: 'Formula Field',
   conditional: 'Conditional Field',
   dependent: 'Dependent Field',
-  rating: 'Rating',
   signature: 'Signature',
-  'section-break': 'Section Break',
   'page-break': 'Page Break',
+  range: 'Slider',
 };
 
 export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
-  'Basic': ['text', 'email', 'tel', 'number', 'url', 'password', 'textarea'],
-  'Choice': ['select', 'radio', 'checkbox', 'rating'],
-  'Date & Time': ['date', 'time', 'datetime-local'],
-  'Media': ['file', 'color', 'signature'],
-  'Layout': ['section-break', 'page-break', 'hidden'],
-  'Advanced': ['lookup', 'formula', 'conditional', 'dependent', 'range'],
+  'Display Text': ['heading', 'paragraph', 'banner'],
+  'Text': ['text', 'textarea', 'rich-text'],
+  'Choices': ['select', 'picture-choice', 'multiselect', 'switch', 'multiple-choice', 'checkbox', 'checkboxes', 'choice-matrix'],
+  'Time': ['date', 'datetime-local', 'time', 'date-range'],
+  'Rating & Ranking': ['rating', 'ranking', 'star-rating', 'range', 'opinion-scale'],
+  'Contact Info': ['email', 'tel', 'address'],
+  'Number': ['number', 'currency'],
+  'Miscellaneous': ['url', 'color', 'password', 'file', 'signature', 'voice-recording', 'submission-picker', 'subform'],
+  'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'html-snippet', 'page-break', 'hidden'],
+  'Media': ['image', 'video', 'pdf-viewer', 'social-links'],
+  'Advanced': ['lookup', 'formula', 'conditional', 'dependent'],
 };
 
 export function createDefaultField(type: FieldType, order: number): FormField {
@@ -308,8 +365,9 @@ export function createDefaultField(type: FieldType, order: number): FormField {
   const base: FormField = {
     id,
     name: id,
-    label: FIELD_TYPE_LABELS[type],
+    label: FIELD_TYPE_LABELS[type] ?? 'Field',
     type,
+    placeholder: '',
     isRequired: false,
     isHidden: false,
     isReadOnly: false,
@@ -317,18 +375,38 @@ export function createDefaultField(type: FieldType, order: number): FormField {
     width: '100',
     order,
   };
-  
-  if (['select', 'radio', 'checkbox'].includes(type)) {
+
+  const optionTypes: FieldType[] = ['select', 'radio', 'multiple-choice', 'picture-choice', 'multiselect', 'choice-matrix', 'checkbox', 'checkboxes', 'switch'];
+  if (optionTypes.includes(type)) {
     base.options = [
       { label: 'Option 1', value: 'option_1' },
       { label: 'Option 2', value: 'option_2' },
     ];
   }
-  
-  if (type === 'rating') {
+
+  if (['rating', 'ranking', 'star-rating'].includes(type)) {
     base.max = 5;
     base.min = 1;
   }
-  
+
+  if (type === 'range' || type === 'opinion-scale') {
+    base.min = 0;
+    base.max = 10;
+    base.step = 1;
+  }
+
+  if (type === 'currency') {
+    base.step = 0.01;
+    base.placeholder = 'Enter an amount';
+  }
+
+  if (type === 'date-range') {
+    base.placeholder = 'Start → End';
+  }
+
+  if (type === 'subform' || type === 'section-collapse') {
+    base.helpText = 'Drop your nested fields here';
+  }
+
   return base;
 }

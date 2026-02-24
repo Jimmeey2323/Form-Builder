@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 import { FieldEditorDialog } from '@/components/form-builder/FieldEditorDialog';
 import { FormPreview } from '@/components/form-builder/FormPreview';
@@ -9,12 +10,16 @@ import { TestSubmission } from '@/components/TestSubmission';
 import { FormCard } from '@/components/FormCard';
 import { TemplateSelectionDialog } from '@/components/TemplateSelectionDialog';
 import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
-import { FormField } from '@/types/formField';
+import { FieldType, FIELD_TYPE_CATEGORIES, FIELD_TYPE_LABELS, FormConfig, FormField } from '@/types/formField';
 import { Template } from '@/data/templates';
+import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
+
+import { FIELD_ICONS } from '@/components/form-builder/fieldIcons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,9 +65,13 @@ import {
   Users,
   TrendingUp,
   Sparkles,
+  LayoutDashboard,
+  ChevronLeft,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+
+const FIELD_GROUPS = Object.entries(FIELD_TYPE_CATEGORIES) as [string, FieldType[]][];
 
 async function generateHtmlWithEmbeddedLogo(form: any): Promise<string> {
   let logoBase64: string | undefined;
@@ -77,6 +86,7 @@ async function generateHtmlWithEmbeddedLogo(form: any): Promise<string> {
 }
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
   const {
     forms,
     activeForm,
@@ -105,11 +115,21 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'library' | 'forms'>('library');
+  const handleSidebarTabChange = (value: string) => {
+    setSidebarTab(value as 'library' | 'forms');
+  };
 
   // Sync persisted deploy URL when the active form changes
   useEffect(() => {
     setDeployUrl(activeForm?.deployedUrl ?? null);
   }, [activeForm?.id]);
+
+  // Activate a specific form when navigated from dashboard via ?formId=
+  useEffect(() => {
+    const formId = searchParams.get('formId');
+    if (formId) setActiveFormId(formId);
+  }, [searchParams]);
   const [creatingSheetsFor, setCreatingSheetsFor] = useState<string | null>(null);
   const [confirmDeleteForm, setConfirmDeleteForm] = useState(false);
   const [confirmDeploy, setConfirmDeploy] = useState(false);
@@ -206,12 +226,41 @@ const Index = () => {
     toast.success(`Copied ${copiedCount} forms`);
   };
 
+  const toggleAnimationsQuick = () => {
+    if (!activeForm) return;
+    const animations = activeForm.animations || { enabled: false };
+    updateForm(activeForm.id, {
+      animations: { ...animations, enabled: !animations.enabled },
+    });
+  };
+
+  const toggleWebhookQuick = () => {
+    if (!activeForm) return;
+    updateForm(activeForm.id, {
+      webhookConfig: { ...activeForm.webhookConfig, enabled: !activeForm.webhookConfig.enabled },
+    });
+  };
+
+  const toggleSheetsQuick = () => {
+    if (!activeForm) return;
+    updateForm(activeForm.id, {
+      googleSheetsConfig: { ...activeForm.googleSheetsConfig, enabled: !activeForm.googleSheetsConfig.enabled },
+    });
+  };
+
+  const handleAddField = (type: FieldType) => {
+    if (!activeForm) return;
+    addField(activeForm.id, type);
+    setSidebarTab('library');
+  };
+
   // Template selection handlers
   const handleSelectTemplate = (template: Template) => {
     // Create a new form
     const newForm = createForm();
     if (newForm) {
       // Update the form with template data
+      const configWithHero = applyHeroImageForLayout(newForm, template.config);
       const updatedForm = {
         ...newForm,
         title: template.name,
@@ -221,7 +270,7 @@ const Index = () => {
           id: `field_${Date.now()}_${index}`,
           order: index
         })),
-        ...template.config
+        ...configWithHero
       };
       updateForm(newForm.id, updatedForm);
       setActiveFormId(newForm.id);
@@ -305,6 +354,9 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button asChild variant="outline" size="sm" className="h-9 gap-2 border-border/60 bg-white text-slate-700 hover:bg-slate-50 hover:text-primary hover:border-primary/40 font-medium text-sm shadow-sm transition-all">
+              <Link to="/"><ChevronLeft className="h-4 w-4" /><LayoutDashboard className="h-4 w-4" />Dashboard</Link>
+            </Button>
             {activeForm && (
               <>
                 <div className="hidden md:flex items-center gap-2 mr-4">
@@ -376,140 +428,219 @@ const Index = () => {
         )}
       </header>
 
-      <main className="container py-6">
+      <main className="container py-6 space-y-6">
+        {activeForm && (
+          <Card className="rounded-[32px] border border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 shadow-2xl">
+            <CardContent className="bg-white/5 backdrop-blur-2xl p-6">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Premium builder</p>
+                  <h2 className="text-2xl font-semibold text-white">Experience control center</h2>
+                  <p className="text-sm text-slate-300">
+                    High-fidelity animations, integrations, and layouts keep your launches polished and dependable.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-3 text-[0.6rem] uppercase tracking-[0.45em] text-white/80 border-white/30">
+                  Pro
+                </Badge>
+              </div>
+              <div className="grid gap-4 pt-4 md:grid-cols-3">
+                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Animations</p>
+                    <p className="text-sm font-semibold text-white">Cinematic fades</p>
+                  </div>
+                  <Switch checked={activeForm.animations?.enabled ?? false} onCheckedChange={toggleAnimationsQuick} />
+                </div>
+                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Webhooks</p>
+                    <p className="text-sm font-semibold text-white">Live integrations</p>
+                  </div>
+                  <Switch checked={activeForm.webhookConfig.enabled} onCheckedChange={toggleWebhookQuick} />
+                </div>
+                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Sheets</p>
+                    <p className="text-sm font-semibold text-white">Live exports</p>
+                  </div>
+                  <Switch checked={activeForm.googleSheetsConfig.enabled} onCheckedChange={toggleSheetsQuick} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar */}
           <aside className={`col-span-12 lg:col-span-3${mainTab === 'preview' ? ' hidden' : ''}`}>
-            <div className="space-y-4">
-              {/* Header with actions */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Forms</h2>
-                  <p className="text-sm text-muted-foreground">{forms.length} total</p>
-                </div>
-                <Button onClick={() => setShowTemplateDialog(true)} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create
-                </Button>
-              </div>
-
-              {/* Search and view controls */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Search forms..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  />
-                </div>
-                
-                {forms.length > 0 && (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={handleSelectAll}
-                        className="text-xs"
-                      >
-                        {selectedForms.size === forms.length ? (
-                          <CheckSquare className="h-3 w-3 mr-1" />
-                        ) : (
-                          <Square className="h-3 w-3 mr-1" />
-                        )}
-                        {selectedForms.size > 0 ? `${selectedForms.size} selected` : 'Select all'}
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setViewMode('grid')}
-                        className={`h-8 w-8 p-0 ${viewMode === 'grid' ? 'bg-muted' : ''}`}
-                      >
-                        <Grid3X3 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setViewMode('list')}
-                        className={`h-8 w-8 p-0 ${viewMode === 'list' ? 'bg-muted' : ''}`}
-                      >
-                        <List className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+            <Card className="sticky top-[72px] border-border/50 shadow-sm">
+              <CardHeader className="pb-3 pt-4 px-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h2 className="text-sm font-semibold text-foreground">Workspace</h2>
+                    <p className="text-[11px] text-muted-foreground">{forms.length} form{forms.length !== 1 ? 's' : ''}</p>
                   </div>
-                )}
+                  <Button size="sm" onClick={() => setShowTemplateDialog(true)} className="h-8 bg-primary text-white text-xs px-3">
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    New
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="px-3 pb-4 pt-0">
+                <Tabs value={sidebarTab} onValueChange={handleSidebarTabChange} className="space-y-4">
+                  <TabsList className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100/60 p-1">
+                    <TabsTrigger value="library" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Layers className="h-3.5 w-3.5 mr-2" />
+                      Library
+                    </TabsTrigger>
+                    <TabsTrigger value="forms" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <List className="h-3.5 w-3.5 mr-2" />
+                      Forms
+                    </TabsTrigger>
+                  </TabsList>
 
-                {/* Bulk actions */}
-                {showBulkActions && (
-                  <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <span className="text-sm font-medium text-primary">
-                      {selectedForms.size} selected
-                    </span>
-                    <div className="flex items-center gap-1 ml-auto">
-                      <Button variant="ghost" size="sm" onClick={handleBulkCopy}>
-                        <Copy className="h-3 w-3 mr-1" />
-                        Copy
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(true)} className="text-destructive hover:text-destructive">
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        Delete
-                      </Button>
+                  <TabsContent value="library">
+                    <div className="space-y-3 max-h-[72vh] overflow-y-auto pr-1 pb-2">
+                      {!activeForm && (
+                        <div className="rounded-xl border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-xs text-muted-foreground text-center">
+                          Create or select a form to add fields.
+                        </div>
+                      )}
+                      {FIELD_GROUPS.map(([group, types]) => (
+                        <div key={group}>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/60 px-1 mb-1.5 pt-2">{group}</p>
+                          <div className="grid grid-cols-2 gap-1">
+                            {types.map(type => (
+                              <button
+                                key={type}
+                                onClick={() => handleAddField(type)}
+                                disabled={!activeForm}
+                                className="flex items-center gap-2 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-left text-[11px] font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-40 truncate"
+                              >
+                                <span className="shrink-0 text-muted-foreground">{FIELD_ICONS[type]}</span>
+                                <span className="truncate">{FIELD_TYPE_LABELS[type] ?? type}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                )}
-              </div>
+                  </TabsContent>
 
-              {/* Forms list */}
-              <div className="space-y-2">
-                {filteredForms.length === 0 ? (
-                  <div className="flex flex-col items-center py-12">
-                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                      {searchQuery ? (
-                        <Search className="h-6 w-6 text-muted-foreground/50" />
+                  <TabsContent value="forms">
+                    <div className="space-y-3 max-h-[62vh] overflow-y-auto pr-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="text"
+                          placeholder="Search forms..."
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          className="w-full rounded-xl border border-border/80 bg-transparent px-10 py-2 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                      </div>
+                      {forms.length > 0 && (
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={handleSelectAll}
+                              className="text-xs"
+                            >
+                              {selectedForms.size === forms.length ? (
+                                <CheckSquare className="h-3 w-3 mr-1" />
+                              ) : (
+                                <Square className="h-3 w-3 mr-1" />
+                              )}
+                              {selectedForms.size > 0 ? `${selectedForms.size} selected` : 'Select all'}
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setViewMode('grid')}
+                              className={`h-8 w-8 p-0 ${viewMode === 'grid' ? 'bg-muted' : ''}`}
+                            >
+                              <Grid3X3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setViewMode('list')}
+                              className={`h-8 w-8 p-0 ${viewMode === 'list' ? 'bg-muted' : ''}`}
+                            >
+                              <List className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      {showBulkActions && (
+                        <div className="flex items-center gap-2 rounded-2xl border border-primary/30 bg-primary/5 p-3 text-xs">
+                          <span className="font-medium text-primary">{selectedForms.size} selected</span>
+                          <Button variant="ghost" size="sm" onClick={handleBulkCopy}>
+                            <Copy className="h-3 w-3 mr-1" />
+                            Copy
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setConfirmBulkDelete(true)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                      {filteredForms.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-muted-foreground/40 p-6 text-center text-sm text-muted-foreground">
+                          <div className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                            {searchQuery ? (
+                              <Search className="h-6 w-6 text-muted-foreground/70" />
+                            ) : (
+                              <FileCode className="h-6 w-6 text-muted-foreground/50" />
+                            )}
+                          </div>
+                          <p className="font-semibold text-xs uppercase tracking-[0.4em]">
+                            {searchQuery ? 'No forms found' : 'No forms yet'}
+                          </p>
+                          <p className="text-[11px] leading-relaxed">
+                            {searchQuery ? 'Try a different keyword or clear the search' : 'Create a form to begin designing your experience.'}
+                          </p>
+                          {!searchQuery && (
+                            <Button onClick={createForm} size="sm" className="mt-3 bg-gradient-to-r from-primary to-primary/80">
+                              <Plus className="h-3 w-3 mr-1" />
+                              Create Form
+                            </Button>
+                          )}
+                        </div>
                       ) : (
-                        <FileCode className="h-6 w-6 text-muted-foreground/50" />
+                        <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-2'}>
+                          {filteredForms.map(form => (
+                            <FormCard
+                              key={form.id}
+                              form={form}
+                              isActive={activeFormId === form.id}
+                              isSelected={selectedForms.has(form.id)}
+                              viewMode={viewMode}
+                              onSelect={() => setActiveFormId(form.id)}
+                              onToggleSelect={() => handleSelectForm(form.id)}
+                              onCopy={() => handleCopyForm(form)}
+                              onDelete={() => {
+                                setActiveFormId(form.id);
+                                setConfirmDeleteForm(true);
+                              }}
+                            />
+                          ))}
+                        </div>
                       )}
                     </div>
-                    <h3 className="font-semibold text-sm mb-1">
-                      {searchQuery ? 'No forms found' : 'No forms yet'}
-                    </h3>
-                    <p className="text-xs text-muted-foreground text-center mb-4">
-                      {searchQuery ? 'Try a different search term' : 'Create your first form to get started'}
-                    </p>
-                    {!searchQuery && (
-                      <Button onClick={createForm} size="sm" className="bg-gradient-to-r from-primary to-primary/80">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Create Form
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-2'}>
-                    {filteredForms.map(form => (
-                      <FormCard
-                        key={form.id}
-                        form={form}
-                        isActive={activeFormId === form.id}
-                        isSelected={selectedForms.has(form.id)}
-                        viewMode={viewMode}
-                        onSelect={() => setActiveFormId(form.id)}
-                        onToggleSelect={() => handleSelectForm(form.id)}
-                        onCopy={() => handleCopyForm(form)}
-                        onDelete={() => {
-                          setActiveFormId(form.id);
-                          setConfirmDeleteForm(true);
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
           </aside>
 
           {/* Main Content */}

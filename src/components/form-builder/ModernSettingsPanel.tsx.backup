@@ -72,25 +72,7 @@ export function ModernSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingS
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
-              <Settings className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-slate-900">Form Settings</h1>
-              <p className="text-sm text-slate-500">Customize your form appearance and behavior</p>
-            </div>
-          </div>
-          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200">
-            {form.fields?.length || 0} fields
-          </Badge>
-        </div>
-      </div>
-
+    <>
       <div className="flex h-[calc(100vh-80px)]">
         {/* Sidebar Navigation */}
         <div className="w-72 bg-white border-r border-slate-200/60 p-4">
@@ -177,7 +159,7 @@ export function ModernSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingS
         onSelectTheme={handleSelectTheme}
         currentTheme={form.theme}
       />
-    </div>
+    </>
   );
 }
 
