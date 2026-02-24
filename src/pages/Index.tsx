@@ -6,7 +6,7 @@ import { AddFieldMenu } from '@/components/form-builder/AddFieldMenu';
 import { FormPreview } from '@/components/form-builder/FormPreview';
 import { HtmlExportDialog } from '@/components/form-builder/HtmlExportDialog';
 import { FormSettingsPanel } from '@/components/form-builder/FormSettingsPanel';
-import { generateFormHtml } from '@/utils/htmlGenerator';
+import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
 import { FormField } from '@/types/formField';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,6 @@ import {
   Settings,
   Plus,
   Trash2,
-  Share2,
   FileCode,
   Layers,
   Webhook,
@@ -31,6 +30,18 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+
+async function generateHtmlWithEmbeddedLogo(form: any): Promise<string> {
+  let logoBase64: string | undefined;
+  if (form.theme.showLogo && form.theme.logoUrl) {
+    try {
+      logoBase64 = await convertImageToBase64(form.theme.logoUrl);
+    } catch {
+      // fallback - logo won't be embedded
+    }
+  }
+  return generateFormHtml(form, { logoBase64 });
+}
 
 const Index = () => {
   const {
@@ -60,7 +71,7 @@ const Index = () => {
     setDeploying(true);
     setDeployUrl(null);
     try {
-      const html = generateFormHtml(activeForm);
+      const html = await generateHtmlWithEmbeddedLogo(activeForm);
       const { data, error } = await supabase.functions.invoke('deploy-to-vercel', {
         body: { html, formTitle: activeForm.title },
       });
@@ -115,6 +126,14 @@ const Index = () => {
     }
   };
 
+  const handlePreviewInNewTab = async () => {
+    if (!activeForm) return;
+    const html = await generateHtmlWithEmbeddedLogo(activeForm);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -153,13 +172,7 @@ const Index = () => {
                   <Code className="h-3.5 w-3.5 mr-1.5" />
                   Export
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => {
-                  if (!activeForm) return;
-                  const html = generateFormHtml(activeForm);
-                  const blob = new Blob([html], { type: 'text/html' });
-                  const url = URL.createObjectURL(blob);
-                  window.open(url, '_blank');
-                }}>
+                <Button variant="outline" size="sm" onClick={handlePreviewInNewTab}>
                   <Eye className="h-3.5 w-3.5 mr-1.5" />
                   Preview
                 </Button>

@@ -262,6 +262,23 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
       <AccordionItem value="theme-dimensions" className="border rounded-lg px-4">
         <AccordionTrigger className="text-sm font-semibold">Dimensions & Layout</AccordionTrigger>
         <AccordionContent className="space-y-4 pb-4">
+          <div className="space-y-2">
+            <Label>Form Layout</Label>
+            <Select value={form.theme.formLayout || 'single'} onValueChange={v => updateTheme({ formLayout: v as any })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="single">Single Column</SelectItem>
+                <SelectItem value="two-column">Two Columns (Grid)</SelectItem>
+                <SelectItem value="three-column">Three Columns (Grid)</SelectItem>
+                <SelectItem value="custom">Custom (Per-field widths)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {form.theme.formLayout === 'custom'
+                ? 'Set individual field widths in the field editor (Style tab).'
+                : 'Fields will automatically flow into the selected grid layout.'}
+            </p>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Form Width</Label>

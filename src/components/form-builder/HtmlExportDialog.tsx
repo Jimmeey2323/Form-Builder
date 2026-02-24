@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { FormConfig } from '@/types/formField';
-import { generateFormHtml } from '@/utils/htmlGenerator';
-import { Copy, Download, Check } from 'lucide-react';
+import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
+import { Copy, Download, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface HtmlExportDialogProps {
@@ -22,7 +22,23 @@ interface HtmlExportDialogProps {
 
 export function HtmlExportDialog({ form, open, onClose }: HtmlExportDialogProps) {
   const [copied, setCopied] = useState(false);
-  const html = generateFormHtml(form);
+  const [html, setHtml] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setLoading(true);
+    (async () => {
+      let logoBase64: string | undefined;
+      if (form.theme.showLogo && form.theme.logoUrl) {
+        try {
+          logoBase64 = await convertImageToBase64(form.theme.logoUrl);
+        } catch {}
+      }
+      setHtml(generateFormHtml(form, { logoBase64 }));
+      setLoading(false);
+    })();
+  }, [open, form]);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(html);
@@ -47,19 +63,25 @@ export function HtmlExportDialog({ form, open, onClose }: HtmlExportDialogProps)
       <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Export HTML</DialogTitle>
-          <DialogDescription>Copy or download the generated HTML form code.</DialogDescription>
+          <DialogDescription>Copy or download the generated HTML form code. Logo is embedded as base64.</DialogDescription>
         </DialogHeader>
-        <Textarea
-          value={html}
-          readOnly
-          className="font-mono text-xs h-[400px] resize-none"
-        />
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <Textarea
+            value={html}
+            readOnly
+            className="font-mono text-xs h-[400px] resize-none"
+          />
+        )}
         <DialogFooter>
-          <Button variant="outline" onClick={copyToClipboard}>
+          <Button variant="outline" onClick={copyToClipboard} disabled={loading}>
             {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
             {copied ? 'Copied!' : 'Copy HTML'}
           </Button>
-          <Button onClick={downloadHtml}>
+          <Button onClick={downloadHtml} disabled={loading}>
             <Download className="h-4 w-4 mr-2" />
             Download .html
           </Button>

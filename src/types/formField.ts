@@ -142,6 +142,7 @@ export interface FormTheme {
   labelFontSize: string;
   inputFontSize: string;
   formShadow: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  formLayout: 'single' | 'two-column' | 'three-column' | 'custom';
   customCss?: string;
 }
 

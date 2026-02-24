@@ -1,5 +1,9 @@
 import { FormConfig, FormField } from '@/types/formField';
 
+interface GenerateOptions {
+  logoBase64?: string;
+}
+
 function escapeHtml(str: string): string {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -28,7 +32,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
   const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : '';
   const helpText = field.helpText ? `\n      <span class="help-text">${escapeHtml(field.helpText)}</span>` : '';
   const cssClass = field.cssClass ? ` ${field.cssClass}` : '';
-  const widthClass = field.width && field.width !== '100' ? ` field-w-${field.width}` : '';
+  const widthStyle = field.width && field.width !== '100' ? ` style="grid-column: span ${Math.round(parseInt(field.width) / (100/12))} / span ${Math.round(parseInt(field.width) / (100/12))}"` : '';
   const autocomplete = field.autocomplete ? ` autocomplete="${escapeHtml(field.autocomplete)}"` : '';
   const minLen = field.minLength ? ` minlength="${field.minLength}"` : '';
   const maxLen = field.maxLength ? ` maxlength="${field.maxLength}"` : '';
@@ -92,9 +96,33 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       break;
     case 'signature':
       inputHtml = `<div class="signature-pad${cssClass}"${condAttrs}>
-        <canvas id="sig_${field.id}" width="400" height="150"></canvas>
+        <canvas id="sig_${field.id}" width="400" height="200" style="touch-action:none;"></canvas>
         <input type="hidden" id="${field.id}" name="${field.name}"${required}>
-        <button type="button" class="clear-sig" onclick="document.getElementById('sig_${field.id}').getContext('2d').clearRect(0,0,400,150)">Clear</button>
+        <div class="sig-controls">
+          <button type="button" class="clear-sig" onclick="clearSignature('${field.id}')">Clear</button>
+          <button type="button" class="undo-sig" onclick="undoSignature('${field.id}')">Undo</button>
+        </div>
+        <p class="help-text" style="margin-top:4px;">Draw your signature above</p>
+      </div>`;
+      break;
+    case 'tel':
+      inputHtml = `<div class="phone-input-group${cssClass}"${condAttrs}>
+        <select id="${field.id}_code" class="form-input country-code-select" onchange="updatePhoneValue('${field.id}')">
+          <option value="+91" selected>🇮🇳 +91</option>
+          <option value="+1">🇺🇸 +1</option>
+          <option value="+44">🇬🇧 +44</option>
+          <option value="+971">🇦🇪 +971</option>
+          <option value="+65">🇸🇬 +65</option>
+          <option value="+63">🇵🇭 +63</option>
+          <option value="+33">🇫🇷 +33</option>
+          <option value="+49">🇩🇪 +49</option>
+          <option value="+81">🇯🇵 +81</option>
+          <option value="+86">🇨🇳 +86</option>
+          <option value="+61">🇦🇺 +61</option>
+          <option value="+34">🇪🇸 +34</option>
+        </select>
+        <input type="tel" id="${field.id}_number" name="${field.name}_raw"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || 'Phone number')}"${minLen}${maxLen}${pattern}${autocomplete} class="form-input phone-number-input" oninput="updatePhoneValue('${field.id}')">
+        <input type="hidden" id="${field.id}" name="${field.name}">
       </div>`;
       break;
     default:
@@ -102,7 +130,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
   }
 
   return `
-    <div class="form-group${widthClass}"${hidden}>
+    <div class="form-group"${hidden}${widthStyle}>
       <label for="${field.id}">${escapeHtml(field.label)}${requiredMark}</label>
       ${inputHtml}${helpText}
     </div>`;
@@ -249,8 +277,12 @@ function generateWebhookScript(config: FormConfig): string {
             submitBtn.textContent = 'Submitting...';
 
             var formData = new FormData(this);
+            // Remove raw phone input, keep the combined one
+            formData.delete('phoneNumber_raw');
             var baseData = Object.fromEntries(formData);
             ${dataBuilder}
+
+            console.log('Submitting data:', JSON.stringify(data));
 
             fetch('${escapeHtml(webhookConfig.url)}', {
                 method: '${webhookConfig.method}',
@@ -259,7 +291,14 @@ function generateWebhookScript(config: FormConfig): string {
                 },
                 body: JSON.stringify(data)
             }).then(function(response) {
-                if (!response.ok) throw new Error('Failed: ' + response.statusText);${pixelEvents}
+                if (!response.ok) {
+                    return response.text().then(function(body) {
+                        console.error('API Response (' + response.status + '):', body);
+                        throw new Error('Submission failed (' + response.status + '): ' + body);
+                    });
+                }
+                return response;
+            }).then(function() {${pixelEvents}
                 ${generateSheetsSubmitScript(config)}
                 ${redirectLine}
             }).catch(function(error) {
@@ -300,7 +339,6 @@ function generateSheetsSubmitScript(config: FormConfig): string {
 }
 
 function getSelectAddresses(config: FormConfig): Record<string, string> {
-  // Build address map from center/location select fields that have known addresses
   const addresses: Record<string, string> = {
     "Kenkere House, Vittal Mallya Road": "1st Floor, Kenkere House, Vittal Mallya Rd, above Raymonds, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560001",
     "the Studio by Copper + Cloves, Indiranagar": "167, Ground Floor Back Portion, 2nd Stage, Shankarnag Rd, Domlur, Bengaluru 560071"
@@ -308,11 +346,64 @@ function getSelectAddresses(config: FormConfig): Record<string, string> {
   return addresses;
 }
 
-export function generateFormHtml(config: FormConfig): string {
+function getLayoutGridCss(layout: string): string {
+  switch (layout) {
+    case 'two-column':
+      return `
+        .form-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .form-fields-grid .section-break,
+        .form-fields-grid .form-group[style*="grid-column"] { }
+        @media (max-width: 640px) {
+            .form-fields-grid { grid-template-columns: 1fr; }
+        }`;
+    case 'three-column':
+      return `
+        .form-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 768px) {
+            .form-fields-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 480px) {
+            .form-fields-grid { grid-template-columns: 1fr; }
+        }`;
+    case 'custom':
+      return `
+        .form-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 16px;
+        }
+        .form-fields-grid > .form-group:not([style*="grid-column"]) {
+            grid-column: span 12 / span 12;
+        }
+        .form-fields-grid > .section-break {
+            grid-column: 1 / -1;
+        }
+        @media (max-width: 640px) {
+            .form-fields-grid { grid-template-columns: 1fr; }
+            .form-fields-grid > .form-group { grid-column: span 1 !important; }
+        }`;
+    default: // single
+      return `
+        .form-fields-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }`;
+  }
+}
+
+export function generateFormHtml(config: FormConfig, options?: GenerateOptions): string {
   const { theme, pixelConfig } = config;
   const sortedFields = [...config.fields].sort((a, b) => a.order - b.order);
   
-  // Split fields into pages
   const pages: FormField[][] = [[]];
   sortedFields.forEach(f => {
     if (f.type === 'page-break') {
@@ -323,6 +414,7 @@ export function generateFormHtml(config: FormConfig): string {
   });
 
   const isMultiPage = pages.length > 1;
+  const layout = theme.formLayout || 'single';
 
   const shadowMap: Record<string, string> = {
     none: 'none',
@@ -348,10 +440,13 @@ export function generateFormHtml(config: FormConfig): string {
         .page-dot.active { background: var(--primary-color); transform: scale(1.2); }
   ` : '';
 
+  const wrapFields = (fields: FormField[]) => 
+    `<div class="form-fields-grid">\n${fields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}\n              </div>`;
+
   const pagesHtml = isMultiPage
     ? pages.map((pageFields, pi) => `
               <div class="form-page${pi === 0 ? ' active' : ''}" data-page="${pi}">
-${pageFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
+                ${wrapFields(pageFields)}
                 ${pi < pages.length - 1 ? `
                 <div class="page-nav">
                   ${pi > 0 ? `<button type="button" class="btn-prev" onclick="goToPage(${pi - 1})">← Back</button>` : ''}
@@ -363,8 +458,8 @@ ${pageFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
                 </div>`}
               </div>`).join('\n')
     : `
-${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
-                <div style="margin-top: 16px;">
+                ${wrapFields(sortedFields)}
+                <div style="margin-top: 20px;">
                     <button type="submit" class="submit-btn">${escapeHtml(config.submitButtonText)}</button>
                 </div>`;
 
@@ -382,6 +477,8 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
             dots[n].classList.add('active');
             document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }` : '';
+
+  const logoSrc = options?.logoBase64 || (theme.logoUrl ? escapeHtml(theme.logoUrl) : '');
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -467,7 +564,7 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
         }
         .form-body { padding: 24px ${theme.formPadding} ${theme.formPadding}; }
         .form-group {
-            margin-bottom: 20px;
+            /* No margin - gap handled by grid */
         }
         .form-group label {
             display: block;
@@ -519,19 +616,72 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
         .rating-star:hover, .rating-star:has(input:checked) { color: #f59e0b; }
         .rating-star input { display: none; }
         .section-break {
-            margin: 24px 0 16px;
+            margin: 8px 0;
             padding-bottom: 8px;
             border-bottom: 2px solid var(--border-color);
+            grid-column: 1 / -1;
         }
         .section-break h3 { font-size: 16px; font-weight: 600; }
         .formula-field { background: var(--bg-secondary); font-family: monospace; }
-        .signature-pad { border: 2px solid var(--border-color); border-radius: 8px; padding: 8px; text-align: center; }
-        .signature-pad canvas { border: 1px dashed var(--border-color); border-radius: 4px; max-width: 100%; }
-        .clear-sig {
-            margin-top: 8px; padding: 6px 16px;
-            background: none; border: 1px solid var(--border-color);
-            border-radius: 6px; cursor: pointer; font-size: 12px;
+
+        /* Phone input with country code */
+        .phone-input-group {
+            display: flex;
+            gap: 8px;
         }
+        .country-code-select {
+            width: 110px !important;
+            flex-shrink: 0;
+            font-size: 14px !important;
+            padding-right: 28px !important;
+        }
+        .phone-number-input {
+            flex: 1;
+        }
+
+        /* Advanced Signature */
+        .signature-pad {
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            background: var(--bg-secondary);
+        }
+        .signature-pad canvas {
+            border: 1px dashed var(--border-color);
+            border-radius: 4px;
+            max-width: 100%;
+            background: #fff;
+            cursor: crosshair;
+        }
+        .sig-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .clear-sig, .undo-sig {
+            padding: 6px 16px;
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+        .clear-sig:hover, .undo-sig:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        /* Pincode validation */
+        .pincode-error {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 4px;
+            display: none;
+        }
+
         .submit-btn {
             width: 100%;
             padding: 14px;
@@ -565,23 +715,20 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
         .success-message { text-align: center; padding: 40px 20px; }
         .success-message h2 { font-size: 48px; margin-bottom: 12px; }
         .success-message p { font-size: 16px; color: var(--text-secondary); }
-        .field-w-25 { display: inline-block; width: 25%; vertical-align: top; padding-right: 8px; }
-        .field-w-33 { display: inline-block; width: 33.33%; vertical-align: top; padding-right: 8px; }
-        .field-w-50 { display: inline-block; width: 50%; vertical-align: top; padding-right: 8px; }
-        .field-w-66 { display: inline-block; width: 66.66%; vertical-align: top; padding-right: 8px; }
-        .field-w-75 { display: inline-block; width: 75%; vertical-align: top; padding-right: 8px; }
+        ${getLayoutGridCss(layout)}
         ${paginationStyles}
         @media (max-width: 640px) {
             .form-body { padding: 20px 20px 24px; }
             .form-header { padding: 24px 20px 8px; }
-            .field-w-25, .field-w-33, .field-w-50, .field-w-66, .field-w-75 { width: 100%; display: block; padding-right: 0; }
+            .phone-input-group { flex-direction: column; }
+            .country-code-select { width: 100% !important; }
         }
         ${theme.customCss || ''}
     </style>
 </head>
 <body>
     <div class="form-container">
-        ${theme.showLogo && theme.logoUrl ? `<div class="logo-container"><img src="${escapeHtml(theme.logoUrl)}" alt="Logo"></div>` : ''}
+        ${theme.showLogo && logoSrc ? `<div class="logo-container"><img src="${logoSrc}" alt="Logo"></div>` : ''}
         <div class="form-header">
             <h1>${escapeHtml(config.title)}</h1>
             ${config.description ? `<p>${escapeHtml(config.description)}</p>` : ''}
@@ -600,6 +747,38 @@ ${pagesHtml}
     <script>
         ${multiPageScript}
         ${generateWebhookScript(config)}
+
+        // Phone country code handler
+        function updatePhoneValue(fieldId) {
+            var codeSelect = document.getElementById(fieldId + '_code');
+            var numberInput = document.getElementById(fieldId + '_number');
+            var hiddenInput = document.getElementById(fieldId);
+            if (codeSelect && numberInput && hiddenInput) {
+                var num = numberInput.value.replace(/\\D/g, '');
+                hiddenInput.value = num ? codeSelect.value + num : '';
+            }
+        }
+
+        // Indian pincode validation
+        (function() {
+            var pincodeField = document.getElementById('zipCode');
+            if (pincodeField) {
+                var errorEl = document.createElement('span');
+                errorEl.className = 'pincode-error';
+                errorEl.textContent = 'Please enter a valid 6-digit Indian pincode';
+                pincodeField.parentNode.appendChild(errorEl);
+                pincodeField.addEventListener('blur', function() {
+                    var val = this.value.trim();
+                    var isValid = /^[1-9][0-9]{5}$/.test(val);
+                    errorEl.style.display = val && !isValid ? 'block' : 'none';
+                    if (val && !isValid) {
+                        this.setCustomValidity('Please enter a valid 6-digit Indian pincode');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                });
+            }
+        })();
 
         // Address display for center/location select
         (function() {
@@ -654,23 +833,115 @@ ${pagesHtml}
             } catch(e) {}
         });
 
-        // Enhanced phone formatter
-        var phoneInput = document.querySelector('input[type="tel"]');
-        if (phoneInput) {
-            phoneInput.addEventListener('blur', function() {
-                var num = this.value.replace(/\\D/g, '');
-                var countryCodes = ['1', '33', '971', '44', '63', '65', '34'];
-                function startsWithCode(n) { return countryCodes.some(function(c) { return n.indexOf(c) === 0; }); }
-                if (num.length === 10 && !startsWithCode(num)) {
-                    this.value = '+91' + num;
-                } else if (startsWithCode(num)) {
-                    this.value = '+' + num;
-                } else {
-                    this.value = '+' + num;
+        // Advanced signature pad
+        (function() {
+            document.querySelectorAll('.signature-pad canvas').forEach(function(canvas) {
+                var ctx = canvas.getContext('2d');
+                var drawing = false;
+                var paths = [];
+                var currentPath = [];
+                var fieldId = canvas.id.replace('sig_', '');
+                var hiddenInput = document.getElementById(fieldId);
+
+                function getPos(e) {
+                    var rect = canvas.getBoundingClientRect();
+                    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    return {
+                        x: (clientX - rect.left) * (canvas.width / rect.width),
+                        y: (clientY - rect.top) * (canvas.height / rect.height)
+                    };
                 }
+
+                function startDraw(e) {
+                    e.preventDefault();
+                    drawing = true;
+                    currentPath = [];
+                    var pos = getPos(e);
+                    currentPath.push(pos);
+                    ctx.beginPath();
+                    ctx.moveTo(pos.x, pos.y);
+                }
+
+                function draw(e) {
+                    if (!drawing) return;
+                    e.preventDefault();
+                    var pos = getPos(e);
+                    currentPath.push(pos);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.strokeStyle = '#1e293b';
+                    ctx.lineWidth = 2;
+                    ctx.lineCap = 'round';
+                    ctx.lineJoin = 'round';
+                    ctx.stroke();
+                }
+
+                function endDraw() {
+                    if (!drawing) return;
+                    drawing = false;
+                    if (currentPath.length > 0) {
+                        paths.push([...currentPath]);
+                    }
+                    if (hiddenInput) hiddenInput.value = canvas.toDataURL();
+                }
+
+                canvas.addEventListener('mousedown', startDraw);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', endDraw);
+                canvas.addEventListener('mouseleave', endDraw);
+                canvas.addEventListener('touchstart', startDraw);
+                canvas.addEventListener('touchmove', draw);
+                canvas.addEventListener('touchend', endDraw);
+
+                window['clearSignature'] = function(fid) {
+                    var c = document.getElementById('sig_' + fid);
+                    if (c) {
+                        c.getContext('2d').clearRect(0, 0, c.width, c.height);
+                        paths = [];
+                        var h = document.getElementById(fid);
+                        if (h) h.value = '';
+                    }
+                };
+
+                window['undoSignature'] = function(fid) {
+                    var c = document.getElementById('sig_' + fid);
+                    if (c && paths.length > 0) {
+                        paths.pop();
+                        var cx = c.getContext('2d');
+                        cx.clearRect(0, 0, c.width, c.height);
+                        paths.forEach(function(path) {
+                            cx.beginPath();
+                            cx.moveTo(path[0].x, path[0].y);
+                            path.forEach(function(p) { cx.lineTo(p.x, p.y); });
+                            cx.strokeStyle = '#1e293b';
+                            cx.lineWidth = 2;
+                            cx.lineCap = 'round';
+                            cx.lineJoin = 'round';
+                            cx.stroke();
+                        });
+                        var h = document.getElementById(fid);
+                        if (h) h.value = paths.length > 0 ? c.toDataURL() : '';
+                    }
+                };
             });
-        }
+        })();
     </script>
 </body>
 </html>`;
+}
+
+// Utility to convert image URL to base64 data URI
+export async function convertImageToBase64(url: string): Promise<string> {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return url; // fallback to original URL
+  }
 }
