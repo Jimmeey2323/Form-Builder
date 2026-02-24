@@ -7,7 +7,7 @@ const defaultTheme: FormTheme = {
   fontFamily: "'Inter', sans-serif",
   borderRadius: '12px',
   showLogo: true,
-  logoUrl: '',
+  logoUrl: '/images/p57-logo.png',
   backgroundColor: '#f1f5f9',
   formBackgroundColor: '#ffffff',
   textColor: '#1e293b',
