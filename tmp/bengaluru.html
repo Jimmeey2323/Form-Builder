@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book a Trial</title>
+    <link href="https://fonts.googleapis.com/css2?family=Play:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #4f46e5;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-light: #94a3b8;
+            --background-primary: #ffffff;
+            --background-secondary: #f8fafc;
+            --border-color: #e2e8f0;
+            --border-focus: #667eea;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.6;
+            color: var(--text-primary);
+        }
+
+        .form-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.1);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .form-container {
+            background: var(--background-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            width: 100%;
+            max-width: 480px;
+            position: relative;
+            overflow: hidden;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary-gradient);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .logo-container {
+            text-align: center;
+            padding: 32px 32px 16px;
+            background: linear-gradient(180deg, var(--background-primary) 0%, var(--background-secondary) 100%);
+        }
+
+        .logo-container img {
+            max-width: 72px;
+            height: auto;
+            filter: drop-shadow(var(--shadow-sm));
+        }
+
+        #lead-form {
+            padding: 24px 32px 32px;
+        }
+
+        .form-group {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        #lead-form label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+        }
+
+        .required {
+            color: #ef4444;
+            margin-left: 2px;
+        }
+
+        #lead-form input[type="text"], 
+        #lead-form input[type="email"], 
+        #lead-form input[type="tel"], 
+        #lead-form select {
+            width: 100%;
+            padding: 14px 16px;
+            margin: 0;
+            border: 2px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 400;
+            background-color: var(--background-primary);
+            color: var(--text-primary);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+        }
+
+        #lead-form input:focus, 
+        #lead-form select:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1), var(--shadow-sm);
+            transform: translateY(-1px);
+        }
+
+        #lead-form input::placeholder {
+            color: var(--text-light);
+            font-weight: 400;
+        }
+
+        #lead-form select {
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 12px center;
+            background-repeat: no-repeat;
+            background-size: 16px;
+            padding-right: 40px;
+            appearance: none;
+        }
+
+        #lead-form select:focus {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23667eea' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e");
+        }
+
+        .address-container {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin-top: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            animation: fadeInUp 0.3s ease-out;
+            box-shadow: var(--shadow-sm);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .address-container img {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            filter: hue-rotate(220deg) saturate(1.2);
+        }
+
+        .address-container span {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 400;
+            line-height: 1.5;
+        }
+
+        #button-container {
+            margin-top: 32px;
+        }
+
+        button.submit {
+            width: 100%;
+            padding: 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: var(--primary-gradient);
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+            letter-spacing: -0.01em;
+        }
+
+        button.submit::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.6s;
+        }
+
+        button.submit:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        button.submit:hover::before {
+            left: 100%;
+        }
+
+        button.submit:active {
+            transform: translateY(-1px);
+        }
+
+        button.submit:disabled {
+            background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: var(--shadow-sm);
+        }
+
+        button.submit:disabled::before {
+            display: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 640px) {
+            .form-overlay {
+                padding: 16px;
+            }
+
+            .form-container {
+                max-width: 100%;
+            }
+
+            .logo-container {
+                padding: 24px 24px 16px;
+            }
+
+            #lead-form {
+                padding: 20px 24px 24px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            #lead-form input[type="text"], 
+            #lead-form input[type="email"], 
+            #lead-form input[type="tel"], 
+            #lead-form select {
+                padding: 12px 14px;
+                font-size: 16px; /* Prevents zoom on iOS */
+            }
+        }
+
+        /* Loading state animation */
+        .loading-dots {
+            display: inline-block;
+        }
+
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+    </style>
+    
+    <!-- Snap Pixel Code -->
+    <script type='text/javascript'>
+    (function(e,t,n){if(e.snaptr)return;var a=e.snaptr=function()
+    {a.handleRequest?a.handleRequest.apply(a,arguments):a.queue.push(arguments)};
+    a.queue=[];var s='script';r=t.createElement(s);r.async=!0;
+    r.src=n;var u=t.getElementsByTagName(s)[0];
+    u.parentNode.insertBefore(r,u);})(window,document,
+    'https://sc-static.net/scevent.min.js');
+
+    snaptr('init', '5217a3a7-5f50-4c98-803c-a73c9f05737e', {
+    'user_email': '__INSERT_USER_EMAIL__'
+    });
+
+    snaptr('track', 'PAGE_VIEW');
+    </script>
+    <!-- End Snap Pixel Code -->
+
+    <!-- Meta Pixel script -->
+    <script>
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window,document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '527819981439695');
+        fbq('track', 'PageView');
+    </script>
+    <noscript>
+    
+        <img src="https://www.facebook.com/tr?id=527819981439695&ev=PageView&noscript=1" />
+    </noscript>
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=AW-809104648"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'AW-809104648');
+</script>
+</head>
+<body>
+    <div class="form-overlay" id="form-overlay">
+        <div class="form-container">
+            <form id="lead-form">
+                <div class="logo-container">
+                    <img src="image.png" alt="Logo">
+                </div>
+                <label for="firstName">First Name</label>
+                <input type="text" id="firstName" name="firstName" required placeholder="John" autocomplete="given-name">
+                
+                <label for="lastName">Last Name</label>
+                <input type="text" id="lastName" name="lastName" required placeholder="Doe" autocomplete="family-name">
+                
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required placeholder="john.doe@example.com" autocomplete="email">
+                
+                <label for="phoneNumber">Phone Number</label>
+                <input type="tel" id="phoneNumber" name="phoneNumber" required placeholder="+91-XXXXXXXXXX" oninput="formatPhoneNumber()" autocomplete="tel">
+                
+                <label for="zipCode">Pincode</label>
+                <input type="text" id="zipCode" name="zipCode" required placeholder="56XXXX" autocomplete="postal-code">
+
+                <!-- NEW: Center selection dropdown -->
+                <label for="center">Select a Studio Location<span class="required">*</span></label>
+                <select id="center" name="center" required>
+                    <option value="" disabled selected>Select Preferred Studio Location</option>
+                    <option value="Kenkere House, Vittal Mallya Road">Kenkere House, Vittal Mallya Road</option>
+                    <option value="the Studio by Copper + Cloves, Indiranagar">the Studio by Copper + Cloves, Indiranagar</option>
+                </select>
+                
+                <!-- MODIFIED: Address container is now dynamic -->
+                <div class="address-container" id="address-display" style="display: none;">
+                    <img src="https://img.icons8.com/ios-filled/50/000000/marker.png" alt="Location Icon" width="16" height="16">
+                    <span id="location-address"></span>
+                </div>
+                <div id="button-container">
+                    <button type="submit" class="submit">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================
+        // NEW: LOGIC TO DYNAMICALLY DISPLAY ADDRESS
+        // ==========================================================
+        const centerSelector = document.getElementById('center');
+        const addressDisplay = document.getElementById('address-display');
+        const locationAddressSpan = document.getElementById('location-address');
+
+        const addresses = {
+            "Kenkere House, Vittal Mallya Road": "1st Floor, Kenkere House, Vittal Mallya Rd, above Raymonds, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560001",
+            "the Studio by Copper + Cloves, Indiranagar": "167, Ground Floor Back Portion, 2nd Stage, Shankarnag Rd, Domlur, Bengaluru 560071"
+        };
+
+        centerSelector.addEventListener('change', function() {
+            const selectedCenter = this.value;
+            if (addresses[selectedCenter]) {
+                locationAddressSpan.textContent = addresses[selectedCenter];
+                addressDisplay.style.display = 'flex'; // Make the address container visible
+            } else {
+                addressDisplay.style.display = 'none'; // Hide if no valid selection
+            }
+        });
+
+        // ==========================================================
+        // FUNCTION TO GET UTM PARAMETERS FROM URL
+        // ==========================================================
+        function getUtmParameters() {
+            // Debug: Log the current URL and search string
+            console.log('Current URL:', window.location.href);
+            console.log('Search string:', window.location.search);
+            
+            // Try multiple methods to extract parameters
+            let searchString = window.location.search;
+            
+            // If no search string found, try parsing from the full URL
+            if (!searchString && window.location.href.includes('?')) {
+                const urlParts = window.location.href.split('?');
+                if (urlParts.length > 1) {
+                    searchString = '?' + urlParts[1];
+                    console.log('Extracted search string from URL:', searchString);
+                }
+            }
+            
+            const params = new URLSearchParams(searchString);
+            const utmData = {
+                // Standard UTM parameters
+                utm_source: params.get('utm_source') || '',
+                utm_medium: params.get('utm_medium') || '',
+                utm_campaign: params.get('utm_campaign') || '',
+                utm_content: params.get('utm_content') || '',
+                utm_id: params.get('utm_id') || '',
+                // Other potential tracking parameters
+                gclid: params.get('gclid') || '', // Google Click ID
+                fbclid: params.get('fbclid') || '' // Facebook Click ID
+            };
+            
+            // Debug: Log individual parameters
+            console.log('All URL parameters:');
+            for (let [key, value] of params) {
+                console.log(`  ${key}: ${value}`);
+            }
+            
+            return utmData;
+        }
+        
+        const utmParams = getUtmParameters();
+        console.log('UTM Parameters captured:', utmParams);
+
+        // ==========================================================
+        // MODIFIED: FORM SUBMISSION LISTENER
+        // ==========================================================
+        document.getElementById('lead-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const submitButton = document.querySelector('button.submit');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+
+            const formData = new FormData(this);
+            const baseData = Object.fromEntries(formData);
+
+            // Combine fixed data, form data, and UTM data
+            const data = {
+                token: "qy71rOk8en",
+                sourceId: "11606",
+                ...baseData,
+                // APPEND UTM DATA
+                utm_source: utmParams.utm_source,
+                utm_medium: utmParams.utm_medium,
+                utm_campaign: utmParams.utm_campaign,
+                utm_content: utmParams.utm_content,
+                utm_id: utmParams.utm_id,
+                gclid: utmParams.gclid,
+                fbclid: utmParams.fbclid
+            };
+
+            // Debug: Log the complete data being sent to Momence
+            console.log('Complete data being sent to Momence:', data);
+            console.log('UTM Source being sent:', data.utm_source);
+
+            fetch('https://api.momence.com/integrations/customer-leads/33905/collect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer qy71rOk8en'
+                },
+                body: JSON.stringify(data)
+            }).then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to submit: ' + response.statusText);
+                }
+
+                snaptr('track', 'SIGN_UP', {
+                    'sign_up_method': 'form_submission',
+                    'user_email': formData.get('email'),
+                    'firstname': formData.get('firstName'),
+                    'lastname': formData.get('lastName'),
+                    'phone_number': formData.get('phoneNumber'),
+                    'zip_code': formData.get('zipCode')
+                });
+
+                window.top.location.href = 'https://momence.com/u/physique-57-bengaluru-0MU0AA';
+            }).catch((error) => {
+                console.error('Error:', error);
+                alert(error.message);
+                submitButton.disabled = false;
+                submitButton.textContent = 'Submit';
+            });
+        });
+
+        function formatPhoneNumber() {
+            let input = document.getElementById('phoneNumber');
+            let number = input.value.replace(/\D/g, ''); // Remove non-digit characters
+
+            // List of recognized country codes
+            const countryCodes = ['1', '33', '971', '44', '63', '65', '34'];
+
+            // Function to check if the number starts with any of the recognized country codes
+            function startsWithCode(num) {
+                return countryCodes.some(code => num.startsWith(code));
+            }
+
+            if (number.length === 10 && !startsWithCode(number)) {
+                // If number is 10 digits and does not start with a recognized code, assume it's Indian
+                input.value = '+91' + number;
+            } else if (startsWithCode(number)) {
+                // If it starts with a recognized country code, just add +
+                input.value = '+' + number;
+            } else {
+                // If none of the above, set the number as is but ensure it starts with +
+                input.value = '+' + number;
+            }
+        }
+
+        // Fire VIEW_CONTENT pixel when the form page is loaded
+        snaptr('track', 'VIEW_CONTENT', {
+            'price': 'INSERT_PRICE',
+            'currency': 'INSERT_CURRENCY',
+            'item_ids': ['INSERT_ITEM_ID_1', 'INSERT_ITEM_ID_2'],
+            'item_category': 'INSERT_ITEM_CATEGORY',
+            'user_email': '__INSERT_USER_EMAIL__',
+            'user_phone_number': '__INSERT_USER_PHONE_NUMBER__',
+            'user_hashed_email': '__INSERT_USER_HASHED_EMAIL__',
+            'user_hashed_phone_number': '__INSERT_USER_HASHED_PHONE_NUMBER__',
+            'firstname': 'INSERT_FIRST_NAME',
+            'lastname': 'INSERT_LAST_NAME',
+            'age': 'INSERT_AGE',
+            'geo_city': 'INSERT_GEO_CITY',
+            'geo_country': 'INSERT_GEO_COUNTRY',
+            'geo_postal_code': 'INSERT_GEO_POSTAL_CODE',
+            'geo_region': 'INSERT_GEO_REGION'
+        });
+    </script>
+
+</body>
+</html>
