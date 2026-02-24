@@ -116,22 +116,34 @@ serve(async (req) => {
       throw new Error(deployData.error.message || JSON.stringify(deployData.error));
     }
 
-    // URL resolution strategy:
-    // • Existing project → use the confirmed stable alias from the Projects API (already validated)
-    // • New project → try stable alias from deployment response, then fall back to deployData.url
-    //   (the deployment-specific URL which is always accessible once the build completes)
+    // After deployment, re-fetch project to get confirmed public aliases.
+    // For brand-new projects Vercel may need a moment to register aliases,
+    // so we check and fall back to the derived .vercel.app URL which is always correct.
     let url: string;
-    if (projectExists) {
+    if (projectExists && productionAlias !== `${projectName}.vercel.app`) {
+      // Already have a confirmed custom domain from the pre-deploy check
       url = `https://${productionAlias}`;
     } else {
-      const deploymentAliases: string[] = deployData.alias ?? deployData.aliases ?? [];
-      const stableAlias = deploymentAliases.find((a: string) => !a.match(/[a-f0-9]{12,}/));
-      if (stableAlias) {
-        url = `https://${stableAlias}`;
-      } else if (deployData.url) {
-        url = `https://${deployData.url}`;
-      } else {
-        url = `https://${productionAlias}`;
+      // Re-fetch the project to get any freshly-assigned aliases
+      try {
+        const refreshRes = await fetch(`https://api.vercel.com/v9/projects/${projectName}`, {
+          headers: authHeaders,
+        });
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          const aliases: string[] = refreshData.alias
+            ? refreshData.alias.map((a: any) => a.domain ?? a)
+            : [];
+          // Prefer a custom domain, else the stable .vercel.app project URL
+          const customAlias = aliases.find((d: string) => !d.endsWith('.vercel.app'));
+          const vercelAppAlias = aliases.find((d: string) => d === `${projectName}.vercel.app`);
+          url = `https://${customAlias || vercelAppAlias || `${projectName}.vercel.app`}`;
+        } else {
+          // Vercel always sets projectname.vercel.app as the project's public URL
+          url = `https://${projectName}.vercel.app`;
+        }
+      } catch (_) {
+        url = `https://${projectName}.vercel.app`;
       }
     }
 
@@ -141,7 +153,6 @@ serve(async (req) => {
       success: true,
       url,
       deploymentId: deployData.id,
-      deploymentUrl: deployData.url ? `https://${deployData.url}` : undefined,
       status: readyState,
       projectName,
     }), {
