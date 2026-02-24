@@ -46,7 +46,7 @@ const defaultPixels: PixelConfig = {
 };
 
 const defaultGoogleSheets: GoogleSheetsConfig = {
-  enabled: false,
+  enabled: true,
   spreadsheetId: '',
   sheetName: 'Form Submissions',
 };

@@ -1,1 +1,7 @@
 project_id = "pwgdytetevxwuujdevis"
+
+[functions.google-sheets]
+verify_jwt = false
+
+[functions.deploy-to-vercel]
+verify_jwt = false

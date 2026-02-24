@@ -7,15 +7,17 @@ import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Loader2, Sheet } from 'lucide-react';
 import { useState } from 'react';
 
 interface FormSettingsPanelProps {
   form: FormConfig;
   onUpdate: (updates: Partial<FormConfig>) => void;
+  onCreateSheet?: () => void;
+  isCreatingSheet?: boolean;
 }
 
-export function FormSettingsPanel({ form, onUpdate }: FormSettingsPanelProps) {
+export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingSheet }: FormSettingsPanelProps) {
   const [newHeaderKey, setNewHeaderKey] = useState('');
   const [newHeaderVal, setNewHeaderVal] = useState('');
 
@@ -45,8 +47,12 @@ export function FormSettingsPanel({ form, onUpdate }: FormSettingsPanelProps) {
     updateWebhook({ headers });
   };
 
+  const sheetUrl = form.googleSheetsConfig.spreadsheetId
+    ? `https://docs.google.com/spreadsheets/d/${form.googleSheetsConfig.spreadsheetId}`
+    : null;
+
   return (
-    <Accordion type="multiple" defaultValue={['general', 'webhook', 'pixels', 'theme-basic']} className="space-y-2">
+    <Accordion type="multiple" defaultValue={['general', 'webhook', 'pixels', 'google-sheets', 'theme-basic']} className="space-y-2">
       {/* General */}
       <AccordionItem value="general" className="border rounded-lg px-4">
         <AccordionTrigger className="text-sm font-semibold">General Settings</AccordionTrigger>
@@ -169,6 +175,51 @@ export function FormSettingsPanel({ form, onUpdate }: FormSettingsPanelProps) {
         </AccordionContent>
       </AccordionItem>
 
+      {/* Google Sheets */}
+      <AccordionItem value="google-sheets" className="border rounded-lg px-4">
+        <AccordionTrigger className="text-sm font-semibold">
+          Google Sheets
+          <Badge variant={form.googleSheetsConfig.enabled ? 'default' : 'secondary'} className="ml-2 text-[10px]">
+            {form.googleSheetsConfig.spreadsheetId ? 'Connected' : form.googleSheetsConfig.enabled ? 'Pending' : 'Off'}
+          </Badge>
+        </AccordionTrigger>
+        <AccordionContent className="space-y-4 pb-4">
+          <div className="flex items-center justify-between rounded-lg border p-3">
+            <Label className="text-sm">Record Submissions to Google Sheets</Label>
+            <Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} />
+          </div>
+          {form.googleSheetsConfig.enabled && (
+            <>
+              {sheetUrl ? (
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Sheet className="h-4 w-4 text-primary" />
+                    <span className="font-medium">Spreadsheet connected</span>
+                  </div>
+                  <a
+                    href={sheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary underline flex items-center gap-1"
+                  >
+                    Open Google Sheet <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              ) : (
+                <Button onClick={onCreateSheet} disabled={isCreatingSheet} className="w-full">
+                  {isCreatingSheet ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Sheet className="h-4 w-4 mr-2" />
+                  )}
+                  {isCreatingSheet ? 'Creating Spreadsheet...' : 'Create Spreadsheet & Connect'}
+                </Button>
+              )}
+            </>
+          )}
+        </AccordionContent>
+      </AccordionItem>
+
       {/* Theme - Colors */}
       <AccordionItem value="theme-basic" className="border rounded-lg px-4">
         <AccordionTrigger className="text-sm font-semibold">Colors & Branding</AccordionTrigger>
@@ -284,37 +335,6 @@ export function FormSettingsPanel({ form, onUpdate }: FormSettingsPanelProps) {
             placeholder=".form-container { /* your styles */ }"
             className="font-mono text-xs"
           />
-        </AccordionContent>
-      </AccordionItem>
-
-      {/* Google Sheets */}
-      <AccordionItem value="google-sheets" className="border rounded-lg px-4">
-        <AccordionTrigger className="text-sm font-semibold">
-          Google Sheets Integration
-          <Badge variant={form.googleSheetsConfig.enabled ? 'default' : 'secondary'} className="ml-2 text-[10px]">
-            {form.googleSheetsConfig.enabled ? 'Active' : 'Off'}
-          </Badge>
-        </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-4">
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <Label className="text-sm">Enable Google Sheets</Label>
-            <Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} />
-          </div>
-          {form.googleSheetsConfig.enabled && (
-            <>
-              <div className="space-y-2">
-                <Label>Spreadsheet ID</Label>
-                <Input value={form.googleSheetsConfig.spreadsheetId || ''} onChange={e => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, spreadsheetId: e.target.value } })} placeholder="From the spreadsheet URL" />
-              </div>
-              <div className="space-y-2">
-                <Label>Sheet Name</Label>
-                <Input value={form.googleSheetsConfig.sheetName || ''} onChange={e => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, sheetName: e.target.value } })} placeholder="Form Submissions" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Google Sheets integration requires backend configuration. Set up your Google OAuth credentials in the Cloud settings.
-              </p>
-            </>
-          )}
         </AccordionContent>
       </AccordionItem>
     </Accordion>
