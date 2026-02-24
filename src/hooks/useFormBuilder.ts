@@ -22,6 +22,7 @@ const defaultTheme: FormTheme = {
   labelFontSize: '14px',
   inputFontSize: '15px',
   formShadow: 'xl',
+  formLayout: 'custom' as const,
   customCss: '',
 };
 
