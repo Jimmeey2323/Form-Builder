@@ -22,7 +22,8 @@ export type FieldType =
   | 'dependent'
   | 'rating'
   | 'signature'
-  | 'section-break';
+  | 'section-break'
+  | 'page-break';
 
 export interface FieldOption {
   label: string;
@@ -69,7 +70,7 @@ export interface FormField {
   max?: number;
   step?: number;
   pattern?: string;
-  accept?: string; // for file inputs
+  accept?: string;
   
   // Options (for select, radio, checkbox)
   options?: FieldOption[];
@@ -78,7 +79,7 @@ export interface FormField {
   conditionalRules?: ConditionalRule[];
   lookupConfig?: LookupConfig;
   formulaConfig?: FormulaConfig;
-  dependsOnFieldId?: string; // for dependent fields
+  dependsOnFieldId?: string;
   
   // Styling
   cssClass?: string;
@@ -91,17 +92,32 @@ export interface FormField {
   order: number;
 }
 
-export interface FormConfig {
-  id: string;
-  title: string;
-  description?: string;
-  submitButtonText: string;
-  successMessage: string;
+// Webhook configuration
+export interface WebhookConfig {
+  enabled: boolean;
+  url: string;
+  method: 'POST' | 'PUT' | 'PATCH';
+  headers: Record<string, string>;
+  includeUtmParams: boolean;
+  token?: string;
+  sourceId?: string;
   redirectUrl?: string;
-  fields: FormField[];
-  theme: FormTheme;
-  createdAt: string;
-  updatedAt: string;
+}
+
+// Tracking pixel configuration
+export interface PixelConfig {
+  snapPixelId?: string;
+  metaPixelId?: string;
+  googleAdsId?: string;
+  googleAdsConversionLabel?: string;
+  customScripts?: string;
+}
+
+// Google Sheets configuration
+export interface GoogleSheetsConfig {
+  enabled: boolean;
+  spreadsheetId?: string;
+  sheetName?: string;
 }
 
 export interface FormTheme {
@@ -111,6 +127,38 @@ export interface FormTheme {
   borderRadius: string;
   showLogo: boolean;
   logoUrl?: string;
+  // Advanced theme
+  backgroundColor: string;
+  formBackgroundColor: string;
+  textColor: string;
+  labelColor: string;
+  inputBorderColor: string;
+  inputBackgroundColor: string;
+  buttonTextColor: string;
+  formWidth: string;
+  formMaxWidth: string;
+  formPadding: string;
+  inputPadding: string;
+  labelFontSize: string;
+  inputFontSize: string;
+  formShadow: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  customCss?: string;
+}
+
+export interface FormConfig {
+  id: string;
+  title: string;
+  description?: string;
+  submitButtonText: string;
+  successMessage: string;
+  redirectUrl?: string;
+  fields: FormField[];
+  theme: FormTheme;
+  webhookConfig: WebhookConfig;
+  pixelConfig: PixelConfig;
+  googleSheetsConfig: GoogleSheetsConfig;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
@@ -138,6 +186,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   rating: 'Rating',
   signature: 'Signature',
   'section-break': 'Section Break',
+  'page-break': 'Page Break',
 };
 
 export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
@@ -145,7 +194,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Choice': ['select', 'radio', 'checkbox', 'rating'],
   'Date & Time': ['date', 'time', 'datetime-local'],
   'Media': ['file', 'color', 'signature'],
-  'Layout': ['section-break', 'hidden'],
+  'Layout': ['section-break', 'page-break', 'hidden'],
   'Advanced': ['lookup', 'formula', 'conditional', 'dependent', 'range'],
 };
 

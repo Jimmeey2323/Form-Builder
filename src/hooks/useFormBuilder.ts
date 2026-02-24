@@ -1,23 +1,108 @@
 import { useState, useCallback } from 'react';
-import { FormConfig, FormField, FormTheme, createDefaultField, FieldType } from '@/types/formField';
+import { FormConfig, FormField, FormTheme, WebhookConfig, PixelConfig, GoogleSheetsConfig, createDefaultField, FieldType } from '@/types/formField';
 
 const defaultTheme: FormTheme = {
   primaryColor: '#667eea',
   secondaryColor: '#764ba2',
   fontFamily: "'Inter', sans-serif",
   borderRadius: '12px',
-  showLogo: false,
+  showLogo: true,
+  logoUrl: '',
+  backgroundColor: '#f1f5f9',
+  formBackgroundColor: '#ffffff',
+  textColor: '#1e293b',
+  labelColor: '#1e293b',
+  inputBorderColor: '#e2e8f0',
+  inputBackgroundColor: '#ffffff',
+  buttonTextColor: '#ffffff',
+  formWidth: '100%',
+  formMaxWidth: '520px',
+  formPadding: '32px',
+  inputPadding: '14px 16px',
+  labelFontSize: '14px',
+  inputFontSize: '15px',
+  formShadow: 'xl',
+  customCss: '',
 };
+
+const defaultWebhook: WebhookConfig = {
+  enabled: true,
+  url: 'https://api.momence.com/integrations/customer-leads/33905/collect',
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer qy71rOk8en',
+  },
+  includeUtmParams: true,
+  token: 'qy71rOk8en',
+  sourceId: '11606',
+  redirectUrl: 'https://momence.com/u/physique-57-bengaluru-0MU0AA',
+};
+
+const defaultPixels: PixelConfig = {
+  snapPixelId: '5217a3a7-5f50-4c98-803c-a73c9f05737e',
+  metaPixelId: '527819981439695',
+  googleAdsId: 'AW-809104648',
+};
+
+const defaultGoogleSheets: GoogleSheetsConfig = {
+  enabled: false,
+  spreadsheetId: '',
+  sheetName: 'Form Submissions',
+};
+
+// Default fields matching the original Bengaluru form
+function getDefaultFields(): FormField[] {
+  return [
+    {
+      id: 'firstName', name: 'firstName', label: 'First Name', type: 'text',
+      placeholder: 'John', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '50', order: 0, autocomplete: 'given-name',
+    },
+    {
+      id: 'lastName', name: 'lastName', label: 'Last Name', type: 'text',
+      placeholder: 'Doe', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '50', order: 1, autocomplete: 'family-name',
+    },
+    {
+      id: 'email', name: 'email', label: 'Email', type: 'email',
+      placeholder: 'john.doe@example.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '100', order: 2, autocomplete: 'email',
+    },
+    {
+      id: 'phoneNumber', name: 'phoneNumber', label: 'Phone Number', type: 'tel',
+      placeholder: '+91-XXXXXXXXXX', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '50', order: 3, autocomplete: 'tel',
+    },
+    {
+      id: 'zipCode', name: 'zipCode', label: 'Pincode', type: 'text',
+      placeholder: '56XXXX', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '50', order: 4, autocomplete: 'postal-code',
+    },
+    {
+      id: 'center', name: 'center', label: 'Select a Studio Location', type: 'select',
+      isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+      width: '100', order: 5, placeholder: 'Select Preferred Studio Location',
+      options: [
+        { label: 'Kenkere House, Vittal Mallya Road', value: 'Kenkere House, Vittal Mallya Road' },
+        { label: 'the Studio by Copper + Cloves, Indiranagar', value: 'the Studio by Copper + Cloves, Indiranagar' },
+      ],
+    },
+  ];
+}
 
 function createDefaultForm(): FormConfig {
   return {
     id: `form_${Date.now()}`,
-    title: 'Untitled Form',
+    title: 'Book a Trial',
     description: '',
     submitButtonText: 'Submit',
     successMessage: 'Thank you for your submission!',
-    fields: [],
+    fields: getDefaultFields(),
     theme: defaultTheme,
+    webhookConfig: { ...defaultWebhook },
+    pixelConfig: { ...defaultPixels },
+    googleSheetsConfig: { ...defaultGoogleSheets },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -26,7 +111,17 @@ function createDefaultForm(): FormConfig {
 export function useFormBuilder() {
   const [forms, setForms] = useState<FormConfig[]>(() => {
     const saved = localStorage.getItem('formcraft_forms');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Migrate old forms that don't have new config
+      return parsed.map((f: any) => ({
+        ...f,
+        webhookConfig: f.webhookConfig || { enabled: false, url: '', method: 'POST', headers: {}, includeUtmParams: true },
+        pixelConfig: f.pixelConfig || {},
+        googleSheetsConfig: f.googleSheetsConfig || { enabled: false },
+      }));
+    }
+    return [];
   });
 
   const [activeFormId, setActiveFormId] = useState<string | null>(() => {
