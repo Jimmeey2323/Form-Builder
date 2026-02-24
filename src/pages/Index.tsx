@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useFormBuilder } from '@/hooks/useFormBuilder';
 import { FieldCard } from '@/components/form-builder/FieldCard';
 import { FieldEditorDialog } from '@/components/form-builder/FieldEditorDialog';
@@ -10,8 +10,9 @@ import { generateFormHtml } from '@/utils/htmlGenerator';
 import { FormField } from '@/types/formField';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
 import {
   Code,
   Eye,
@@ -21,7 +22,9 @@ import {
   Share2,
   FileCode,
   Layers,
-  ExternalLink,
+  Webhook,
+  BarChart3,
+  Palette,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -45,23 +48,38 @@ const Index = () => {
   const [showExport, setShowExport] = useState(false);
   const [mainTab, setMainTab] = useState('fields');
 
-  // removed unused handler
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-card/80 backdrop-blur-sm">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileCode className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-bold tracking-tight">FormCraft</h1>
+            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+              <FileCode className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-base font-bold tracking-tight">FormCraft</h1>
+              <p className="text-[10px] text-muted-foreground leading-none">Advanced Form Builder</p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             {activeForm && (
               <>
+                <div className="hidden md:flex items-center gap-1.5 mr-2">
+                  {activeForm.webhookConfig.enabled && (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Webhook className="h-2.5 w-2.5" /> Webhook
+                    </Badge>
+                  )}
+                  {(activeForm.pixelConfig.snapPixelId || activeForm.pixelConfig.metaPixelId || activeForm.pixelConfig.googleAdsId) && (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <BarChart3 className="h-2.5 w-2.5" /> Pixels
+                    </Badge>
+                  )}
+                </div>
                 <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
                   <Code className="h-3.5 w-3.5 mr-1.5" />
-                  Export HTML
+                  Export
                 </Button>
                 <Button size="sm" onClick={() => {
                   if (!activeForm) return;
@@ -71,7 +89,7 @@ const Index = () => {
                   window.open(url, '_blank');
                 }}>
                   <Share2 className="h-3.5 w-3.5 mr-1.5" />
-                  Share / Preview
+                  Preview
                 </Button>
               </>
             )}
@@ -81,12 +99,12 @@ const Index = () => {
 
       <main className="container py-6">
         <div className="grid grid-cols-12 gap-6">
-          {/* Sidebar — Form List */}
+          {/* Sidebar */}
           <aside className="col-span-12 lg:col-span-3">
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">My Forms</CardTitle>
+                  <CardTitle className="text-sm">My Forms</CardTitle>
                   <Button size="sm" variant="outline" onClick={createForm}>
                     <Plus className="h-3.5 w-3.5" />
                   </Button>
@@ -94,7 +112,7 @@ const Index = () => {
               </CardHeader>
               <CardContent className="space-y-1 p-3 pt-0">
                 {forms.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
+                  <p className="text-xs text-muted-foreground py-6 text-center">
                     No forms yet. Create one!
                   </p>
                 )}
@@ -102,7 +120,7 @@ const Index = () => {
                   <div
                     key={form.id}
                     onClick={() => setActiveFormId(form.id)}
-                    className={`flex items-center justify-between rounded-md px-3 py-2 cursor-pointer text-sm transition-colors ${
+                    className={`flex items-center justify-between rounded-md px-3 py-2.5 cursor-pointer text-sm transition-colors ${
                       activeFormId === form.id
                         ? 'bg-primary/10 text-primary font-medium'
                         : 'hover:bg-muted'
@@ -112,9 +130,11 @@ const Index = () => {
                       <Layers className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{form.title}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground shrink-0 ml-2">
-                      {form.fields.length}f
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                        {form.fields.length}
+                      </Badge>
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -125,12 +145,14 @@ const Index = () => {
           <div className="col-span-12 lg:col-span-9">
             {!activeForm ? (
               <Card className="flex flex-col items-center justify-center py-20">
-                <FileCode className="h-12 w-12 text-muted-foreground mb-4" />
+                <div className="flex items-center justify-center h-16 w-16 rounded-2xl bg-primary/10 mb-6">
+                  <FileCode className="h-8 w-8 text-primary" />
+                </div>
                 <h2 className="text-xl font-semibold mb-2">Create Your First Form</h2>
-                <p className="text-muted-foreground mb-6 text-sm">
-                  Build beautiful HTML forms with advanced field types
+                <p className="text-muted-foreground mb-6 text-sm max-w-md text-center">
+                  Build beautiful HTML forms with webhooks, tracking pixels, multi-page layouts, and advanced field types.
                 </p>
-                <Button onClick={createForm}>
+                <Button onClick={createForm} size="lg">
                   <Plus className="h-4 w-4 mr-2" /> New Form
                 </Button>
               </Card>
@@ -176,29 +198,31 @@ const Index = () => {
                       <AddFieldMenu onAdd={type => addField(activeForm.id, type)} />
                     </Card>
                   ) : (
-                    <div className="space-y-2">
-                      {[...activeForm.fields]
-                        .sort((a, b) => a.order - b.order)
-                        .map((field, i, arr) => (
-                          <FieldCard
-                            key={field.id}
-                            field={field}
-                            onEdit={() => setEditingField(field)}
-                            onDelete={() => {
-                              deleteField(activeForm.id, field.id);
-                              toast.success('Field deleted');
-                            }}
-                            onDuplicate={() => {
-                              duplicateField(activeForm.id, field.id);
-                              toast.success('Field duplicated');
-                            }}
-                            onMoveUp={() => moveField(activeForm.id, field.id, 'up')}
-                            onMoveDown={() => moveField(activeForm.id, field.id, 'down')}
-                            isFirst={i === 0}
-                            isLast={i === arr.length - 1}
-                          />
-                        ))}
-                    </div>
+                    <ScrollArea className="h-[calc(100vh-200px)]">
+                      <div className="space-y-2 pr-4">
+                        {[...activeForm.fields]
+                          .sort((a, b) => a.order - b.order)
+                          .map((field, i, arr) => (
+                            <FieldCard
+                              key={field.id}
+                              field={field}
+                              onEdit={() => setEditingField(field)}
+                              onDelete={() => {
+                                deleteField(activeForm.id, field.id);
+                                toast.success('Field deleted');
+                              }}
+                              onDuplicate={() => {
+                                duplicateField(activeForm.id, field.id);
+                                toast.success('Field duplicated');
+                              }}
+                              onMoveUp={() => moveField(activeForm.id, field.id, 'up')}
+                              onMoveDown={() => moveField(activeForm.id, field.id, 'down')}
+                              isFirst={i === 0}
+                              isLast={i === arr.length - 1}
+                            />
+                          ))}
+                      </div>
+                    </ScrollArea>
                   )}
                 </TabsContent>
 

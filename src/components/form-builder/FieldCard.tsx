@@ -8,10 +8,10 @@ import {
   Copy,
   ChevronUp,
   ChevronDown,
-  Eye,
   EyeOff,
   Lock,
   Asterisk,
+  SplitSquareHorizontal,
 } from 'lucide-react';
 
 interface FieldCardProps {
@@ -35,9 +35,31 @@ export function FieldCard({
   isFirst,
   isLast,
 }: FieldCardProps) {
-  const isSectionBreak = field.type === 'section-break';
+  if (field.type === 'page-break') {
+    return (
+      <div className="flex items-center gap-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 px-4 py-3">
+        <SplitSquareHorizontal className="h-4 w-4 text-primary" />
+        <div className="flex-1">
+          <span className="text-sm font-semibold text-primary uppercase tracking-wider">
+            Page Break
+          </span>
+          {field.label && field.label !== 'Page Break' && (
+            <span className="text-xs text-muted-foreground ml-2">— {field.label}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7">
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive">
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
-  if (isSectionBreak) {
+  if (field.type === 'section-break') {
     return (
       <div className="flex items-center gap-3 rounded-lg border-2 border-dashed border-border bg-muted/50 px-4 py-3">
         <GripVertical className="h-4 w-4 text-muted-foreground" />
@@ -61,23 +83,11 @@ export function FieldCard({
   return (
     <div className="group flex items-start gap-3 rounded-lg border bg-card p-4 transition-all hover:shadow-md">
       <div className="flex flex-col items-center gap-1 pt-1">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMoveUp}
-          disabled={isFirst}
-          className="h-6 w-6"
-        >
+        <Button variant="ghost" size="icon" onClick={onMoveUp} disabled={isFirst} className="h-6 w-6">
           <ChevronUp className="h-3.5 w-3.5" />
         </Button>
         <GripVertical className="h-4 w-4 text-muted-foreground" />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMoveDown}
-          disabled={isLast}
-          className="h-6 w-6"
-        >
+        <Button variant="ghost" size="icon" onClick={onMoveDown} disabled={isLast} className="h-6 w-6">
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -91,8 +101,8 @@ export function FieldCard({
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="font-mono">{field.name}</span>
-          <span>ID: {field.id.slice(0, 12)}…</span>
           {field.width !== '100' && <span>W: {field.width}%</span>}
+          {field.autocomplete && <span className="text-primary/60">⟨{field.autocomplete}⟩</span>}
         </div>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           {field.isRequired && (
