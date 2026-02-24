@@ -197,7 +197,11 @@ function generateWebhookScript(config: FormConfig): string {
                 if (typeof snaptr !== 'undefined') {
                     snaptr('track', 'SIGN_UP', {
                         'sign_up_method': 'form_submission',
-                        'user_email': formData.get('email') || ''
+                        'user_email': formData.get('email') || '',
+                        'firstname': formData.get('firstName') || '',
+                        'lastname': formData.get('lastName') || '',
+                        'phone_number': formData.get('phoneNumber') || '',
+                        'zip_code': formData.get('zipCode') || ''
                     });
                 }`;
   }
@@ -256,6 +260,7 @@ function generateWebhookScript(config: FormConfig): string {
                 body: JSON.stringify(data)
             }).then(function(response) {
                 if (!response.ok) throw new Error('Failed: ' + response.statusText);${pixelEvents}
+                ${generateSheetsSubmitScript(config)}
                 ${redirectLine}
             }).catch(function(error) {
                 console.error('Error:', error);
@@ -266,8 +271,45 @@ function generateWebhookScript(config: FormConfig): string {
         });`;
 }
 
+function generateSheetsSubmitScript(config: FormConfig): string {
+  const { googleSheetsConfig } = config;
+  if (!googleSheetsConfig.enabled || !googleSheetsConfig.spreadsheetId) return '';
+  
+  const supabaseUrl = 'https://pwgdytetevxwuujdevis.supabase.co';
+  const fieldNames = config.fields
+    .filter(f => f.type !== 'page-break' && f.type !== 'section-break')
+    .sort((a, b) => a.order - b.order)
+    .map(f => f.name);
+  
+  return `
+                // Send to Google Sheets
+                var sheetRowData = [${fieldNames.map(n => `(baseData['${n}'] || '')`).join(', ')}];
+                if (typeof utmParams !== 'undefined') {
+                    sheetRowData.push(utmParams.utm_source || '', utmParams.utm_medium || '', utmParams.utm_campaign || '');
+                }
+                fetch('${supabaseUrl}/functions/v1/google-sheets', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'append',
+                        spreadsheetId: '${escapeHtml(googleSheetsConfig.spreadsheetId)}',
+                        sheetName: '${escapeHtml(googleSheetsConfig.sheetName || 'Form Submissions')}',
+                        rowData: sheetRowData
+                    })
+                }).catch(function(e) { console.error('Sheets error:', e); });`;
+}
+
+function getSelectAddresses(config: FormConfig): Record<string, string> {
+  // Build address map from center/location select fields that have known addresses
+  const addresses: Record<string, string> = {
+    "Kenkere House, Vittal Mallya Road": "1st Floor, Kenkere House, Vittal Mallya Rd, above Raymonds, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560001",
+    "the Studio by Copper + Cloves, Indiranagar": "167, Ground Floor Back Portion, 2nd Stage, Shankarnag Rd, Domlur, Bengaluru 560071"
+  };
+  return addresses;
+}
+
 export function generateFormHtml(config: FormConfig): string {
-  const { theme } = config;
+  const { theme, pixelConfig } = config;
   const sortedFields = [...config.fields].sort((a, b) => a.order - b.order);
   
   // Split fields into pages
@@ -549,11 +591,40 @@ ${sortedFields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}
             <form id="generated-form">
 ${pagesHtml}
             </form>
+            <div id="address-display" style="display:none; align-items:center; gap:8px; margin-top:16px; padding:14px 16px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border-color);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span id="location-address" style="font-size:13px; color:var(--text-secondary);"></span>
+            </div>
         </div>
     </div>
     <script>
         ${multiPageScript}
         ${generateWebhookScript(config)}
+
+        // Address display for center/location select
+        (function() {
+            var centerSelect = document.getElementById('center');
+            var addressDisplay = document.getElementById('address-display');
+            var locationAddress = document.getElementById('location-address');
+            var addresses = ${JSON.stringify(getSelectAddresses(config))};
+            if (centerSelect && addressDisplay && locationAddress) {
+                centerSelect.addEventListener('change', function() {
+                    var addr = addresses[this.value];
+                    if (addr) {
+                        locationAddress.textContent = addr;
+                        addressDisplay.style.display = 'flex';
+                    } else {
+                        addressDisplay.style.display = 'none';
+                    }
+                });
+            }
+        })();
+
+        ${pixelConfig.snapPixelId ? `
+        // Fire VIEW_CONTENT on page load
+        if (typeof snaptr !== 'undefined') {
+            snaptr('track', 'VIEW_CONTENT');
+        }` : ''}
 
         // Conditional field logic
         document.querySelectorAll('[data-conditions]').forEach(function(el) {
@@ -583,13 +654,20 @@ ${pagesHtml}
             } catch(e) {}
         });
 
-        // Phone formatter
+        // Enhanced phone formatter
         var phoneInput = document.querySelector('input[type="tel"]');
         if (phoneInput) {
             phoneInput.addEventListener('blur', function() {
                 var num = this.value.replace(/\\D/g, '');
-                if (num.length === 10) this.value = '+91' + num;
-                else if (num.length > 10) this.value = '+' + num;
+                var countryCodes = ['1', '33', '971', '44', '63', '65', '34'];
+                function startsWithCode(n) { return countryCodes.some(function(c) { return n.indexOf(c) === 0; }); }
+                if (num.length === 10 && !startsWithCode(num)) {
+                    this.value = '+91' + num;
+                } else if (startsWithCode(num)) {
+                    this.value = '+' + num;
+                } else {
+                    this.value = '+' + num;
+                }
             });
         }
     </script>

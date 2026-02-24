@@ -24,9 +24,13 @@ import {
   Layers,
   Webhook,
   BarChart3,
-  Palette,
+  Rocket,
+  Loader2,
+  ExternalLink,
+  Sheet,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const {
@@ -47,6 +51,69 @@ const Index = () => {
   const [editingField, setEditingField] = useState<FormField | null>(null);
   const [showExport, setShowExport] = useState(false);
   const [mainTab, setMainTab] = useState('fields');
+  const [deploying, setDeploying] = useState(false);
+  const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  const [creatingSheetsFor, setCreatingSheetsFor] = useState<string | null>(null);
+
+  const handleDeploy = async () => {
+    if (!activeForm) return;
+    setDeploying(true);
+    setDeployUrl(null);
+    try {
+      const html = generateFormHtml(activeForm);
+      const { data, error } = await supabase.functions.invoke('deploy-to-vercel', {
+        body: { html, formTitle: activeForm.title },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        setDeployUrl(data.url);
+        toast.success('Form deployed successfully!');
+      }
+    } catch (err: any) {
+      toast.error('Deploy failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+  const handleCreateSheet = async () => {
+    if (!activeForm) return;
+    setCreatingSheetsFor(activeForm.id);
+    try {
+      const fieldHeaders = activeForm.fields
+        .filter(f => f.type !== 'page-break' && f.type !== 'section-break')
+        .sort((a, b) => a.order - b.order)
+        .map(f => f.label);
+
+      const { data, error } = await supabase.functions.invoke('google-sheets', {
+        body: {
+          action: 'create',
+          formTitle: activeForm.title,
+          headers: fieldHeaders,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.spreadsheetId) {
+        updateForm(activeForm.id, {
+          googleSheetsConfig: {
+            ...activeForm.googleSheetsConfig,
+            enabled: true,
+            spreadsheetId: data.spreadsheetId,
+          },
+        });
+        toast.success('Google Sheet created! Submissions will be recorded automatically.');
+        if (data.spreadsheetUrl) {
+          window.open(data.spreadsheetUrl, '_blank');
+        }
+      }
+    } catch (err: any) {
+      toast.error('Failed to create sheet: ' + (err.message || 'Unknown error'));
+    } finally {
+      setCreatingSheetsFor(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -76,25 +143,48 @@ const Index = () => {
                       <BarChart3 className="h-2.5 w-2.5" /> Pixels
                     </Badge>
                   )}
+                  {activeForm.googleSheetsConfig.enabled && (
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Sheet className="h-2.5 w-2.5" /> Sheets
+                    </Badge>
+                  )}
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>
                   <Code className="h-3.5 w-3.5 mr-1.5" />
                   Export
                 </Button>
-                <Button size="sm" onClick={() => {
+                <Button variant="outline" size="sm" onClick={() => {
                   if (!activeForm) return;
                   const html = generateFormHtml(activeForm);
                   const blob = new Blob([html], { type: 'text/html' });
                   const url = URL.createObjectURL(blob);
                   window.open(url, '_blank');
                 }}>
-                  <Share2 className="h-3.5 w-3.5 mr-1.5" />
+                  <Eye className="h-3.5 w-3.5 mr-1.5" />
                   Preview
+                </Button>
+                <Button size="sm" onClick={handleDeploy} disabled={deploying}>
+                  {deploying ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {deploying ? 'Deploying...' : 'Deploy'}
                 </Button>
               </>
             )}
           </div>
         </div>
+        {deployUrl && (
+          <div className="container pb-2">
+            <div className="flex items-center gap-2 rounded-md bg-primary/10 px-3 py-2 text-sm">
+              <span className="text-primary font-medium">Live URL:</span>
+              <a href={deployUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline flex items-center gap-1">
+                {deployUrl} <ExternalLink className="h-3 w-3" />
+              </a>
+            </div>
+          </div>
+        )}
       </header>
 
       <main className="container py-6">
@@ -130,11 +220,9 @@ const Index = () => {
                       <Layers className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">{form.title}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {form.fields.length}
-                      </Badge>
-                    </div>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                      {form.fields.length}
+                    </Badge>
                   </div>
                 ))}
               </CardContent>
@@ -236,6 +324,8 @@ const Index = () => {
                       <FormSettingsPanel
                         form={activeForm}
                         onUpdate={updates => updateForm(activeForm.id, updates)}
+                        onCreateSheet={handleCreateSheet}
+                        isCreatingSheet={creatingSheetsFor === activeForm.id}
                       />
                     </CardContent>
                   </Card>
