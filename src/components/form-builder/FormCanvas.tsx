@@ -10,6 +10,7 @@ import {
   DragEndEvent,
   DragOverEvent,
   closestCenter,
+  useDroppable,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -323,6 +324,10 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
+  const { setNodeRef } = useDroppable({
+    id: 'canvas',
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -402,6 +407,8 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
           <div className="p-3 flex justify-center">
             {/* Form card */}
             <div
+              ref={setNodeRef}
+              id="canvas"
               className="w-full rounded-xl overflow-hidden bg-card shadow-xl"
               style={{ maxWidth: form.theme.formMaxWidth || '520px', lineHeight: form.theme.lineHeight || '1.6' }}
               onDragOver={e => e.preventDefault()}

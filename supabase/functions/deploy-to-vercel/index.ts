@@ -63,9 +63,25 @@ serve(async (req) => {
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '')
-        .slice(0, 32);
-      const idSlug = (formId || '').toString().slice(-6).replace(/[^a-z0-9]/g, '');
-      projectName = `jform-${titleSlug}${idSlug ? `-${idSlug}` : ''}`.slice(0, 52);
+        .slice(0, 24); // Reduced from 32 to leave room for ID
+      
+      // Extract a shorter, more predictable ID from formId
+      let idSlug = '';
+      if (formId) {
+        // If formId contains timestamp, extract last 2-3 digits for brevity
+        const idStr = formId.toString();
+        const timestampMatch = idStr.match(/(\d{10,})/); // Match 10+ digit timestamps
+        if (timestampMatch) {
+          // Take last 2-3 digits of timestamp for short, stable ID
+          const timestamp = timestampMatch[1];
+          idSlug = timestamp.slice(-2); // Just last 2 digits
+        } else {
+          // Fallback: use last 3 chars of formId, cleaned
+          idSlug = idStr.slice(-3).replace(/[^a-z0-9]/g, '');
+        }
+      }
+      
+      projectName = `jform-${titleSlug}${idSlug ? `-${idSlug}` : ''}`;
     }
 
     projectName = projectName.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 52);
@@ -116,36 +132,44 @@ serve(async (req) => {
       throw new Error(deployData.error.message || JSON.stringify(deployData.error));
     }
 
-    // After deployment, re-fetch project to get confirmed public aliases.
-    // For brand-new projects Vercel may need a moment to register aliases,
-    // so we check and fall back to the derived .vercel.app URL which is always correct.
+    // After deployment, ensure we return the correct public production URL
+    // Always prefer the live .vercel.app URL or custom domain over any internal URLs
     let url: string;
-    if (projectExists && productionAlias !== `${projectName}.vercel.app`) {
-      // Already have a confirmed custom domain from the pre-deploy check
-      url = `https://${productionAlias}`;
-    } else {
-      // Re-fetch the project to get any freshly-assigned aliases
-      try {
-        const refreshRes = await fetch(`https://api.vercel.com/v9/projects/${projectName}`, {
-          headers: authHeaders,
-        });
-        if (refreshRes.ok) {
-          const refreshData = await refreshRes.json();
-          const aliases: string[] = refreshData.alias
-            ? refreshData.alias.map((a: any) => a.domain ?? a)
-            : [];
-          // Prefer a custom domain, else the stable .vercel.app project URL
-          const customAlias = aliases.find((d: string) => !d.endsWith('.vercel.app'));
-          const vercelAppAlias = aliases.find((d: string) => d === `${projectName}.vercel.app`);
-          url = `https://${customAlias || vercelAppAlias || `${projectName}.vercel.app`}`;
+    
+    try {
+      // Re-fetch the project to get the confirmed public aliases after deployment
+      const refreshRes = await fetch(`https://api.vercel.com/v9/projects/${projectName}`, {
+        headers: authHeaders,
+      });
+      
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        const aliases: string[] = refreshData.alias
+          ? refreshData.alias.map((a: any) => a.domain ?? a)
+          : [];
+        
+        // Priority order: custom domain > project.vercel.app > fallback
+        const customAlias = aliases.find((d: string) => !d.endsWith('.vercel.app'));
+        const vercelAppAlias = aliases.find((d: string) => d === `${projectName}.vercel.app`);
+        
+        if (customAlias) {
+          url = `https://${customAlias}`;
+        } else if (vercelAppAlias) {
+          url = `https://${vercelAppAlias}`;
         } else {
-          // Vercel always sets projectname.vercel.app as the project's public URL
+          // Fallback to the standard project URL pattern
           url = `https://${projectName}.vercel.app`;
         }
-      } catch (_) {
+      } else {
+        // API call failed, use the standard project URL
         url = `https://${projectName}.vercel.app`;
       }
+    } catch (_) {
+      // Error during refresh, use the standard project URL
+      url = `https://${projectName}.vercel.app`;
     }
+
+    console.log(`Deployment completed. Final URL: ${url}`);
 
     const readyState = deployData.readyState || deployData.status;
 

@@ -1,0 +1,410 @@
+import React, { useState } from 'react';
+import { FormConfig } from '@/types/formField';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
+import { 
+  Settings, 
+  Palette, 
+  Layout, 
+  Globe, 
+  Zap, 
+  BarChart3, 
+  Shield,
+  Sparkles,
+  Code,
+  Smartphone,
+  Eye,
+  Users,
+  Target,
+  MessageSquare,
+  Bell
+} from 'lucide-react';
+
+interface SettingsPanelProps {
+  form: FormConfig;
+  onUpdate: (updates: Partial<FormConfig>) => void;
+  onCreateSheet?: () => void;
+  isCreatingSheet?: boolean;
+}
+
+export function ModernSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingSheet }: SettingsPanelProps) {
+  const [showThemeDialog, setShowThemeDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState('design');
+
+  const handleSelectTheme = (theme: any) => {
+    onUpdate({ theme });
+  };
+
+  const settingsTabs = [
+    { 
+      id: 'design', 
+      label: 'Design', 
+      icon: Palette,
+      description: 'Colors, themes & branding'
+    },
+    { 
+      id: 'behavior', 
+      label: 'Behavior', 
+      icon: Zap,
+      description: 'Logic, validation & flow'
+    },
+    { 
+      id: 'integrations', 
+      label: 'Connect', 
+      icon: Globe,
+      description: 'Webhooks, APIs & services'
+    },
+    { 
+      id: 'analytics', 
+      label: 'Analytics', 
+      icon: BarChart3,
+      description: 'Tracking & insights'
+    },
+    { 
+      id: 'advanced', 
+      label: 'Advanced', 
+      icon: Settings,
+      description: 'Custom code & settings'
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/60">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl">
+              <Settings className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Form Settings</h1>
+              <p className="text-sm text-slate-500">Customize your form appearance and behavior</p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 border-emerald-200">
+            {form.fields?.length || 0} fields
+          </Badge>
+        </div>
+      </div>
+
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* Sidebar Navigation */}
+        <div className="w-72 bg-white border-r border-slate-200/60 p-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="w-full">
+            <TabsList className="grid w-full grid-cols-1 h-auto bg-slate-50/80 p-2 gap-2">
+              {settingsTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <TabsTrigger 
+                    key={tab.id} 
+                    value={tab.id}
+                    className="w-full justify-start p-3 text-left data-[state=active]:bg-white data-[state=active]:shadow-sm border-0"
+                  >
+                    <div className="flex items-start gap-3 w-full">
+                      <Icon className="h-5 w-5 mt-0.5 text-slate-600" />
+                      <div className="text-left">
+                        <div className="font-medium text-slate-900">{tab.label}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">{tab.description}</div>
+                      </div>
+                    </div>
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+
+            {/* Quick Actions */}
+            <div className="mt-6 space-y-3">
+              <h3 className="text-sm font-semibold text-slate-700 px-3">Quick Actions</h3>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full justify-start" 
+                onClick={() => setShowThemeDialog(true)}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Browse Themes
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Eye className="h-4 w-4 mr-2" />
+                Preview Form
+              </Button>
+              <Button variant="outline" size="sm" className="w-full justify-start">
+                <Smartphone className="h-4 w-4 mr-2" />
+                Mobile Preview
+              </Button>
+            </div>
+          </Tabs>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 overflow-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            {/* Design Tab */}
+            <TabsContent value="design" className="mt-0 p-6 space-y-6">
+              <DesignSettings form={form} onUpdate={onUpdate} onShowThemes={() => setShowThemeDialog(true)} />
+            </TabsContent>
+
+            {/* Behavior Tab */}
+            <TabsContent value="behavior" className="mt-0 p-6 space-y-6">
+              <BehaviorSettings form={form} onUpdate={onUpdate} />
+            </TabsContent>
+
+            {/* Integrations Tab */}
+            <TabsContent value="integrations" className="mt-0 p-6 space-y-6">
+              <IntegrationSettings form={form} onUpdate={onUpdate} onCreateSheet={onCreateSheet} isCreatingSheet={isCreatingSheet} />
+            </TabsContent>
+
+            {/* Analytics Tab */}
+            <TabsContent value="analytics" className="mt-0 p-6 space-y-6">
+              <AnalyticsSettings form={form} onUpdate={onUpdate} />
+            </TabsContent>
+
+            {/* Advanced Tab */}
+            <TabsContent value="advanced" className="mt-0 p-6 space-y-6">
+              <AdvancedSettings form={form} onUpdate={onUpdate} />
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      <ThemeSelectionDialog
+        open={showThemeDialog}
+        onClose={() => setShowThemeDialog(false)}
+        onSelectTheme={handleSelectTheme}
+        currentTheme={form.theme}
+      />
+    </div>
+  );
+}
+
+// Design Settings Component
+function DesignSettings({ form, onUpdate, onShowThemes }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Design & Appearance</h2>
+        <p className="text-slate-600">Customize colors, fonts, and visual elements</p>
+      </div>
+
+      {/* Theme Selection Card */}
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Quick Themes</CardTitle>
+                <p className="text-sm text-slate-500 mt-1">Apply professional designs instantly</p>
+              </div>
+            </div>
+            <Button onClick={onShowThemes} className="bg-gradient-to-r from-purple-500 to-pink-500">
+              <Palette className="h-4 w-4 mr-2" />
+              Browse All
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Brand Colors */}
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5" />
+            Brand Colors
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-4">
+          <ColorInput 
+            label="Primary Color" 
+            value={form.theme?.primaryColor || '#3b82f6'} 
+            onChange={(color) => onUpdate({ theme: { ...form.theme, primaryColor: color } })}
+          />
+          <ColorInput 
+            label="Secondary Color" 
+            value={form.theme?.secondaryColor || '#8b5cf6'} 
+            onChange={(color) => onUpdate({ theme: { ...form.theme, secondaryColor: color } })}
+          />
+          <ColorInput 
+            label="Background" 
+            value={form.theme?.backgroundColor || '#ffffff'} 
+            onChange={(color) => onUpdate({ theme: { ...form.theme, backgroundColor: color } })}
+          />
+          <ColorInput 
+            label="Text Color" 
+            value={form.theme?.textColor || '#1f2937'} 
+            onChange={(color) => onUpdate({ theme: { ...form.theme, textColor: color } })}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Behavior Settings Component  
+function BehaviorSettings({ form, onUpdate }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Form Behavior</h2>
+        <p className="text-slate-600">Configure validation, logic, and user experience</p>
+      </div>
+
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Submission Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Success Message</label>
+              <input 
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                value={form.successMessage || ''}
+                onChange={(e) => onUpdate({ successMessage: e.target.value })}
+                placeholder="Thank you for your submission!"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Integration Settings Component
+function IntegrationSettings({ form, onUpdate, onCreateSheet, isCreatingSheet }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Integrations</h2>
+        <p className="text-slate-600">Connect your form to external services and APIs</p>
+      </div>
+
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Webhooks
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Webhook URL</label>
+              <input 
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                value={form.webhookConfig?.url || ''}
+                onChange={(e) => onUpdate({ 
+                  webhookConfig: { 
+                    ...form.webhookConfig, 
+                    url: e.target.value 
+                  } 
+                })}
+                placeholder="https://api.example.com/webhook"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Analytics Settings Component
+function AnalyticsSettings({ form, onUpdate }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Analytics & Tracking</h2>
+        <p className="text-slate-600">Monitor form performance and user behavior</p>
+      </div>
+
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Google Analytics
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-slate-700">Tracking ID</label>
+              <input 
+                className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+                placeholder="GA-XXXXX-X"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Advanced Settings Component
+function AdvancedSettings({ form, onUpdate }: any) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">Advanced Settings</h2>
+        <p className="text-slate-600">Custom code and advanced configuration</p>
+      </div>
+
+      <Card className="border-slate-200/60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Code className="h-5 w-5" />
+            Custom CSS
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <textarea 
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+            rows={8}
+            value={form.theme?.customCss || ''}
+            onChange={(e) => onUpdate({ 
+              theme: { 
+                ...form.theme, 
+                customCss: e.target.value 
+              } 
+            })}
+            placeholder=".form-container { /* Your custom styles */ }"
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Color Input Component
+function ColorInput({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium text-slate-700">{label}</label>
+      <div className="flex gap-2">
+        <input 
+          type="color" 
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-12 h-10 rounded-lg border border-slate-200 cursor-pointer"
+        />
+        <input 
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm font-mono"
+        />
+      </div>
+    </div>
+  );
+}

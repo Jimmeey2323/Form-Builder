@@ -6,12 +6,22 @@ import { HtmlExportDialog } from '@/components/form-builder/HtmlExportDialog';
 import { FormSettingsPanel } from '@/components/form-builder/FormSettingsPanel';
 import { FormCanvas } from '@/components/form-builder/FormCanvas';
 import { TestSubmission } from '@/components/TestSubmission';
+import { FormCard } from '@/components/FormCard';
+import { TemplateSelectionDialog } from '@/components/TemplateSelectionDialog';
 import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
 import { FormField } from '@/types/formField';
+import { Template } from '@/data/templates';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +46,20 @@ import {
   Loader2,
   ExternalLink,
   Sheet,
+  Copy,
+  MoreHorizontal,
+  Search,
+  Filter,
+  Grid3X3,
+  List,
+  CheckSquare,
+  Square,
+  Download,
+  Archive,
+  Calendar,
+  Users,
+  TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,6 +98,13 @@ const Index = () => {
   const [mainTab, setMainTab] = useState('fields');
   const [deploying, setDeploying] = useState(false);
   const [deployUrl, setDeployUrl] = useState<string | null>(null);
+  
+  // New state for modern UI features
+  const [selectedForms, setSelectedForms] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
 
   // Sync persisted deploy URL when the active form changes
   useEffect(() => {
@@ -82,28 +113,136 @@ const Index = () => {
   const [creatingSheetsFor, setCreatingSheetsFor] = useState<string | null>(null);
   const [confirmDeleteForm, setConfirmDeleteForm] = useState(false);
   const [confirmDeploy, setConfirmDeploy] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const handleDeploy = async () => {
     if (!activeForm) return;
     setDeploying(true);
     try {
       const html = await generateHtmlWithEmbeddedLogo(activeForm);
+      console.log('Starting deployment for form:', activeForm.title);
+      
       const { data, error } = await supabase.functions.invoke('deploy-to-vercel', {
         body: { html, formTitle: activeForm.title, formId: activeForm.id, vercelProjectDomain: activeForm.vercelProjectDomain, deployedUrl: activeForm.deployedUrl },
       });
+      
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+      
       if (data?.url) {
+        console.log('Deployment successful. Live URL from Vercel:', data.url);
         setDeployUrl(data.url);
         updateForm(activeForm.id, { deployedUrl: data.url });
-        toast.success('Form deployed successfully!');
+        toast.success(`Form deployed successfully! Live at: ${data.url}`);
       }
     } catch (err: any) {
+      console.error('Deployment failed:', err);
       toast.error('Deploy failed: ' + (err.message || 'Unknown error'));
     } finally {
       setDeploying(false);
     }
   };
+
+  // Copy form functionality
+  const handleCopyForm = (formToCopy: any) => {
+    const newForm = {
+      ...formToCopy,
+      id: `form_${Date.now()}`,  
+      title: `${formToCopy.title} (Copy)`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deployedUrl: undefined, // Clear deployment URL for copy
+      vercelProjectDomain: undefined, // Clear Vercel project domain
+    };
+    
+    // Create the new form by calling createForm and then updating it
+    const created = createForm();
+    if (created) {
+      // Update the newly created form with copied data
+      updateForm(created.id, newForm);
+      setActiveFormId(created.id);  
+      toast.success(`Form "${formToCopy.title}" copied successfully!`);
+    }
+  };
+
+  // Bulk actions
+  const handleSelectAll = () => {
+    if (selectedForms.size === forms.length) {
+      setSelectedForms(new Set());
+    } else {
+      setSelectedForms(new Set(forms.map(f => f.id)));
+    }
+  };
+
+  const handleSelectForm = (formId: string) => {
+    const newSelection = new Set(selectedForms);
+    if (newSelection.has(formId)) {
+      newSelection.delete(formId);
+    } else {
+      newSelection.add(formId);
+    }
+    setSelectedForms(newSelection);
+  };
+
+  const handleBulkDelete = () => {
+    selectedForms.forEach(formId => {
+      deleteForm(formId);
+    });
+    setSelectedForms(new Set());
+    setConfirmBulkDelete(false);
+    toast.success(`Deleted ${selectedForms.size} forms`);
+  };
+
+  const handleBulkCopy = () => {
+    let copiedCount = 0;
+    selectedForms.forEach(formId => {
+      const formToCopy = forms.find(f => f.id === formId);
+      if (formToCopy) {
+        handleCopyForm(formToCopy);
+        copiedCount++;
+      }
+    });
+    setSelectedForms(new Set());
+    toast.success(`Copied ${copiedCount} forms`);
+  };
+
+  // Template selection handlers
+  const handleSelectTemplate = (template: Template) => {
+    // Create a new form
+    const newForm = createForm();
+    if (newForm) {
+      // Update the form with template data
+      const updatedForm = {
+        ...newForm,
+        title: template.name,
+        description: template.description,
+        fields: template.fields.map((field, index) => ({
+          ...field,
+          id: `field_${Date.now()}_${index}`,
+          order: index
+        })),
+        ...template.config
+      };
+      updateForm(newForm.id, updatedForm);
+      setActiveFormId(newForm.id);
+      setShowTemplateDialog(false);
+      toast.success(`Form created from "${template.name}" template`);
+    }
+  };
+
+  const handleCreateBlankForm = () => {
+    createForm();
+    setShowTemplateDialog(false);
+  };
+
+  // Filter forms based on search
+  const filteredForms = forms.filter(form => 
+    form.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  useEffect(() => {
+    setShowBulkActions(selectedForms.size > 0);
+  }, [selectedForms]);
 
   const handleCreateSheet = async () => {
     if (!activeForm) return;
@@ -152,66 +291,86 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur-md shadow-sm">
-        <div className="container flex h-14 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/70 shadow-sm">
-              <FileCode className="h-4 w-4 text-white" />
+      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-xl shadow-sm">
+        <div className="container flex h-16 items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/25">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">JForms</h1>
-              <p className="text-[10px] text-muted-foreground leading-none font-medium tracking-wide uppercase">Advanced Form Builder for Physique 57</p>
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">JForms</h1>
+              <p className="text-xs text-muted-foreground/80 font-medium">Professional Form Builder</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {activeForm && (
               <>
-                <div className="hidden md:flex items-center gap-1.5 mr-2">
+                <div className="hidden md:flex items-center gap-2 mr-4">
                   {activeForm.webhookConfig.enabled && (
-                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary/80">
-                      <Webhook className="h-2.5 w-2.5" /> Webhook
+                    <Badge variant="outline" className="text-xs gap-1.5 border-emerald-200 text-emerald-700 bg-emerald-50">
+                      <Webhook className="h-3 w-3" /> Webhook
                     </Badge>
                   )}
                   {(activeForm.pixelConfig.snapPixelId || activeForm.pixelConfig.metaPixelId || activeForm.pixelConfig.googleAdsId) && (
-                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary/80">
-                      <BarChart3 className="h-2.5 w-2.5" /> Pixels
+                    <Badge variant="outline" className="text-xs gap-1.5 border-blue-200 text-blue-700 bg-blue-50">
+                      <BarChart3 className="h-3 w-3" /> Analytics
                     </Badge>
                   )}
                   {activeForm.googleSheetsConfig.enabled && (
-                    <Badge variant="outline" className="text-[10px] gap-1 border-green-400/50 text-green-600">
-                      <Sheet className="h-2.5 w-2.5" /> Sheets
+                    <Badge variant="outline" className="text-xs gap-1.5 border-green-200 text-green-700 bg-green-50">
+                      <Sheet className="h-3 w-3" /> Sheets
                     </Badge>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowExport(true)} className="h-8">
-                  <Code className="h-3.5 w-3.5 mr-1.5" />
+                <Button variant="outline" size="sm" onClick={() => setShowExport(true)} className="h-9 text-sm">
+                  <Code className="h-4 w-4 mr-2" />
                   Export
                 </Button>
-                <Button variant="outline" size="sm" onClick={handlePreviewInNewTab} className="h-8">
-                  <Eye className="h-3.5 w-3.5 mr-1.5" />
+                <Button variant="outline" size="sm" onClick={handlePreviewInNewTab} className="h-9 text-sm">
+                  <Eye className="h-4 w-4 mr-2" />
                   Preview
                 </Button>
-                <Button size="sm" onClick={() => setConfirmDeploy(true)} disabled={deploying} className="h-8 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-sm">
+                <Button 
+                  size="sm" 
+                  onClick={() => setConfirmDeploy(true)} 
+                  disabled={deploying} 
+                  className="h-9 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-md hover:shadow-lg transition-all duration-200"
+                >
                   {deploying ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <Rocket className="h-3.5 w-3.5 mr-1.5" />
+                    <Rocket className="h-4 w-4 mr-2" />
                   )}
-                  {deploying ? 'Deploying…' : 'Deploy'}
+                  {deploying ? 'Deploying...' : 'Deploy'}
                 </Button>
               </>
             )}
           </div>
         </div>
         {deployUrl && (
-          <div className="container pb-2">
-            <div className="flex items-center gap-2 rounded-lg bg-primary/8 border border-primary/20 px-3 py-2 text-sm">
-              <span className="text-primary font-semibold">Live URL:</span>
-              <a href={deployUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline flex items-center gap-1 font-medium">
-                {deployUrl} <ExternalLink className="h-3 w-3" />
-              </a>
+          <div className="container pb-3">
+            <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 px-4 py-3 shadow-sm">
+              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-green-100">
+                <ExternalLink className="h-4 w-4 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-900 mb-0.5">🎉 Form is live!</p>
+                <a 
+                  href={deployUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-sm text-green-700 hover:text-green-800 underline underline-offset-2 transition-colors"
+                >
+                  {deployUrl}
+                </a>
+              </div>
+              <Button variant="outline" size="sm" asChild className="border-green-200 text-green-700 hover:bg-green-100">
+                <a href={deployUrl} target="_blank" rel="noopener noreferrer">
+                  Visit <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </Button>
             </div>
           </div>
         )}
@@ -221,93 +380,247 @@ const Index = () => {
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar */}
           <aside className={`col-span-12 lg:col-span-3${mainTab === 'preview' ? ' hidden' : ''}`}>
-            <Card className="shadow-sm border-border/60">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold tracking-wide">My Forms</CardTitle>
-                  <Button size="sm" variant="outline" onClick={createForm} className="h-7 w-7 p-0 hover:bg-primary/10 hover:text-primary hover:border-primary/30">
-                    <Plus className="h-3.5 w-3.5" />
-                  </Button>
+            <div className="space-y-4">
+              {/* Header with actions */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text">Forms</h2>
+                  <p className="text-sm text-muted-foreground">{forms.length} total</p>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-1 p-3 pt-0">
-                {forms.length === 0 && (
-                  <div className="flex flex-col items-center py-8">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-3">
-                      <Layers className="h-4 w-4 text-muted-foreground/50" />
+                <Button onClick={() => setShowTemplateDialog(true)} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create
+                </Button>
+              </div>
+
+              {/* Search and view controls */}
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search forms..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  />
+                </div>
+                
+                {forms.length > 0 && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={handleSelectAll}
+                        className="text-xs"
+                      >
+                        {selectedForms.size === forms.length ? (
+                          <CheckSquare className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Square className="h-3 w-3 mr-1" />
+                        )}
+                        {selectedForms.size > 0 ? `${selectedForms.size} selected` : 'Select all'}
+                      </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground text-center">
-                      No forms yet.<br />Create your first one!
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewMode('grid')}
+                        className={`h-8 w-8 p-0 ${viewMode === 'grid' ? 'bg-muted' : ''}`}
+                      >
+                        <Grid3X3 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setViewMode('list')}
+                        className={`h-8 w-8 p-0 ${viewMode === 'list' ? 'bg-muted' : ''}`}
+                      >
+                        <List className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 )}
-                {forms.map(form => (
-                  <div
-                    key={form.id}
-                    onClick={() => setActiveFormId(form.id)}
-                    className={`flex items-center justify-between rounded-lg px-3 py-2.5 cursor-pointer text-sm transition-all ${
-                      activeFormId === form.id
-                        ? 'bg-primary/10 text-primary font-semibold border border-primary/20'
-                        : 'hover:bg-muted/70 text-foreground/80'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${activeFormId === form.id ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                      <span className="truncate">{form.title}</span>
+
+                {/* Bulk actions */}
+                {showBulkActions && (
+                  <div className="flex items-center gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <span className="text-sm font-medium text-primary">
+                      {selectedForms.size} selected
+                    </span>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Button variant="ghost" size="sm" onClick={handleBulkCopy}>
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => setConfirmBulkDelete(true)} className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        Delete
+                      </Button>
                     </div>
-                    <Badge variant={activeFormId === form.id ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0 ml-1 shrink-0">
-                      {form.fields.length}
-                    </Badge>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                )}
+              </div>
+
+              {/* Forms list */}
+              <div className="space-y-2">
+                {filteredForms.length === 0 ? (
+                  <div className="flex flex-col items-center py-12">
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                      {searchQuery ? (
+                        <Search className="h-6 w-6 text-muted-foreground/50" />
+                      ) : (
+                        <FileCode className="h-6 w-6 text-muted-foreground/50" />
+                      )}
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">
+                      {searchQuery ? 'No forms found' : 'No forms yet'}
+                    </h3>
+                    <p className="text-xs text-muted-foreground text-center mb-4">
+                      {searchQuery ? 'Try a different search term' : 'Create your first form to get started'}
+                    </p>
+                    {!searchQuery && (
+                      <Button onClick={createForm} size="sm" className="bg-gradient-to-r from-primary to-primary/80">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Create Form
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-3' : 'space-y-2'}>
+                    {filteredForms.map(form => (
+                      <FormCard
+                        key={form.id}
+                        form={form}
+                        isActive={activeFormId === form.id}
+                        isSelected={selectedForms.has(form.id)}
+                        viewMode={viewMode}
+                        onSelect={() => setActiveFormId(form.id)}
+                        onToggleSelect={() => handleSelectForm(form.id)}
+                        onCopy={() => handleCopyForm(form)}
+                        onDelete={() => {
+                          setActiveFormId(form.id);
+                          setConfirmDeleteForm(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </aside>
 
           {/* Main Content */}
           <div className={`col-span-12 ${mainTab === 'preview' ? 'lg:col-span-12' : 'lg:col-span-9'}`}>
             {!activeForm ? (
-              <Card className="flex flex-col items-center justify-center py-24 border-dashed border-2 bg-muted/20 shadow-none">
-                <div className="flex items-center justify-center h-20 w-20 rounded-3xl bg-primary/10 ring-1 ring-primary/15 mb-6 shadow-inner">
-                  <FileCode className="h-9 w-9 text-primary/70" />
+              <div className="flex flex-col items-center justify-center py-20">
+                <div className="relative mb-8">
+                  <div className="flex items-center justify-center h-24 w-24 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10 shadow-xl">
+                    <Sparkles className="h-12 w-12 text-primary/60" />
+                  </div>
+                  <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center">
+                    <Plus className="h-3 w-3 text-white" />
+                  </div>
                 </div>
-                <h2 className="text-xl font-bold mb-2 tracking-tight">Create Your First Form</h2>
-                <p className="text-muted-foreground mb-7 text-sm max-w-sm text-center leading-relaxed">
-                  Build beautiful HTML forms with webhooks, tracking pixels, multi-page layouts, and advanced field types.
-                </p>
-                <Button onClick={createForm} size="lg" className="gap-2 bg-primary/90 hover:bg-primary shadow-md hover:shadow-primary/25 transition-all">
-                  <Plus className="h-4 w-4" /> New Form
-                </Button>
-              </Card>
-            ) : (
-              <Tabs value={mainTab} onValueChange={setMainTab}>
-                <div className="flex items-center justify-between mb-4">
-                  <TabsList>
-                    <TabsTrigger value="fields">
-                      <Layers className="h-3.5 w-3.5 mr-1.5" /> Fields
-                    </TabsTrigger>
-                    <TabsTrigger value="preview">
-                      <Eye className="h-3.5 w-3.5 mr-1.5" /> Preview
-                    </TabsTrigger>
-                    <TabsTrigger value="settings">
-                      <Settings className="h-3.5 w-3.5 mr-1.5" /> Settings
-                    </TabsTrigger>
-                    <TabsTrigger value="test">
-                      <BarChart3 className="h-3.5 w-3.5 mr-1.5" /> Test
-                    </TabsTrigger>
-                  </TabsList>
+                
+                <div className="text-center mb-8 max-w-md">
+                  <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                    Welcome to JForms
+                  </h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Create beautiful, professional forms with advanced features like webhooks, analytics tracking, 
+                    multi-page layouts, and seamless deployment to Vercel.
+                  </p>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-2xl">
+                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
+                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center mx-auto mb-3">
+                      <Webhook className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">Smart Integrations</h3>
+                    <p className="text-xs text-muted-foreground">Webhooks, Google Sheets, and analytics</p>
+                  </div>
+                  
+                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
+                    <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                      <Rocket className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">One-Click Deploy</h3>
+                    <p className="text-xs text-muted-foreground">Instant deployment to Vercel</p>
+                  </div>
+                  
+                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
+                    <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center mx-auto mb-3">
+                      <Layers className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <h3 className="font-semibold text-sm mb-1">Advanced Fields</h3>
+                    <p className="text-xs text-muted-foreground">Rich field types and logic</p>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={createForm} 
+                  size="lg" 
+                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg hover:shadow-xl transition-all duration-200 px-8"
+                >
+                  <Plus className="h-5 w-5 mr-2" /> 
+                  Create Your First Form
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                      {activeForm.title}
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                      {activeForm.fields.length} fields • Last updated {new Date(activeForm.updatedAt).toLocaleDateString()}
+                    </p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="text-destructive"
+                      size="sm"
+                      onClick={() => handleCopyForm(activeForm)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive"
                       onClick={() => setConfirmDeleteForm(true)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
+
+                <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
+                  <TabsList className="grid w-full grid-cols-4 bg-slate-100/50 p-1 rounded-xl">
+                    <TabsTrigger value="fields" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Layers className="h-4 w-4 mr-2" /> 
+                      Fields
+                    </TabsTrigger>
+                    <TabsTrigger value="preview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Eye className="h-4 w-4 mr-2" /> 
+                      Preview
+                    </TabsTrigger>
+                    <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <Settings className="h-4 w-4 mr-2" /> 
+                      Settings
+                    </TabsTrigger>
+                    <TabsTrigger value="test" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                      <BarChart3 className="h-4 w-4 mr-2" /> 
+                      Test
+                    </TabsTrigger>
+                  </TabsList>
 
                 <TabsContent value="fields">
                   <FormCanvas
@@ -347,6 +660,7 @@ const Index = () => {
                   <TestSubmission />
                 </TabsContent>
               </Tabs>
+              </div>
             )}
           </div>
         </div>
@@ -396,6 +710,27 @@ const Index = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirm: bulk delete */}
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedForms.size} forms?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected forms and all their fields. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+            >
+              Delete {selectedForms.size} Forms
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Dialogs */}
       {editingField && activeForm && (
         <FieldEditorDialog
@@ -414,6 +749,13 @@ const Index = () => {
           onClose={() => setShowExport(false)}
         />
       )}
+
+      <TemplateSelectionDialog
+        open={showTemplateDialog}
+        onClose={() => setShowTemplateDialog(false)}
+        onSelectTemplate={handleSelectTemplate}
+        onCreateBlank={handleCreateBlankForm}
+      />
     </div>
   );
 };

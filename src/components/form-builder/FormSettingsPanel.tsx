@@ -1,4 +1,4 @@
-import { FormConfig, WebhookConfig, PixelConfig, FormAnimations } from '@/types/formField';
+import { FormConfig, WebhookConfig, PixelConfig, FormAnimations, FormTheme } from '@/types/formField';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
 import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -35,6 +36,7 @@ interface FormSettingsPanelProps {
 export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingSheet }: FormSettingsPanelProps) {
   const [newHeaderKey, setNewHeaderKey] = useState('');
   const [newHeaderVal, setNewHeaderVal] = useState('');
+  const [showThemeDialog, setShowThemeDialog] = useState(false);
 
   // Determine if current URL matches a preset or is custom
   const currentUrlPreset = WEBHOOK_URL_PRESETS.find(p => p.value === form.webhookConfig.url)?.value ?? '__custom__';
@@ -42,6 +44,10 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
 
   const updateTheme = (updates: Partial<FormConfig['theme']>) => {
     onUpdate({ theme: { ...form.theme, ...updates } });
+  };
+
+  const handleSelectTheme = (theme: FormTheme) => {
+    updateTheme(theme);
   };
 
   const updateAnimations = (updates: Partial<FormAnimations>) => {
@@ -84,6 +90,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
     : null;
 
   return (
+    <>
     <Accordion type="multiple" defaultValue={['general', 'form-elements', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'theme-basic', 'animations']} className="space-y-3">
 
       {/* ── General ── */}
@@ -427,6 +434,25 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           </span>
         </AccordionTrigger>
         <AccordionContent className="space-y-4 pb-5 pt-1">
+          {/* Quick Theme Selection */}
+          <div className="rounded-xl border border-border/60 bg-gradient-to-r from-primary/5 to-secondary/5 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <Label className="text-sm font-medium text-primary">Quick Themes</Label>
+                <p className="text-xs text-muted-foreground">Apply professional color schemes instantly</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => setShowThemeDialog(true)}
+                className="bg-background hover:bg-muted border-border/60"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                Browse
+              </Button>
+            </div>
+          </div>
+          
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Primary Color', key: 'primaryColor' as const },
@@ -1023,6 +1049,14 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
     </Accordion>
+    
+    <ThemeSelectionDialog
+      open={showThemeDialog}
+      onClose={() => setShowThemeDialog(false)}
+      onSelectTheme={handleSelectTheme}
+      currentTheme={form.theme}
+    />
+  </>
   );
 }
 
