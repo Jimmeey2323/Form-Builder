@@ -1,7 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,19 +13,32 @@ import {
   MoreHorizontal,
   Copy,
   Trash2,
-  Eye,
-  Calendar,
-  Users,
-  TrendingUp,
-  CheckSquare,
-  Square,
   ExternalLink,
   Webhook,
   BarChart3,
   Sheet,
   Layers,
+  CheckSquare,
+  Square,
+  Rocket,
+  ChevronRight,
 } from 'lucide-react';
 import { FormConfig } from '@/types/formField';
+
+const CARD_GRADIENTS = [
+  ['from-blue-500 to-indigo-600',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
+  ['from-violet-500 to-purple-600', 'bg-violet-50', 'text-violet-700', 'border-violet-200/70'],
+  ['from-emerald-500 to-teal-600',  'bg-emerald-50','text-emerald-700','border-emerald-200/70'],
+  ['from-rose-500 to-pink-600',     'bg-rose-50',   'text-rose-700',   'border-rose-200/70'],
+  ['from-amber-500 to-orange-500',  'bg-amber-50',  'text-amber-700',  'border-amber-200/70'],
+  ['from-cyan-500 to-sky-600',      'bg-cyan-50',   'text-cyan-700',   'border-cyan-200/70'],
+];
+
+function hashIndex(id: string, len: number) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h % len;
+}
 
 interface FormCardProps {
   form: FormConfig;
@@ -49,278 +61,161 @@ export function FormCard({
   onCopy,
   onDelete,
 }: FormCardProps) {
-  const handleCardClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onSelect();
+  const idx = hashIndex(form.id, CARD_GRADIENTS.length);
+  const [gradient, lightBg, lightText, lightBorder] = CARD_GRADIENTS[idx];
+
+  const handleCardClick = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onSelect(); };
+  const handleCheckboxClick = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); };
+
+  const formatDate = (d: string) => {
+    const diff = Math.ceil(Math.abs(Date.now() - new Date(d).getTime()) / 86400000);
+    if (diff <= 1) return 'Today';
+    if (diff === 2) return 'Yesterday';
+    if (diff <= 7) return `${diff - 1}d ago`;
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
-  const handleCheckboxClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    onToggleSelect();
-  };
+  const integrations = [
+    form.webhookConfig?.enabled && { icon: <Webhook className="h-2.5 w-2.5" />, label: 'Webhook', color: 'text-indigo-600 border-indigo-200/80 bg-indigo-50' },
+    form.googleSheetsConfig?.enabled && { icon: <Sheet className="h-2.5 w-2.5" />, label: 'Sheets', color: 'text-emerald-600 border-emerald-200/80 bg-emerald-50' },
+    (form.pixelConfig?.snapPixelId || form.pixelConfig?.metaPixelId || form.pixelConfig?.googleAdsId) &&
+      { icon: <BarChart3 className="h-2.5 w-2.5" />, label: 'Pixels', color: 'text-blue-600 border-blue-200/80 bg-blue-50' },
+  ].filter(Boolean) as { icon: React.ReactNode; label: string; color: string }[];
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 1) return 'Today';
-    if (diffDays === 2) return 'Yesterday';
-    if (diffDays <= 7) return `${diffDays - 1} days ago`;
-    return date.toLocaleDateString();
-  };
+  const ActionsMenu = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg hover:bg-black/8"
+          onClick={e => e.stopPropagation()}
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-xl border-border/60">
+        {form.deployedUrl && (
+          <>
+            <DropdownMenuItem asChild>
+              <a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <ExternalLink className="h-3.5 w-3.5" /> View Live
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem onClick={e => { e.stopPropagation(); onCopy(); }} className="gap-2">
+          <Copy className="h-3.5 w-3.5" /> Duplicate
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={e => { e.stopPropagation(); onDelete(); }} className="gap-2 text-red-600 focus:text-red-600">
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
-  const getFormStats = () => ({
-    fields: form.fields.length,
-    integrations: [
-      form.webhookConfig?.enabled && 'Webhook',
-      form.googleSheetsConfig?.enabled && 'Sheets',
-      (form.pixelConfig?.snapPixelId || form.pixelConfig?.metaPixelId || form.pixelConfig?.googleAdsId) && 'Pixels'
-    ].filter(Boolean).length,
-    isDeployed: !!form.deployedUrl
-  });
-
-  const stats = getFormStats();
-
+  /* ── LIST VIEW ── */
   if (viewMode === 'list') {
     return (
       <div
         onClick={handleCardClick}
-        className={`group flex items-center gap-4 p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+        className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-all duration-150 ${
           isActive
-            ? 'bg-primary/5 border-primary/20 shadow-sm'
-            : 'bg-background border-border hover:border-border/80'
+            ? `${lightBg} ${lightBorder} border shadow-sm`
+            : 'bg-white border-border/50 hover:border-border hover:bg-slate-50/60 hover:shadow-sm'
         }`}
       >
-        <div onClick={handleCheckboxClick} className="flex-shrink-0">
-          {isSelected ? (
-            <CheckSquare className="h-4 w-4 text-primary" />
-          ) : (
-            <Square className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-          )}
+        {/* color accent bar */}
+        <div className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-full bg-gradient-to-b ${gradient} ${
+          isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-40'
+        } transition-opacity`} />
+
+        <div onClick={handleCheckboxClick} className="flex-shrink-0 ml-2">
+          {isSelected
+            ? <CheckSquare className="h-3.5 w-3.5 text-primary" />
+            : <Square className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />}
         </div>
-        
-        <div className="flex-shrink-0">
-          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-            isActive ? 'bg-primary/10' : 'bg-muted'
-          }`}>
-            <FileCode className={`h-5 w-5 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-          </div>
+
+        <div className={`flex-shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br ${gradient} shadow-sm`}>
+          <FileCode className="h-4 w-4 text-white" />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className={`font-semibold text-sm truncate ${
-              isActive ? 'text-primary' : 'text-foreground'
-            }`}>
-              {form.title}
-            </h3>
-            {stats.isDeployed && (
-              <div className="flex-shrink-0">
-                <Badge variant="outline" className="text-[10px] border-green-500/30 text-green-600 bg-green-50">
-                  <div className="w-1 h-1 rounded-full bg-green-500 mr-1" />
-                  Live
-                </Badge>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Layers className="h-3 w-3" />
-              {stats.fields} fields
-            </span>
-            {stats.integrations > 0 && (
-              <span className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                {stats.integrations} integrations
-              </span>
-            )}
-            <span className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              {formatDate(form.updatedAt)}
-            </span>
-          </div>
+          <p className={`text-[12.5px] font-semibold truncate leading-tight ${isActive ? lightText : 'text-slate-800'}`}>
+            {form.title}
+          </p>
+          <p className="text-[10.5px] text-muted-foreground mt-0.5">
+            {form.fields.length} field{form.fields.length !== 1 ? 's' : ''} &middot; {formatDate(form.updatedAt)}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            {form.webhookConfig?.enabled && (
-              <Badge variant="outline" className="text-[9px] gap-1 border-primary/20 text-primary/70 px-1.5 py-0.5">
-                <Webhook className="h-2 w-2" />
-              </Badge>
-            )}
-            {form.googleSheetsConfig?.enabled && (
-              <Badge variant="outline" className="text-[9px] gap-1 border-green-400/30 text-green-600 px-1.5 py-0.5">
-                <Sheet className="h-2 w-2" />
-              </Badge>
-            )}
-            {(form.pixelConfig?.snapPixelId || form.pixelConfig?.metaPixelId || form.pixelConfig?.googleAdsId) && (
-              <Badge variant="outline" className="text-[9px] gap-1 border-primary/20 text-primary/70 px-1.5 py-0.5">
-                <BarChart3 className="h-2 w-2" />
-              </Badge>
-            )}
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {form.deployedUrl && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Live Form
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {form.deployedUrl && (
+            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live
+            </span>
+          )}
+          <ActionsMenu />
+          {isActive && <ChevronRight className={`h-3.5 w-3.5 ${lightText} flex-shrink-0`} />}
         </div>
       </div>
     );
   }
 
-  // Grid view
+  /* ── GRID VIEW ── */
   return (
-    <Card 
+    <div
       onClick={handleCardClick}
-      className={`group cursor-pointer transition-all hover:shadow-md ${
+      className={`group relative rounded-2xl border cursor-pointer transition-all duration-150 overflow-hidden ${
         isActive
-          ? 'ring-2 ring-primary/20 border-primary/20 shadow-sm'
-          : 'hover:border-border/80'
+          ? `ring-2 ring-primary/25 border-primary/20 shadow-lg shadow-primary/10`
+          : 'border-border/60 bg-white hover:border-border hover:shadow-md hover:-translate-y-0.5'
       }`}
     >
-      <CardContent className="p-4">
+      {/* Gradient header strip */}
+      <div className={`h-1.5 w-full bg-gradient-to-r ${gradient}`} />
+
+      <div className="p-4">
         <div className="flex items-start justify-between mb-3">
-          <div onClick={handleCheckboxClick} className="flex-shrink-0 mt-1">
-            {isSelected ? (
-              <CheckSquare className="h-4 w-4 text-primary" />
-            ) : (
-              <Square className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-            )}
+          <div onClick={handleCheckboxClick} className="mt-0.5 flex-shrink-0">
+            {isSelected
+              ? <CheckSquare className="h-3.5 w-3.5 text-primary" />
+              : <Square className="h-3.5 w-3.5 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />}
           </div>
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {form.deployedUrl && (
-                <>
-                  <DropdownMenuItem asChild>
-                    <a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      View Live Form
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCopy(); }}>
-                <Copy className="h-4 w-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ActionsMenu />
         </div>
 
-        <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center ${
-          isActive ? 'bg-primary/10' : 'bg-muted'
-        }`}>
-          <FileCode className={`h-6 w-6 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+        <div className={`flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br ${gradient} shadow-md mb-3`}>
+          <FileCode className="h-5 w-5 text-white" />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <h3 className={`font-semibold text-sm truncate ${
-              isActive ? 'text-primary' : 'text-foreground'
-            }`}>
-              {form.title}
-            </h3>
-            {stats.isDeployed && (
-              <div className="flex-shrink-0">
-                <div className="w-2 h-2 rounded-full bg-green-500" title="Live" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Layers className="h-3 w-3" />
-              {stats.fields}
+        <h3 className="font-semibold text-[13px] text-slate-800 truncate mb-0.5 leading-tight">{form.title}</h3>
+
+        <div className="flex items-center gap-2 text-[10.5px] text-muted-foreground mb-3">
+          <span className="flex items-center gap-1">
+            <Layers className="h-3 w-3" />
+            {form.fields.length} field{form.fields.length !== 1 ? 's' : ''}
+          </span>
+          <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+          <span>{formatDate(form.updatedAt)}</span>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {form.deployedUrl && (
+            <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
+              <Rocket className="h-2.5 w-2.5" /> Live
             </span>
-            {stats.integrations > 0 && (
-              <span className="flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" />
-                {stats.integrations}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {form.webhookConfig?.enabled && (
-              <Badge variant="outline" className="text-[9px] border-primary/20 text-primary/70 px-1.5 py-0.5">
-                <Webhook className="h-2 w-2" />
-              </Badge>
-            )}
-            {form.googleSheetsConfig?.enabled && (
-              <Badge variant="outline" className="text-[9px] border-green-400/30 text-green-600 px-1.5 py-0.5">
-                <Sheet className="h-2 w-2" />
-              </Badge>
-            )}
-            {(form.pixelConfig?.snapPixelId || form.pixelConfig?.metaPixelId || form.pixelConfig?.googleAdsId) && (
-              <Badge variant="outline" className="text-[9px] border-primary/20 text-primary/70 px-1.5 py-0.5">
-                <BarChart3 className="h-2 w-2" />
-              </Badge>
-            )}
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            Updated {formatDate(form.updatedAt)}
-          </p>
+          )}
+          {integrations.map(it => (
+            <span key={it.label} className={`inline-flex items-center gap-1 text-[9.5px] font-medium border rounded-full px-2 py-0.5 ${it.color}`}>
+              {it.icon} {it.label}
+            </span>
+          ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

@@ -256,10 +256,10 @@ export function useFormBuilder() {
     save(updated);
   }, [forms, save]);
 
-  const addField = useCallback((formId: string, fieldType: FieldType) => {
+  const addField = useCallback((formId: string, fieldType: FieldType, overrides?: Partial<FormField>) => {
     const form = forms.find(f => f.id === formId);
     if (!form) return;
-    const newField = createDefaultField(fieldType, form.fields.length);
+    const newField = { ...createDefaultField(fieldType, form.fields.length), ...overrides };
     updateForm(formId, { fields: [...form.fields, newField] });
   }, [forms, updateForm]);
 

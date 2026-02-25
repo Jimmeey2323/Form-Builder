@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
+import { HeroImagePickerDialog } from '@/components/form-builder/HeroImagePickerDialog';
 import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2 } from 'lucide-react';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 import { useState } from 'react';
@@ -38,6 +39,12 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const [newHeaderKey, setNewHeaderKey] = useState('');
   const [newHeaderVal, setNewHeaderVal] = useState('');
   const [showThemeDialog, setShowThemeDialog] = useState(false);
+  const [showHeroPicker, setShowHeroPicker] = useState(false);
+  const [heroPickerInitialPage, setHeroPickerInitialPage] = useState(0);
+  const openHeroPicker = (page = 0) => { setHeroPickerInitialPage(page); setShowHeroPicker(true); };
+
+  // Compute page count from form fields (number of page-break fields + 1)
+  const pageCount = form.fields.filter(f => f.type === 'page-break').length + 1;
 
   // Determine if current URL matches a preset or is custom
   const currentUrlPreset = WEBHOOK_URL_PRESETS.find(p => p.value === form.webhookConfig.url)?.value ?? '__custom__';
@@ -101,7 +108,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
 
   return (
     <>
-    <Accordion type="multiple" defaultValue={['general', 'form-elements', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'advanced', 'theme-basic', 'theme-dimensions', 'theme-typography', 'animations', 'deployment', 'custom-css']} className="space-y-3">
+    <Accordion type="multiple" defaultValue={['general', 'form-elements', 'hero-images', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'advanced', 'theme-basic', 'theme-dimensions', 'theme-typography', 'animations', 'deployment', 'custom-css']} className="space-y-3">
 
       {/* ── General ── */}
       <AccordionItem value="general" className="settings-section">
@@ -186,7 +193,71 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
 
-      {/* ── Webhook Configuration ── */}
+      {/* ── Page Hero Images ── */}
+      <AccordionItem value="hero-images" className="settings-section">
+        <AccordionTrigger className="settings-trigger">
+          <span className="flex items-center gap-2.5">
+            <span className="settings-icon-wrap"><Image className="h-3.5 w-3.5" /></span>
+            Page Hero Images
+          </span>
+          {Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length > 0 && (
+            <Badge variant="secondary" className="ml-auto mr-2 text-[10px]">
+              {Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length} set
+            </Badge>
+          )}
+        </AccordionTrigger>
+        <AccordionContent className="space-y-3 pb-5 pt-1">
+          <p className="text-xs text-muted-foreground">
+            Add a full-width banner image to the top of any form page. Images are selected from the built-in library and saved permanently with the form.
+          </p>
+
+          {/* Thumbnail previews */}
+          {Object.entries(form.pageHeroImages ?? {}).filter(([, v]) => v).length > 0 && (
+            <div className="grid grid-cols-2 gap-2">
+              {Object.entries(form.pageHeroImages ?? {}).filter(([, v]) => v).map(([pageIdx, url]) => (
+                <div key={pageIdx} className="relative rounded-lg overflow-hidden h-16 border border-border/50 group bg-muted/30">
+                  <img src={url} alt={`Page ${+pageIdx + 1} hero`} className="w-full h-full object-contain" />
+                  <div className="absolute inset-0 bg-black/30 flex items-end px-2 py-1">
+                    <span className="text-[10px] font-semibold text-white">Page {+pageIdx + 1}</span>
+                  </div>
+                  <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => openHeroPicker(+pageIdx)}
+                      className="p-1 rounded bg-black/50 hover:bg-primary/80 text-white"
+                      title="Change image"
+                    >
+                      <Image className="h-2.5 w-2.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const next = { ...(form.pageHeroImages ?? {}) };
+                        delete next[+pageIdx];
+                        onUpdate({ pageHeroImages: next });
+                      }}
+                      className="p-1 rounded bg-black/50 hover:bg-black/70 text-white"
+                      title="Remove"
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={() => openHeroPicker(0)}
+          >
+            <Image className="h-3.5 w-3.5" />
+            {Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length > 0
+              ? 'Manage Hero Images'
+              : 'Choose Hero Images'}
+          </Button>
+        </AccordionContent>
+      </AccordionItem>
       <div className="pt-2 pb-1">
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-border/50" />
@@ -1139,6 +1210,14 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
       onClose={() => setShowThemeDialog(false)}
       onSelectTheme={handleSelectTheme}
       currentTheme={form.theme}
+    />
+    <HeroImagePickerDialog
+      open={showHeroPicker}
+      onOpenChange={setShowHeroPicker}
+      initialPage={heroPickerInitialPage}
+      pageCount={pageCount}
+      pageHeroImages={form.pageHeroImages ?? {}}
+      onSave={(updated) => onUpdate({ pageHeroImages: updated })}
     />
   </>
   );

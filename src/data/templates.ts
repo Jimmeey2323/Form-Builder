@@ -5,9 +5,15 @@ export interface Template {
   name: string;
   description: string;
   category: string;
+  /** Optional sub-category (e.g. from CSV import) */
+  subCategory?: string;
   icon: string;
   fields: FormField[];
   config: Partial<FormConfig>;
+  /** True for templates created by the user (e.g. via CSV import) */
+  isUserCreated?: boolean;
+  /** ISO timestamp of when this template was created */
+  createdAt?: string;
 }
 
 export const formTemplates: Template[] = [

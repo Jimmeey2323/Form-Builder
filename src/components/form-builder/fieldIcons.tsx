@@ -99,4 +99,5 @@ export const FIELD_ICONS: Record<FieldType, ReactNode> = {
   'pdf-viewer': <FileText className={iconClass} />,
   'social-links': <Share2 className={iconClass} />,
   'member-search': <Users className={iconClass} />,
+  'momence-sessions': <CalendarDays className={iconClass} />,
 } as Record<FieldType, ReactNode>;

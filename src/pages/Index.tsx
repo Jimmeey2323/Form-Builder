@@ -9,8 +9,11 @@ import { FormCanvas } from '@/components/form-builder/FormCanvas';
 import { TestSubmission } from '@/components/TestSubmission';
 import { FormCard } from '@/components/FormCard';
 import { TemplateSelectionDialog } from '@/components/TemplateSelectionDialog';
+import { CsvImportDialog } from '@/components/CsvImportDialog';
+import { useTemplates } from '@/hooks/useTemplates';
 import { generateFormHtml, convertImageToBase64 } from '@/utils/htmlGenerator';
 import { FieldType, FIELD_TYPE_CATEGORIES, FIELD_TYPE_LABELS, FormConfig, FormField } from '@/types/formField';
+import { MOMENCE_PRESET_FIELDS, SESSION_MAPPING_FIELDS, MEMBER_MAPPING_FIELDS, FieldPreset } from '@/lib/momencePresets';
 import { Template } from '@/data/templates';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 
@@ -40,6 +43,7 @@ import {
 import {
   Code,
   Eye,
+  EyeOff,
   Settings,
   Plus,
   Trash2,
@@ -67,6 +71,10 @@ import {
   Sparkles,
   LayoutDashboard,
   ChevronLeft,
+  Hash,
+  Type,
+  Mail,
+  Phone,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,7 +123,9 @@ const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'library' | 'forms'>('library');
+  const { userTemplates, addTemplates, deleteTemplate } = useTemplates();
   const handleSidebarTabChange = (value: string) => {
     setSidebarTab(value as 'library' | 'forms');
   };
@@ -254,6 +264,25 @@ const Index = () => {
     setSidebarTab('library');
   };
 
+  const handleAddPresetField = (preset: FieldPreset) => {
+    if (!activeForm) return;
+    addField(activeForm.id, preset.type, {
+      label:       preset.label,
+      name:        preset.name,
+      placeholder: preset.placeholder ?? '',
+      helpText:    preset.helpText ?? '',
+      isHidden:    preset.isHidden  ?? false,
+      isReadOnly:  preset.isReadOnly ?? false,
+      ...(preset.options ? { options: preset.options } : {}),
+    });
+    setSidebarTab('library');
+  };
+
+  const handleAddAllPresets = (presets: FieldPreset[]) => {
+    if (!activeForm) return;
+    presets.forEach(preset => handleAddPresetField(preset));
+  };
+
   // Template selection handlers
   const handleSelectTemplate = (template: Template) => {
     // Create a new form
@@ -282,6 +311,32 @@ const Index = () => {
   const handleCreateBlankForm = () => {
     createForm();
     setShowTemplateDialog(false);
+  };
+
+  // ── CSV Import handlers ────────────────────────────────────────────────────
+  const handleCsvSaveTemplates = (templates: Template[]) => {
+    addTemplates(templates);
+  };
+
+  const handleCsvCreateForms = (templates: Template[]) => {
+    templates.forEach(template => {
+      const newForm = createForm();
+      if (newForm) {
+        const updatedForm = {
+          ...newForm,
+          title: template.name,
+          description: template.description ?? '',
+          fields: template.fields.map((field, index) => ({
+            ...field,
+            id: `field_${Date.now()}_${index}_${Math.random().toString(36).slice(2,5)}`,
+            order: index,
+          })),
+          ...(template.config || {}),
+        };
+        updateForm(newForm.id, updatedForm);
+        setActiveFormId(newForm.id);
+      }
+    });
   };
 
   // Filter forms based on search
@@ -340,85 +395,78 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#eef2ff_0%,_#f8fafc_40%,_#f1f5f9_100%)] overflow-x-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur-xl shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-2xl shadow-[0_1px_20px_rgba(0,0,0,0.06)]">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 shadow-lg shadow-primary/25">
-              <Sparkles className="h-5 w-5 text-white" />
+            <div className="relative">
+              <div className="anim-glow-ring flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+                <Sparkles className="h-5 w-5 text-white" />
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">JForms</h1>
-              <p className="text-xs text-muted-foreground/80 font-medium">Professional Form Builder</p>
+              <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent">JForms</h1>
+              <p className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-[0.2em]">Professional Form Builder</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Button asChild variant="outline" size="sm" className="h-9 gap-2 border-border/60 bg-white text-slate-700 hover:bg-slate-50 hover:text-primary hover:border-primary/40 font-medium text-sm shadow-sm transition-all">
-              <Link to="/"><ChevronLeft className="h-4 w-4" /><LayoutDashboard className="h-4 w-4" />Dashboard</Link>
+            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg font-medium text-[13px]">
+              <Link to="/"><ChevronLeft className="h-4 w-4" />Dashboard</Link>
             </Button>
             {activeForm && (
               <>
-                <div className="hidden md:flex items-center gap-2 mr-4">
+                <div className="hidden md:flex items-center gap-1.5 ml-2">
                   {activeForm.webhookConfig.enabled && (
-                    <Badge variant="outline" className="text-xs gap-1.5 border-emerald-200 text-emerald-700 bg-emerald-50">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 border border-indigo-200 bg-indigo-50 rounded-full px-2.5 py-1">
                       <Webhook className="h-3 w-3" /> Webhook
-                    </Badge>
+                    </span>
                   )}
                   {(activeForm.pixelConfig.snapPixelId || activeForm.pixelConfig.metaPixelId || activeForm.pixelConfig.googleAdsId) && (
-                    <Badge variant="outline" className="text-xs gap-1.5 border-blue-200 text-blue-700 bg-blue-50">
-                      <BarChart3 className="h-3 w-3" /> Analytics
-                    </Badge>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 border border-blue-200 bg-blue-50 rounded-full px-2.5 py-1">
+                      <BarChart3 className="h-3 w-3" /> Pixels
+                    </span>
                   )}
                   {activeForm.googleSheetsConfig.enabled && (
-                    <Badge variant="outline" className="text-xs gap-1.5 border-green-200 text-green-700 bg-green-50">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 rounded-full px-2.5 py-1">
                       <Sheet className="h-3 w-3" /> Sheets
-                    </Badge>
+                    </span>
                   )}
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowExport(true)} className="h-9 text-sm">
-                  <Code className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePreviewInNewTab} className="h-9 text-sm">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Preview
-                </Button>
-                <Button 
-                  size="sm" 
-                  onClick={() => setConfirmDeploy(true)} 
-                  disabled={deploying} 
-                  className="h-9 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-md hover:shadow-lg transition-all duration-200"
-                >
-                  {deploying ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <Rocket className="h-4 w-4 mr-2" />
-                  )}
-                  {deploying ? 'Deploying...' : 'Deploy'}
-                </Button>
+                <div className="flex items-center gap-2 ml-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowExport(true)}
+                    className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                    <Code className="h-3.5 w-3.5 mr-1.5" />Export
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handlePreviewInNewTab}
+                    className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                    <Eye className="h-3.5 w-3.5 mr-1.5" />Preview
+                  </Button>
+                  <Button size="sm" onClick={() => setConfirmDeploy(true)} disabled={deploying}
+                    className="h-8 text-[12.5px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-500/25 border-0 font-semibold">
+                    {deploying ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1.5" />}
+                    {deploying ? 'Deploying…' : 'Deploy'}
+                  </Button>
+                </div>
               </>
             )}
           </div>
         </div>
         {deployUrl && (
           <div className="container pb-3">
-            <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 px-4 py-3 shadow-sm">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-green-100">
-                <ExternalLink className="h-4 w-4 text-green-600" />
+            <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 to-teal-950/90 border border-emerald-500/20 px-5 py-3 shadow-lg shadow-emerald-900/20">
+              <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25">
+                <ExternalLink className="h-4 w-4 text-emerald-400" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-green-900 mb-0.5">🎉 Form is live!</p>
-                <a 
-                  href={deployUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="text-sm text-green-700 hover:text-green-800 underline underline-offset-2 transition-colors"
-                >
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400/80 mb-0.5">Live</p>
+                <a href={deployUrl} target="_blank" rel="noopener noreferrer"
+                  className="text-[13px] text-emerald-300 hover:text-emerald-200 underline underline-offset-2 transition-colors font-medium">
                   {deployUrl}
                 </a>
               </div>
-              <Button variant="outline" size="sm" asChild className="border-green-200 text-green-700 hover:bg-green-100">
+              <Button variant="outline" size="sm" asChild
+                className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 bg-transparent h-8 text-xs">
                 <a href={deployUrl} target="_blank" rel="noopener noreferrer">
                   Visit <ExternalLink className="h-3 w-3 ml-1" />
                 </a>
@@ -430,72 +478,88 @@ const Index = () => {
 
       <main className="container py-6 space-y-6">
         {activeForm && (
-          <Card className="rounded-[32px] border border-white/10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 shadow-2xl">
-            <CardContent className="bg-white/5 backdrop-blur-2xl p-6">
+          <Card className="anim-fade-in rounded-[28px] border border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950 shadow-2xl overflow-hidden">
+            <CardContent className="relative p-6">
+              {/* Subtle shimmer line at top */}
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="text-[11px] uppercase tracking-[0.4em] text-slate-400">Premium builder</p>
-                  <h2 className="text-2xl font-semibold text-white">Experience control center</h2>
-                  <p className="text-sm text-slate-300">
-                    High-fidelity animations, integrations, and layouts keep your launches polished and dependable.
+                  <p className="text-[10px] uppercase tracking-[0.45em] text-slate-400 mb-0.5">Active Form</p>
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-xl font-bold text-white tracking-tight">{activeForm.title}</h2>
+                    {activeForm.deployedUrl && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />Live
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {activeForm.fields.length} field{activeForm.fields.length !== 1 ? 's' : ''} &middot; Updated {new Date(activeForm.updatedAt).toLocaleDateString()}
                   </p>
                 </div>
-                <Badge variant="secondary" className="rounded-full px-3 text-[0.6rem] uppercase tracking-[0.45em] text-white/80 border-white/30">
+                <Badge variant="secondary" className="w-fit rounded-full px-3 text-[0.6rem] uppercase tracking-[0.45em] text-white/70 border border-white/15 bg-white/8">
                   Pro
                 </Badge>
               </div>
-              <div className="grid gap-4 pt-4 md:grid-cols-3">
-                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+              <div className="grid gap-3 pt-4 md:grid-cols-3">
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors p-4">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Animations</p>
-                    <p className="text-sm font-semibold text-white">Cinematic fades</p>
+                    <p className="text-sm font-semibold text-white mt-0.5">Cinematic fades</p>
                   </div>
                   <Switch checked={activeForm.animations?.enabled ?? false} onCheckedChange={toggleAnimationsQuick} />
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors p-4">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Webhooks</p>
-                    <p className="text-sm font-semibold text-white">Live integrations</p>
+                    <p className="text-sm font-semibold text-white mt-0.5">Live integrations</p>
                   </div>
                   <Switch checked={activeForm.webhookConfig.enabled} onCheckedChange={toggleWebhookQuick} />
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-white/20 bg-white/10 p-4">
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors p-4">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Sheets</p>
-                    <p className="text-sm font-semibold text-white">Live exports</p>
+                    <p className="text-sm font-semibold text-white mt-0.5">Auto-export rows</p>
                   </div>
                   <Switch checked={activeForm.googleSheetsConfig.enabled} onCheckedChange={toggleSheetsQuick} />
                 </div>
               </div>
+              {activeForm.deployedUrl && (
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                  <a href={activeForm.deployedUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex-1 text-[12px] text-emerald-300 hover:text-emerald-200 underline underline-offset-2 truncate font-medium">
+                    {activeForm.deployedUrl}
+                  </a>
+                  <ExternalLink className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar */}
-          <aside className={`col-span-12 lg:col-span-3${mainTab === 'preview' ? ' hidden' : ''}`}>
-            <Card className="sticky top-[72px] border-border/50 shadow-sm">
-              <CardHeader className="pb-3 pt-4 px-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <h2 className="text-sm font-semibold text-foreground">Workspace</h2>
-                    <p className="text-[11px] text-muted-foreground">{forms.length} form{forms.length !== 1 ? 's' : ''}</p>
-                  </div>
-                  <Button size="sm" onClick={() => setShowTemplateDialog(true)} className="h-8 bg-primary text-white text-xs px-3">
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    New
-                  </Button>
+          <aside className={`col-span-12 lg:col-span-3${(mainTab === 'preview' || mainTab === 'settings' || !activeForm) ? ' hidden' : ''}`}>
+            <div className="sticky top-[72px] rounded-2xl border border-border/60 bg-white shadow-sm overflow-hidden">
+              {/* Sidebar header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-slate-50/60">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Workspace</p>
+                  <p className="text-[12px] font-semibold text-slate-700 mt-0.5">{forms.length} form{forms.length !== 1 ? 's' : ''}</p>
                 </div>
-              </CardHeader>
-              <CardContent className="px-3 pb-4 pt-0">
-                <Tabs value={sidebarTab} onValueChange={handleSidebarTabChange} className="space-y-4">
-                  <TabsList className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100/60 p-1">
-                    <TabsTrigger value="library" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <Layers className="h-3.5 w-3.5 mr-2" />
-                      Library
+                <Button size="sm" onClick={() => setShowTemplateDialog(true)}
+                  className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 border-0 shadow-sm shadow-indigo-500/20">
+                  <Plus className="h-3 w-3 mr-1" />New
+                </Button>
+              </div>
+              <div className="p-3">
+              <Tabs value={sidebarTab} onValueChange={handleSidebarTabChange} className="space-y-3">
+                  <TabsList className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100/80 p-1 border border-border/40">
+                    <TabsTrigger value="library" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-700 data-[state=active]:font-semibold">
+                      <Layers className="h-3 w-3 mr-1.5" />Fields
                     </TabsTrigger>
-                    <TabsTrigger value="forms" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <List className="h-3.5 w-3.5 mr-2" />
-                      Forms
+                    <TabsTrigger value="forms" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-indigo-700 data-[state=active]:font-semibold">
+                      <List className="h-3 w-3 mr-1.5" />Forms
                     </TabsTrigger>
                   </TabsList>
 
@@ -524,6 +588,95 @@ const Index = () => {
                           </div>
                         </div>
                       ))}
+
+                      {/* ── Momence Preset Dropdowns ────────────────── */}
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/60 px-1 mb-1.5 pt-2">Momence Presets</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {MOMENCE_PRESET_FIELDS.map(preset => (
+                            <button
+                              key={preset.id}
+                              onClick={() => handleAddPresetField(preset)}
+                              disabled={!activeForm}
+                              className="flex items-center gap-2 rounded-lg border border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-violet-700/80 transition-colors hover:border-violet-400/60 hover:bg-violet-100/60 hover:text-violet-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-violet-800/40 dark:bg-violet-950/20 dark:text-violet-300"
+                              title={`Add ${preset.label} dropdown (${preset.options!.length} options)`}
+                            >
+                              <span className="shrink-0">
+                                <CheckSquare className="h-3.5 w-3.5" />
+                              </span>
+                              <span className="truncate">{preset.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── Session Mapping Fields ──────────────────── */}
+                      <div>
+                        <div className="flex items-center justify-between px-1 mb-1.5 pt-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-teal-600/70">Session Fields</p>
+                          <button
+                            onClick={() => handleAddAllPresets(SESSION_MAPPING_FIELDS)}
+                            disabled={!activeForm}
+                            className="text-[9px] font-semibold text-teal-600 hover:text-teal-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 transition-colors"
+                          >+ Add All</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {SESSION_MAPPING_FIELDS.map(preset => (
+                            <button
+                              key={preset.id}
+                              onClick={() => handleAddPresetField(preset)}
+                              disabled={!activeForm}
+                              className="flex items-center gap-2 rounded-lg border border-teal-200/70 bg-teal-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-teal-700/80 transition-colors hover:border-teal-400/60 hover:bg-teal-100/60 hover:text-teal-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-teal-800/40 dark:bg-teal-950/20 dark:text-teal-300"
+                              title={preset.helpText}
+                            >
+                              <span className="shrink-0 text-teal-500">
+                                {preset.isHidden
+                                  ? <EyeOff className="h-3.5 w-3.5" />
+                                  : preset.type === 'number'
+                                    ? <Hash className="h-3.5 w-3.5" />
+                                    : <Type className="h-3.5 w-3.5" />}
+                              </span>
+                              <span className="truncate">{preset.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ── Member Mapping Fields ───────────────────── */}
+                      <div>
+                        <div className="flex items-center justify-between px-1 mb-1.5 pt-2">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-blue-600/70">Member Fields</p>
+                          <button
+                            onClick={() => handleAddAllPresets(MEMBER_MAPPING_FIELDS)}
+                            disabled={!activeForm}
+                            className="text-[9px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-blue-200 hover:border-blue-400 bg-blue-50 hover:bg-blue-100 transition-colors"
+                          >+ Add All</button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          {MEMBER_MAPPING_FIELDS.map(preset => (
+                            <button
+                              key={preset.id}
+                              onClick={() => handleAddPresetField(preset)}
+                              disabled={!activeForm}
+                              className="flex items-center gap-2 rounded-lg border border-blue-200/70 bg-blue-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-blue-700/80 transition-colors hover:border-blue-400/60 hover:bg-blue-100/60 hover:text-blue-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-blue-800/40 dark:bg-blue-950/20 dark:text-blue-300"
+                              title={preset.helpText}
+                            >
+                              <span className="shrink-0 text-blue-500">
+                                {preset.isHidden
+                                  ? <EyeOff className="h-3.5 w-3.5" />
+                                  : preset.type === 'number'
+                                    ? <Hash className="h-3.5 w-3.5" />
+                                    : preset.type === 'email'
+                                      ? <Mail className="h-3.5 w-3.5" />
+                                      : preset.type === 'tel'
+                                        ? <Phone className="h-3.5 w-3.5" />
+                                        : <Type className="h-3.5 w-3.5" />}
+                              </span>
+                              <span className="truncate">{preset.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </TabsContent>
 
@@ -639,117 +792,246 @@ const Index = () => {
                     </div>
                   </TabsContent>
                 </Tabs>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </aside>
 
           {/* Main Content */}
-          <div className={`col-span-12 ${mainTab === 'preview' ? 'lg:col-span-12' : 'lg:col-span-9'}`}>
+          <div className={`col-span-12 ${(mainTab === 'preview' || mainTab === 'settings' || !activeForm) ? 'lg:col-span-12' : 'lg:col-span-9'}`}>
             {!activeForm ? (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="relative mb-8">
-                  <div className="flex items-center justify-center h-24 w-24 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/10 shadow-xl">
-                    <Sparkles className="h-12 w-12 text-primary/60" />
-                  </div>
-                  <div className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-gradient-to-r from-primary to-primary/80 flex items-center justify-center">
-                    <Plus className="h-3 w-3 text-white" />
-                  </div>
-                </div>
-                
-                <div className="text-center mb-8 max-w-md">
-                  <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                    Welcome to JForms
-                  </h2>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Create beautiful, professional forms with advanced features like webhooks, analytics tracking, 
-                    multi-page layouts, and seamless deployment to Vercel.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 w-full max-w-2xl">
-                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center mx-auto mb-3">
-                      <Webhook className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <h3 className="font-semibold text-sm mb-1">Smart Integrations</h3>
-                    <p className="text-xs text-muted-foreground">Webhooks, Google Sheets, and analytics</p>
-                  </div>
-                  
-                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
-                    <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                      <Rocket className="h-4 w-4 text-emerald-600" />
-                    </div>
-                    <h3 className="font-semibold text-sm mb-1">One-Click Deploy</h3>
-                    <p className="text-xs text-muted-foreground">Instant deployment to Vercel</p>
-                  </div>
-                  
-                  <div className="text-center p-4 rounded-xl border border-slate-200 bg-white/50">
-                    <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center mx-auto mb-3">
-                      <Layers className="h-4 w-4 text-purple-600" />
-                    </div>
-                    <h3 className="font-semibold text-sm mb-1">Advanced Fields</h3>
-                    <p className="text-xs text-muted-foreground">Rich field types and logic</p>
-                  </div>
-                </div>
-
-                <Button 
-                  onClick={createForm} 
-                  size="lg" 
-                  className="bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg hover:shadow-xl transition-all duration-200 px-8"
-                >
-                  <Plus className="h-5 w-5 mr-2" /> 
-                  Create Your First Form
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
+              /* ── No active form ─────────────────────────────────────── */
+              forms.length > 0 ? (
+              /* ── Workspace overview (forms exist) ───────────────────── */
+              <div className="space-y-7">
+                {/* Workspace masthead */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                      {activeForm.title}
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                      {activeForm.fields.length} fields • Last updated {new Date(activeForm.updatedAt).toLocaleDateString()}
+                    <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Your Workspace</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {forms.length} form{forms.length !== 1 ? 's' : ''} &middot; {forms.filter(f => !!f.deployedUrl).length} live &middot; {forms.reduce((a, f) => a + f.fields.length, 0)} total fields
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCopyForm(activeForm)}
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate
+                    <Button variant="outline" size="sm" onClick={() => setShowCsvImport(true)} className="h-9 gap-1.5 border-border/60">
+                      <Download className="h-3.5 w-3.5" />Import
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setConfirmDeleteForm(true)}
-                    >
-                      <Trash2 className="h-4 w-4" />
+                    <Button size="sm" onClick={() => setShowTemplateDialog(true)}
+                      className="h-9 gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 border-0 shadow-md shadow-indigo-500/20">
+                      <Plus className="h-3.5 w-3.5" />New Form
                     </Button>
                   </div>
                 </div>
 
-                <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-6">
-                  <TabsList className="grid w-full grid-cols-4 bg-slate-100/50 p-1 rounded-xl">
-                    <TabsTrigger value="fields" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <Layers className="h-4 w-4 mr-2" /> 
-                      Fields
+                {/* Stats strip */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { Icon: FileCode, label: 'Total Forms',   value: forms.length,                                                                                                                                                                                               sub: 'in workspace',    gradient: 'from-blue-500 to-indigo-500',    bg: 'bg-blue-50/80',    border: 'border-blue-100',    text: 'text-blue-700' },
+                    { Icon: Rocket,   label: 'Live',          value: forms.filter(f => !!f.deployedUrl).length,                                                                                                                                                                  sub: 'deployed',        gradient: 'from-emerald-500 to-teal-500',  bg: 'bg-emerald-50/80', border: 'border-emerald-100', text: 'text-emerald-700' },
+                    { Icon: Layers,   label: 'Total Fields',  value: forms.reduce((a, f) => a + f.fields.length, 0),                                                                                                                                                            sub: 'across all forms', gradient: 'from-violet-500 to-purple-500', bg: 'bg-violet-50/80',  border: 'border-violet-100',  text: 'text-violet-700' },
+                    { Icon: Webhook,  label: 'Integrations',  value: forms.filter(f => f.webhookConfig?.enabled || f.googleSheetsConfig?.enabled || !!(f.pixelConfig?.snapPixelId || f.pixelConfig?.metaPixelId || f.pixelConfig?.googleAdsId)).length, sub: 'forms connected', gradient: 'from-rose-500 to-pink-500',   bg: 'bg-rose-50/80',    border: 'border-rose-100',    text: 'text-rose-700' },
+                  ].map(stat => (
+                    <div key={stat.label} className={`rounded-2xl border ${stat.border} ${stat.bg} px-5 py-4`}>
+                      <div className="mb-3">
+                        <div className={`inline-flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-sm`}>
+                          <stat.Icon className="h-4 w-4 text-white" />
+                        </div>
+                      </div>
+                      <p className={`text-2xl font-extrabold ${stat.text} leading-none mb-1`}>{stat.value}</p>
+                      <p className="text-[12px] font-semibold text-slate-600">{stat.label}</p>
+                      <p className="text-[10px] text-muted-foreground">{stat.sub}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Forms grid */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400">All Forms</h3>
+                    <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-white p-0.5 shadow-sm">
+                      <button onClick={() => setViewMode('grid')} className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>
+                        <Grid3X3 className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setViewMode('list')} className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>
+                        <List className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}>
+                    {forms.map(form => (
+                      <FormCard
+                        key={form.id}
+                        form={form}
+                        isActive={false}
+                        isSelected={selectedForms.has(form.id)}
+                        viewMode={viewMode}
+                        onSelect={() => { setActiveFormId(form.id); setSidebarTab('library'); }}
+                        onToggleSelect={() => handleSelectForm(form.id)}
+                        onCopy={() => handleCopyForm(form)}
+                        onDelete={() => { setActiveFormId(form.id); setConfirmDeleteForm(true); }}
+                      />
+                    ))}
+                    <button
+                      onClick={() => setShowTemplateDialog(true)}
+                      className={`${viewMode === 'grid' ? 'min-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2' : 'h-14 rounded-xl flex items-center gap-2 px-4'} w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-slate-400 hover:text-indigo-500 transition-all duration-150 cursor-pointer`}
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span className="text-[12px] font-medium">New Form</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              ) : (
+              /* ── Landing hero (0 forms exist) ────────────────────────── */
+              <div className="relative overflow-hidden rounded-3xl border border-white/8 min-h-[580px] flex flex-col items-center justify-center py-20 px-6">
+                {/* Animated background */}
+                <div className="absolute inset-0 -z-10 rounded-3xl overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950" />
+                  <div className="anim-blob absolute -top-20 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-blue-500/25 to-indigo-600/15 blur-3xl" />
+                  <div className="anim-blob delay-400 absolute top-16 -right-16 h-96 w-96 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-600/10 blur-3xl" />
+                  <div className="anim-blob delay-200 absolute -bottom-16 left-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 blur-3xl" />
+                  {/* Dot grid */}
+                  <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
+                  {/* Top radial glow */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_40%_at_50%_-10%,rgba(99,102,241,0.18),transparent)]" />
+                </div>
+
+                {/* Floating brand icon */}
+                <div className="anim-fade-in-up mb-7 relative">
+                  <div className="anim-float anim-glow-ring flex items-center justify-center h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 shadow-2xl shadow-indigo-500/40 ring-1 ring-white/20">
+                    <Sparkles className="h-9 w-9 text-white" />
+                  </div>
+                  <div className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full bg-emerald-400 flex items-center justify-center ring-2 ring-slate-900 animate-bounce">
+                    <Plus className="h-3 w-3 text-white" />
+                  </div>
+                </div>
+
+                {/* Badge */}
+                <div className="anim-fade-in-up delay-100 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-white/60 text-[10px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 mb-5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Professional Form Builder
+                </div>
+
+                {/* Headline */}
+                <div className="anim-fade-in-up delay-200 text-center mb-5 max-w-xl">
+                  <h2 className="text-4xl md:text-[3.25rem] font-extrabold tracking-tight text-white leading-[1.1] mb-3">
+                    Build Forms That
+                    <span className="block anim-gradient-title">Actually Convert.</span>
+                  </h2>
+                  <p className="text-slate-400 text-base leading-relaxed max-w-md mx-auto">
+                    Stunning forms with smart integrations, multi-page layouts, advanced field logic,
+                    and one-click Vercel deployment.
+                  </p>
+                </div>
+
+                {/* Feature pills */}
+                <div className="anim-fade-in-up delay-300 flex flex-wrap items-center justify-center gap-2.5 mb-9">
+                  {['20+ Field Types', '1-Click Deploy', 'Real-time Preview', 'Webhooks & Analytics', 'Hero Images'].map(s => (
+                    <span key={s} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 text-white/55 text-xs font-medium px-3.5 py-1">
+                      <span className="h-1 w-1 rounded-full bg-indigo-400" />
+                      {s}
+                    </span>
+                  ))}
+                </div>
+
+                {/* CTA buttons */}
+                <div className="anim-fade-in-up delay-400 flex flex-wrap items-center justify-center gap-3 mb-14">
+                  <button
+                    onClick={createForm}
+                    className="anim-shimmer-btn inline-flex items-center gap-2 rounded-xl text-white font-semibold px-8 h-12 text-base shadow-2xl shadow-indigo-500/30 border-0 hover:brightness-110 active:scale-[0.98] transition-all duration-150"
+                  >
+                    <Plus className="h-5 w-5" />
+                    Create Your First Form
+                  </button>
+                  <button
+                    onClick={() => setShowTemplateDialog(true)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/6 backdrop-blur-sm text-white/75 hover:bg-white/12 hover:text-white font-semibold px-6 h-12 text-sm transition-all duration-150"
+                  >
+                    <Layers className="h-4 w-4" />
+                    Browse Templates
+                  </button>
+                </div>
+
+                {/* Feature cards */}
+                <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {[
+                    {
+                      icon: <Webhook className="h-5 w-5 text-blue-400" />,
+                      ring: 'ring-blue-500/20', bg: 'from-blue-500/10 to-transparent',
+                      title: 'Smart Integrations',
+                      desc: 'Webhooks, Google Sheets, Snap & Meta Pixel tracking.',
+                      delay: 'delay-300',
+                    },
+                    {
+                      icon: <Rocket className="h-5 w-5 text-emerald-400" />,
+                      ring: 'ring-emerald-500/20', bg: 'from-emerald-500/10 to-transparent',
+                      title: 'One-Click Deploy',
+                      desc: 'Instant deployment to Vercel. Live URL in seconds.',
+                      delay: 'delay-400',
+                    },
+                    {
+                      icon: <Layers className="h-5 w-5 text-violet-400" />,
+                      ring: 'ring-violet-500/20', bg: 'from-violet-500/10 to-transparent',
+                      title: 'Rich Field Logic',
+                      desc: '20+ field types, hero images, conditional logic & split layouts.',
+                      delay: 'delay-500',
+                    },
+                  ].map(f => (
+                    <div
+                      key={f.title}
+                      className={`anim-fade-in-up ${f.delay} rounded-2xl ring-1 ${f.ring} bg-gradient-to-br ${f.bg} backdrop-blur-sm p-4 hover:scale-[1.02] transition-transform duration-200 cursor-default`}
+                    >
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-white/6 ring-1 ring-white/10">
+                          {f.icon}
+                        </div>
+                        <span className="text-white/90 font-semibold text-sm">{f.title}</span>
+                      </div>
+                      <p className="text-white/40 text-xs leading-relaxed">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              ) /* closes forms.length > 0 ? ... : ... */
+            ) : (
+              <div className="space-y-5">
+                {/* Form title bar */}
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-border/60 px-5 py-3.5 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/25">
+                      <FileCode className="h-4.5 w-4.5 text-white h-4 w-4" />
+                    </div>
+                    <div>
+                      <h1 className="text-[15px] font-bold tracking-tight text-slate-900 leading-tight">{activeForm.title}</h1>
+                      <p className="text-[11px] text-muted-foreground">
+                        {activeForm.fields.length} field{activeForm.fields.length !== 1 ? 's' : ''} &middot; Updated {new Date(activeForm.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => handleCopyForm(activeForm)}
+                      className="h-8 text-[12px] text-muted-foreground hover:text-foreground hover:bg-slate-100 gap-1.5">
+                      <Copy className="h-3.5 w-3.5" />Duplicate
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg"
+                      onClick={() => setConfirmDeleteForm(true)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-5">
+                  <TabsList className="inline-flex h-10 gap-0.5 bg-white border border-border/60 shadow-sm p-1 rounded-xl">
+                    <TabsTrigger value="fields" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-indigo-500/25 transition-all">
+                      <Layers className="h-3.5 w-3.5 mr-1.5" />Fields
                     </TabsTrigger>
-                    <TabsTrigger value="preview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <Eye className="h-4 w-4 mr-2" /> 
-                      Preview
+                    <TabsTrigger value="preview" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-indigo-500/25 transition-all">
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />Preview
                     </TabsTrigger>
-                    <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <Settings className="h-4 w-4 mr-2" /> 
-                      Settings
+                    <TabsTrigger value="settings" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-indigo-500/25 transition-all">
+                      <Settings className="h-3.5 w-3.5 mr-1.5" />Settings
                     </TabsTrigger>
-                    <TabsTrigger value="test" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                      <BarChart3 className="h-4 w-4 mr-2" /> 
-                      Test
+                    <TabsTrigger value="test" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-600 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-indigo-500/25 transition-all">
+                      <BarChart3 className="h-3.5 w-3.5 mr-1.5" />Test
                     </TabsTrigger>
                   </TabsList>
 
@@ -775,16 +1057,20 @@ const Index = () => {
                 </TabsContent>
 
                 <TabsContent value="settings">
-                  <Card className="border-border/50 shadow-sm">
-                    <CardContent className="pt-6 px-6 pb-6">
+                  <div className="rounded-2xl border border-border/60 bg-white shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border/50 bg-slate-50/60">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Form Settings</p>
+                      <p className="text-[13px] font-semibold text-slate-700 mt-0.5">Configure layout, theme, integrations &amp; more</p>
+                    </div>
+                    <div className="px-6 py-6">
                       <FormSettingsPanel
                         form={activeForm}
                         onUpdate={updates => updateForm(activeForm.id, updates)}
                         onCreateSheet={handleCreateSheet}
                         isCreatingSheet={creatingSheetsFor === activeForm.id}
                       />
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="test">
@@ -886,6 +1172,16 @@ const Index = () => {
         onClose={() => setShowTemplateDialog(false)}
         onSelectTemplate={handleSelectTemplate}
         onCreateBlank={handleCreateBlankForm}
+        userTemplates={userTemplates}
+        onImportCsv={() => { setShowTemplateDialog(false); setShowCsvImport(true); }}
+        onDeleteTemplate={deleteTemplate}
+      />
+
+      <CsvImportDialog
+        open={showCsvImport}
+        onClose={() => setShowCsvImport(false)}
+        onSaveTemplates={handleCsvSaveTemplates}
+        onCreateForms={handleCsvCreateForms}
       />
     </div>
   );

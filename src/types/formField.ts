@@ -50,7 +50,8 @@ export type FieldType =
   | 'video'
   | 'pdf-viewer'
   | 'social-links'
-  | 'member-search';
+  | 'member-search'
+  | 'momence-sessions';
 
 export interface FieldOption {
   label: string;
@@ -106,6 +107,12 @@ export interface FormulaConfig {
 export interface MomenceSearchConfig {
   /** Momence hostId to search members within (default 33905 for Bengaluru) */
   hostId: number;
+  /**
+   * Name of another form field whose value drives the hostId at runtime.
+   * If value contains "kenkere" or "copper" → 33905, else → 13752.
+   * When set this overrides the static hostId above at search time.
+   */
+  locationFieldName?: string;
   /** Placeholder text for the search input */
   searchPlaceholder?: string;
   /** Name of the form field to auto-fill with First Name */
@@ -116,6 +123,103 @@ export interface MomenceSearchConfig {
   autoFillEmail?: string;
   /** Name of the form field to auto-fill with Phone */
   autoFillPhone?: string;
+  /** Name of field to fill with total sessions booked */
+  autoFillSessionsBooked?: string;
+  /** Name of field to fill with sessions checked-in count */
+  autoFillSessionsCheckedIn?: string;
+  /** Name of field to fill with late-cancelled count */
+  autoFillLateCancelled?: string;
+  /** Name of field to fill with home location */
+  autoFillHomeLocation?: string;
+  /** Name of field to fill with member tags (comma-separated) */
+  autoFillTags?: string;
+  // ── Detail-call fields (from action:'detail') ──────────────────────────
+  /** ISO date member first seen */
+  autoFillFirstSeen?: string;
+  /** ISO date member last seen */
+  autoFillLastSeen?: string;
+  /** Total visit count */
+  autoFillTotalVisits?: string;
+  /** Customer tags (comma-separated, with colour context) */
+  autoFillCustomerTags?: string;
+  /** Active membership name */
+  autoFillActiveMembershipName?: string;
+  /** Active membership type (subscription / package etc.) */
+  autoFillActiveMembershipType?: string;
+  /** Active membership end date */
+  autoFillActiveMembershipEndDate?: string;
+  /** Sessions used against current membership */
+  autoFillActiveMembershipSessionsUsed?: string;
+  /** Session limit on current membership */
+  autoFillActiveMembershipSessionsLimit?: string;
+  /** 'true'/'false' — whether current membership is frozen */
+  autoFillActiveMembershipFrozen?: string;
+  /** Total recent session bookings count */
+  autoFillRecentSessionsCount?: string;
+  /** Name of the most recent session */
+  autoFillLastSessionName?: string;
+  /** Start time ISO of the most recent session */
+  autoFillLastSessionDate?: string;
+}
+
+/** Config for the Momence sessions picker field */
+export interface MomenceSessionsConfig {
+  /** Default look-ahead window in days from today (default 30) */
+  dateRangeDays?: number;
+  /** Show a date range picker so the user can adjust the window */
+  showDatePicker?: boolean;
+  /** Allow selecting more than one session */
+  allowMultiple?: boolean;
+  // ── auto-fill mappings (each value = target field name) ──────────────
+  /** Comma-separated session IDs */
+  autoFillSessionId?: string;
+  /** Session name(s) */
+  autoFillSessionNames?: string;
+  /** Start date/time ISO string(s) */
+  autoFillStartTime?: string;
+  /** End date/time ISO string(s) */
+  autoFillEndTime?: string;
+  /** Instructor name(s) */
+  autoFillInstructor?: string;
+  /** Location name(s) */
+  autoFillLocation?: string;
+  /** Capacity (total spots) */
+  autoFillCapacity?: string;
+  /** Spots remaining */
+  autoFillSpotsLeft?: string;
+  /** Booked / registered count */
+  autoFillBookedCount?: string;
+  /** Late-cancelled count */
+  autoFillLateCancelled?: string;
+  /** Difficulty / level */
+  autoFillLevel?: string;
+  /** Category / activity type */
+  autoFillCategory?: string;
+  /** Duration in minutes */
+  autoFillDuration?: string;
+  /** Session price */
+  autoFillPrice?: string;
+  // ── Detail-call fields (from secondary /sessions/{id} call) ─────────────
+  /** Session tags (comma-separated) */
+  autoFillTags?: string;
+  /** Waitlist capacity */
+  autoFillWaitlistCapacity?: string;
+  /** Waitlist booking count */
+  autoFillWaitlistBooked?: string;
+  /** 'true'/'false' — whether session is recurring */
+  autoFillIsRecurring?: string;
+  /** 'true'/'false' — whether session is in-person */
+  autoFillIsInPerson?: string;
+  /** Zoom meeting link */
+  autoFillZoomLink?: string;
+  /** Online stream URL */
+  autoFillOnlineStreamUrl?: string;
+  /** Original (substitute) teacher name */
+  autoFillOriginalTeacher?: string;
+  /** Additional teachers (comma-separated) */
+  autoFillAdditionalTeachers?: string;
+  /** Primary teacher email */
+  autoFillTeacherEmail?: string;
 }
 
 export interface FormField {
@@ -150,6 +254,7 @@ export interface FormField {
   lookupConfig?: LookupConfig;
   formulaConfig?: FormulaConfig;
   momenceSearchConfig?: MomenceSearchConfig;
+  momenceSessionsConfig?: MomenceSessionsConfig;
   dependsOnFieldId?: string;
   /** Filters the visible options of this select/radio/checkbox based on another field's value */
   dependentOptionsConfig?: DependentOptionsConfig;
@@ -304,6 +409,8 @@ export interface FormConfig {
   googleSheetsConfig: GoogleSheetsConfig;
   /** The last successfully deployed Vercel URL for this form */
   deployedUrl?: string;
+  /** Per-page hero image URLs — key = page index (0-based) */
+  pageHeroImages?: Record<number, string>;
   /** Domain of the existing Vercel project to deploy to (e.g. mysite.vercel.app or mycustomdomain.com) */
   vercelProjectDomain?: string;
   createdAt: string;
@@ -351,6 +458,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'pdf-viewer': 'PDF Viewer',
   'social-links': 'Social Media Links',
   'member-search': 'Member Search (Momence)',
+  'momence-sessions': 'Sessions Picker (Momence)',
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
   divider: 'Divider',
@@ -377,7 +485,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'html-snippet', 'page-break', 'hidden'],
   'Media': ['image', 'video', 'pdf-viewer', 'social-links'],
   'Advanced': ['lookup', 'formula', 'conditional', 'dependent'],
-  'Integrations': ['member-search'],
+  'Integrations': ['member-search', 'momence-sessions'],
 };
 
 export function createDefaultField(type: FieldType, order: number): FormField {
@@ -428,15 +536,31 @@ export function createDefaultField(type: FieldType, order: number): FormField {
     base.helpText = 'Drop your nested fields here';
   }
 
+  if (type === 'momence-sessions') {
+    base.label = 'Select Sessions';
+    base.momenceSessionsConfig = {
+      dateRangeDays: 30,
+      showDatePicker: true,
+      allowMultiple: true,
+      autoFillSessionNames: '',
+    };
+  }
+
   if (type === 'member-search') {
     base.label = 'Search Member';
     base.momenceSearchConfig = {
       hostId: 33905,
+      locationFieldName: '',
       searchPlaceholder: 'Type a name, email or phone…',
       autoFillFirstName: 'firstName',
       autoFillLastName: 'lastName',
       autoFillEmail: 'email',
       autoFillPhone: 'phoneNumber',
+      autoFillSessionsBooked: '',
+      autoFillSessionsCheckedIn: '',
+      autoFillLateCancelled: '',
+      autoFillHomeLocation: '',
+      autoFillTags: '',
     };
   }
 

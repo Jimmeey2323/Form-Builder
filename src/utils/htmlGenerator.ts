@@ -128,36 +128,167 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       inputHtml = `<input type="text" id="${field.id}" name="${field.name}" readonly class="form-input formula-field${cssClass}"${condAttrs} data-formula="${escapeHtml(field.formulaConfig?.expression || '')}"${defaultVal}>`;
       break;
     case 'member-search': {
-      const mCfg = field.momenceSearchConfig;
+      const mCfg    = field.momenceSearchConfig;
       const searchPh = escapeHtml(mCfg?.searchPlaceholder || 'Type a name, email or phone…');
-      const hostId = mCfg?.hostId ?? 33905;
-      const fillFirst = escapeHtml(mCfg?.autoFillFirstName || '');
-      const fillLast  = escapeHtml(mCfg?.autoFillLastName  || '');
-      const fillEmail = escapeHtml(mCfg?.autoFillEmail     || '');
-      const fillPhone = escapeHtml(mCfg?.autoFillPhone     || '');
-      inputHtml = `<div class="member-search-wrap${cssClass}"${condAttrs}
+      const hostId   = mCfg?.hostId ?? 33905;
+      const locField = escapeHtml(mCfg?.locationFieldName || '');
+      const pfx      = escapeHtml(field.name);
+      const reqMark  = field.isRequired ? '<span class="required">*</span>' : '';
+      const mf = (lbl: string, nm: string, type = 'text', span2 = false) =>
+        `<div class="form-group mmember-field-group"${span2 ? ' style="grid-column:span 2"' : ''}>
+              <label class="mmember-field-label">${lbl}</label>
+              <input type="${type}" name="${pfx}_${nm}" readonly class="form-input mmember-field" placeholder="Auto-filled">
+            </div>`;
+      return `
+    <div class="form-group"${hidden}${widthStyle}>
+      <div class="mmember-section${cssClass}"${condAttrs}
         data-momence-search="true"
         data-host-id="${hostId}"
-        data-fill-first="${fillFirst}"
-        data-fill-last="${fillLast}"
-        data-fill-email="${fillEmail}"
-        data-fill-phone="${fillPhone}">
-        <div class="member-search-input-row">
-          <svg class="member-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input
-            type="text"
-            id="${field.id}_search"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="${searchPh}"
-            class="form-input member-search-input"
-          >
-          <span class="member-search-spinner" style="display:none;">&#8987;</span>
+        data-location-field="${locField}"
+        data-field-prefix="${pfx}">
+        <div class="mmember-section-header">
+          <div class="mmember-header-left">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span class="mmember-section-title">${escapeHtml(field.label)}${reqMark}</span>
+          </div>
+          <button type="button" class="msr-card-clear" style="display:none;">✕ Clear</button>
         </div>
-        <div class="member-search-dropdown" style="display:none;"></div>
-        <input type="hidden" id="${field.id}" name="${field.name}">
-      </div>`;
-      break;
+        <div class="mmember-search-row">
+          <div class="member-search-input-row">
+            <svg class="member-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="${field.id}_search" autocomplete="off" spellcheck="false"
+                   placeholder="${searchPh}" class="form-input member-search-input">
+            <button type="button" class="member-search-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="msr-btn-icon"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              <span class="msr-btn-text">Search</span>
+              <span class="member-search-spinner" style="display:none;">
+                <svg class="msr-spin" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              </span>
+            </button>
+          </div>
+          <div class="member-search-dropdown" style="display:none;"></div>
+        </div>
+        <div class="msr-member-card" style="display:none;">
+          <div class="msr-card-top">
+            <div class="msr-card-photo-wrap"></div>
+            <div class="msr-card-identity">
+              <div class="msr-card-name"></div>
+              <div class="msr-card-contact"></div>
+            </div>
+          </div>
+          <div class="msr-card-stats-row"></div>
+          <div class="msr-card-tags-row"></div>
+        </div>
+        <input type="hidden" id="${field.id}" name="${escapeHtml(field.name)}">
+        <div class="mmember-detail-fields" style="display:none;">
+          <div class="mmember-detail-divider">
+            <span>Member Details</span>
+            <span class="mmember-detail-loading" style="display:none;">⟳ Fetching details…</span>
+          </div>
+          <div class="mmember-fields-grid">
+            ${mf('First Name', 'first_name')}
+            ${mf('Last Name', 'last_name')}
+            ${mf('Email', 'email', 'email', true)}
+            ${mf('Phone', 'phone', 'tel')}
+            ${mf('Home Location', 'home_location')}
+            ${mf('Sessions Booked', 'sessions_booked')}
+            ${mf('Sessions Checked-In', 'sessions_checked_in')}
+            ${mf('Late Cancellations', 'late_cancelled')}
+            ${mf('Tags', 'tags', 'text', true)}
+            ${mf('Customer Tags', 'customer_tags', 'text', true)}
+            ${mf('First Seen', 'first_seen')}
+            ${mf('Last Seen', 'last_seen')}
+            ${mf('Total Visits', 'total_visits')}
+            ${mf('Active Membership', 'active_membership', 'text', true)}
+            ${mf('Membership Type', 'membership_type')}
+            ${mf('Membership End Date', 'membership_end_date')}
+            ${mf('Sessions Used', 'membership_sessions_used')}
+            ${mf('Sessions Limit', 'membership_sessions_limit')}
+            ${mf('Membership Frozen', 'membership_frozen')}
+            ${mf('Recent Sessions', 'recent_sessions_count')}
+            ${mf('Last Session', 'last_session_name', 'text', true)}
+            ${mf('Last Session Date', 'last_session_date', 'text', true)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+    }
+    case 'momence-sessions': {
+      const sCfg = field.momenceSessionsConfig;
+      const rangeDays      = sCfg?.dateRangeDays ?? 30;
+      const allowMultiple  = sCfg?.allowMultiple !== false;
+      const showDatePicker = sCfg?.showDatePicker !== false;
+      const pfxS = escapeHtml(field.name);
+      const reqMarkS = field.isRequired ? '<span class="required">*</span>' : '';
+      const sf = (lbl: string, nm: string, type = 'text', span2 = false) =>
+        `<div class="form-group msess-field-group"${span2 ? ' style="grid-column:span 2"' : ''}>
+              <label class="msess-field-label">${lbl}</label>
+              <input type="${type}" name="${pfxS}_${nm}" readonly class="form-input msess-field" placeholder="Auto-filled">
+            </div>`;
+      return `
+    <div class="form-group"${hidden}${widthStyle}>
+      <div class="msess-section${cssClass}"${condAttrs}
+        data-momence-sessions="true"
+        data-range-days="${rangeDays}"
+        data-allow-multiple="${allowMultiple}"
+        data-field-prefix="${pfxS}">
+        <div class="msess-section-header" style="cursor:pointer;justify-content:space-between" onclick="var b=this.nextElementSibling;var c=this.querySelector('.msess-hdr-chevron');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.style.transform=open?'':'rotate(180deg)'">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            <span class="msess-section-title">${escapeHtml(field.label)}${reqMarkS}</span>
+          </div>
+          <svg class="msess-hdr-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="msess-section-body" style="display:none">
+        ${showDatePicker ? `<div class="msess-controls">
+          <input type="date" class="form-input msess-start" title="From">
+          <span class="msess-sep">to</span>
+          <input type="date" class="form-input msess-end" title="To">
+          <button type="button" class="msess-load-btn">
+            <svg class="msess-load-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span class="msess-btn-text">Load Sessions</span>
+          </button>
+        </div>` : ''}
+        <div class="msess-list"><div class="msess-placeholder">Click <em>Load Sessions</em> to fetch available sessions.</div></div>
+        <input type="hidden" id="${field.id}" name="${escapeHtml(field.name)}">
+        <div class="msess-detail-fields">
+          <div class="msess-detail-divider" style="cursor:pointer" onclick="var g=this.nextElementSibling;var c=this.querySelector('.msess-chevron');var open=g.style.display==='grid';g.style.display=open?'none':'grid';c.style.transform=open?'':'rotate(180deg)'">
+            <span>Session Details</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="msess-detail-hint">Click to expand</span>
+              <svg class="msess-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="msess-fields-grid" style="display:none">
+            ${sf('Session Name', 'session_name', 'text', true)}
+            ${sf('Start Time', 'session_start')}
+            ${sf('End Time', 'session_end')}
+            ${sf('Duration (min)', 'duration_min')}
+            ${sf('Instructor', 'instructor')}
+            ${sf('Location', 'location')}
+            ${sf('Level', 'level')}
+            ${sf('Category', 'category')}
+            ${sf('Capacity', 'capacity')}
+            ${sf('Spots Left', 'spots_left')}
+            ${sf('Booked Count', 'booked_count')}
+            ${sf('Late Cancelled', 'late_cancelled')}
+            ${sf('Price', 'price')}
+            ${sf('Is Recurring', 'is_recurring')}
+            ${sf('Is In-Person', 'is_in_person')}
+            ${sf('Description', 'description', 'text', true)}
+            ${sf('Tags', 'tags', 'text', true)}
+            ${sf('Teacher Email', 'teacher_email', 'email')}
+            ${sf('Original Teacher', 'original_teacher')}
+            ${sf('Additional Teachers', 'additional_teachers', 'text', true)}
+            ${sf('Waitlist Capacity', 'waitlist_capacity')}
+            ${sf('Waitlist Booked', 'waitlist_booked')}
+            ${sf('Zoom Link', 'zoom_link', 'url', true)}
+            ${sf('Online Stream URL', 'online_stream_url', 'url', true)}
+          </div>
+        </div>
+        </div>
+      </div>
+    </div>`;
     }
     case 'conditional':
     case 'dependent':
@@ -443,35 +574,84 @@ function generateMomenceSearchScript(config: FormConfig): string {
         (function () {
           var PROXY_URL = '${supabaseUrl}/functions/v1/momence-proxy';
 
-          function debounce(fn, ms) {
-            var t;
-            return function () {
-              var args = arguments, ctx = this;
-              clearTimeout(t);
-              t = setTimeout(function () { fn.apply(ctx, args); }, ms);
-            };
+          function resolveHostId(wrap) {
+            var staticId = parseInt(wrap.dataset.hostId || '33905', 10);
+            var locFieldName = wrap.dataset.locationField || '';
+            if (!locFieldName) return staticId;
+            var locEl = document.querySelector('[name="' + locFieldName + '"]');
+            if (!locEl) return staticId;
+            var val = (locEl.value || '').toLowerCase();
+            return (val.indexOf('kenkere') !== -1 || val.indexOf('copper') !== -1) ? 33905 : 13752;
           }
 
+          function escHtml(s) {
+            return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          }
+          // Format an ISO date as DD-MM-YYYY HH:MM:SS in IST (UTC+5:30)
+          function fmtIST(iso) {
+            if (!iso) return '';
+            try {
+              var d   = new Date(iso);
+              var ist = new Date(d.getTime() + (5 * 60 + 30) * 60000);
+              var p2  = function(n) { return n < 10 ? '0' + n : String(n); };
+              return p2(ist.getUTCDate()) + '-' + p2(ist.getUTCMonth() + 1) + '-' + ist.getUTCFullYear()
+                   + ' ' + p2(ist.getUTCHours()) + ':' + p2(ist.getUTCMinutes()) + ':' + p2(ist.getUTCSeconds());
+            } catch(e) { return String(iso || ''); }
+          }
+
+          // Set a form field by name anywhere in the document
+          function setField(name, val) {
+            if (!name) return;
+            var el = document.querySelector('[name="' + name + '"]');
+            if (!el) return;
+            el.value = val == null ? '' : String(val);
+            el.dispatchEvent(new Event('input',  { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+
+          // ── Render dropdown ───────────────────────────────────────────────
           function renderResults(wrap, members) {
             var dd = wrap.querySelector('.member-search-dropdown');
             dd.innerHTML = '';
             if (!members || !members.length) {
-              dd.innerHTML = '<div class="msr-empty">No members found</div>';
+              dd.innerHTML = '<div class="msr-empty">No members found for this search.</div>';
               dd.style.display = 'block';
               return;
             }
             members.forEach(function (m) {
               var item = document.createElement('div');
               item.className = 'msr-item';
-              var avatar = m.pictureUrl
-                ? '<img src="' + m.pictureUrl + '" class="msr-avatar" onerror="this.style.display=\'none\'" />'
-                : '<div class="msr-avatar-placeholder">' + (m.firstName || '?').charAt(0).toUpperCase() + '</div>';
-              item.innerHTML = avatar +
-                '<div class="msr-info">' +
-                  '<span class="msr-name">' + escHtml(m.firstName + ' ' + m.lastName) + '</span>' +
-                  (m.email ? '<span class="msr-sub">' + escHtml(m.email) + '</span>' : '') +
-                  (m.phoneNumber ? '<span class="msr-sub">' + escHtml(m.phoneNumber) + '</span>' : '') +
-                '</div>';
+              var initials = ((m.firstName || '?').charAt(0) + (m.lastName || '').charAt(0)).toUpperCase();
+              var avatarEl;
+              if (m.pictureUrl) {
+                avatarEl = document.createElement('img');
+                avatarEl.src = m.pictureUrl;
+                avatarEl.className = 'msr-avatar';
+                avatarEl.onerror = function () { this.style.display = 'none'; };
+              } else {
+                avatarEl = document.createElement('div');
+                avatarEl.className = 'msr-avatar-placeholder';
+                avatarEl.textContent = initials;
+              }
+              var contactParts = [];
+              if (m.email)       contactParts.push(escHtml(m.email));
+              if (m.phoneNumber) contactParts.push(escHtml(m.phoneNumber));
+              var contactLine = contactParts.length ? '<div class="msr-contact">' + contactParts.join(' · ') + '</div>' : '';
+              var statParts = [];
+              if (m.sessionsBooked    != null) statParts.push('<span class="msr-stat">📅 ' + m.sessionsBooked + ' booked</span>');
+              if (m.sessionsCheckedIn != null) statParts.push('<span class="msr-stat">✅ ' + m.sessionsCheckedIn + ' checked-in</span>');
+              if (m.lateCancelled != null && m.lateCancelled > 0)
+                statParts.push('<span class="msr-stat late-canc">⚠️ ' + m.lateCancelled + ' late cancel</span>');
+              if (m.homeLocation) statParts.push('<span class="msr-stat location">📍 ' + escHtml(m.homeLocation) + '</span>');
+              var stats = statParts.length ? '<div class="msr-stats">' + statParts.join('') + '</div>' : '';
+              var tagsHtml = '';
+              if (m.tags && m.tags.length)
+                tagsHtml = '<div class="msr-tags">' + m.tags.map(function(t){ return '<span class="msr-tag">' + escHtml(t) + '</span>'; }).join('') + '</div>';
+              item.appendChild(avatarEl);
+              var infoEl = document.createElement('div');
+              infoEl.className = 'msr-info';
+              infoEl.innerHTML = '<div class="msr-name">' + escHtml((m.firstName || '') + ' ' + (m.lastName || '')) + '</div>' + contactLine + stats + tagsHtml;
+              item.appendChild(infoEl);
               item.addEventListener('mousedown', function (e) {
                 e.preventDefault();
                 autoFill(wrap, m);
@@ -482,60 +662,423 @@ function generateMomenceSearchScript(config: FormConfig): string {
             dd.style.display = 'block';
           }
 
+          // ── Auto-fill: immediate (search result) + async (detail call) ───
           function autoFill(wrap, m) {
-            var fillFirst = wrap.dataset.fillFirst;
-            var fillLast  = wrap.dataset.fillLast;
-            var fillEmail = wrap.dataset.fillEmail;
-            var fillPhone = wrap.dataset.fillPhone;
+            var pfx = wrap.dataset.fieldPrefix || '';
             var inp = wrap.querySelector('.member-search-input');
-            inp.value = (m.firstName + ' ' + m.lastName).trim();
-            // store member id in hidden field
+            if (inp) inp.value = ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
             var hid = wrap.querySelector('input[type=hidden]');
-            if (hid) hid.value = String(m.id);
-            // fill target fields
-            function set(name, val) {
-              if (!name || !val) return;
-              var el = document.querySelector('[name="' + name + '"]');
-              if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }
+            if (hid) { hid.value = String(m.id || ''); hid.dispatchEvent(new Event('change', {bubbles:true})); }
+
+            // ── Fill fields available from the search result immediately ──
+            setField(pfx + '_first_name',          m.firstName);
+            setField(pfx + '_last_name',           m.lastName);
+            setField(pfx + '_email',               m.email);
+            setField(pfx + '_phone',               m.phoneNumber);
+            setField(pfx + '_sessions_booked',     m.sessionsBooked != null ? m.sessionsBooked : '');
+            setField(pfx + '_sessions_checked_in', m.sessionsCheckedIn != null ? m.sessionsCheckedIn : '');
+            setField(pfx + '_late_cancelled',      m.lateCancelled != null ? m.lateCancelled : '');
+            setField(pfx + '_home_location',       m.homeLocation);
+            setField(pfx + '_tags',                m.tags && m.tags.length ? m.tags.join(', ') : '');
+
+            // ── Render profile card ──────────────────────────────────────
+            var card = wrap.querySelector('.msr-member-card');
+            if (card) {
+              var photoWrap = card.querySelector('.msr-card-photo-wrap');
+              photoWrap.innerHTML = '';
+              var initials = ((m.firstName || '?').charAt(0) + (m.lastName || '').charAt(0)).toUpperCase();
+              if (m.pictureUrl) {
+                var img = document.createElement('img');
+                img.src = m.pictureUrl; img.className = 'msr-card-photo';
+                img.onerror = function () { photoWrap.innerHTML = '<div class="msr-card-initials">' + initials + '</div>'; };
+                photoWrap.appendChild(img);
+              } else {
+                photoWrap.innerHTML = '<div class="msr-card-initials">' + initials + '</div>';
+              }
+              card.querySelector('.msr-card-name').textContent = ((m.firstName || '') + ' ' + (m.lastName || '')).trim();
+              var cp = [];
+              if (m.email) cp.push(escHtml(m.email));
+              if (m.phoneNumber) cp.push(escHtml(m.phoneNumber));
+              card.querySelector('.msr-card-contact').innerHTML = cp.join(' &middot; ');
+              var sr = card.querySelector('.msr-card-stats-row');
+              sr.innerHTML = '';
+              function addStat(text, color) {
+                var sp = document.createElement('span');
+                sp.style.cssText = 'font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:' + color + ';';
+                sp.textContent = text; sr.appendChild(sp);
+              }
+              if (m.sessionsBooked    != null) addStat('📅 ' + m.sessionsBooked + ' booked',       'rgba(99,102,241,0.12)');
+              if (m.sessionsCheckedIn != null) addStat('✅ ' + m.sessionsCheckedIn + ' checked-in', 'rgba(16,185,129,0.12)');
+              if (m.lateCancelled != null && m.lateCancelled > 0) addStat('⚠️ ' + m.lateCancelled + ' late cancel', 'rgba(245,158,11,0.12)');
+              if (m.homeLocation) addStat('📍 ' + m.homeLocation, 'rgba(99,102,241,0.08)');
+              var tr = card.querySelector('.msr-card-tags-row');
+              tr.innerHTML = '';
+              if (m.tags && m.tags.length) {
+                m.tags.forEach(function (t) {
+                  var sp = document.createElement('span');
+                  sp.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:20px;background:var(--bg-primary);border:1px solid var(--border-color);color:var(--text-secondary);';
+                  sp.textContent = t; tr.appendChild(sp);
+                });
+              }
+              card.style.display = '';
             }
-            set(fillFirst, m.firstName);
-            set(fillLast,  m.lastName);
-            set(fillEmail, m.email);
-            set(fillPhone, m.phoneNumber);
+
+            // Show clear button and detail-fields section
+            var clearBtn = wrap.querySelector('.msr-card-clear');
+            if (clearBtn) clearBtn.style.display = '';
+            var detailDiv = wrap.querySelector('.mmember-detail-fields');
+            var loadingEl = wrap.querySelector('.mmember-detail-loading');
+            if (detailDiv) detailDiv.style.display = '';
+            if (loadingEl) loadingEl.style.display = '';
+
+            // ── Secondary call: full member detail + memberships + history ─
+            var hostId = resolveHostId(wrap);
+            fetch(PROXY_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'detail', memberId: m.id, hostId: hostId }),
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+              if (loadingEl) loadingEl.style.display = 'none';
+              setField(pfx + '_first_seen',                d.firstSeen  ? fmtIST(d.firstSeen)  : '');
+              setField(pfx + '_last_seen',                 d.lastSeen   ? fmtIST(d.lastSeen)   : '');
+              setField(pfx + '_total_visits',              d.totalVisits != null ? d.totalVisits : '');
+              setField(pfx + '_customer_tags',             d.customerTags && d.customerTags.length ? d.customerTags.join(', ') : '');
+              var mem = d.activeMemberships && d.activeMemberships[0];
+              if (mem) {
+                setField(pfx + '_active_membership',           mem.name);
+                setField(pfx + '_membership_type',             mem.type);
+                setField(pfx + '_membership_end_date',         mem.endDate ? fmtIST(mem.endDate) : '');
+                setField(pfx + '_membership_sessions_used',    mem.usedSessions != null ? mem.usedSessions : '');
+                setField(pfx + '_membership_sessions_limit',   mem.usageLimitForSessions != null ? mem.usageLimitForSessions : '');
+                setField(pfx + '_membership_frozen',           mem.isFrozen ? 'Yes' : 'No');
+              }
+              setField(pfx + '_recent_sessions_count',     d.recentSessionsCount != null ? d.recentSessionsCount : '');
+              setField(pfx + '_last_session_name',         d.lastSessionName);
+              setField(pfx + '_last_session_date',         d.lastSessionDate ? fmtIST(d.lastSessionDate) : '');
+            })
+            .catch(function() { if (loadingEl) loadingEl.style.display = 'none'; });
           }
 
-          function escHtml(s) {
-            return String(s || '')
-              .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-              .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          // ── Clear member ──────────────────────────────────────────────────
+          function clearMember(wrap) {
+            var pfx = wrap.dataset.fieldPrefix || '';
+            var inp = wrap.querySelector('.member-search-input');
+            var hid = wrap.querySelector('input[type=hidden]');
+            var card = wrap.querySelector('.msr-member-card');
+            var detailDiv = wrap.querySelector('.mmember-detail-fields');
+            var clearBtn  = wrap.querySelector('.msr-card-clear');
+            if (inp)       inp.value = '';
+            if (hid)       { hid.value = ''; hid.dispatchEvent(new Event('change', {bubbles:true})); }
+            if (card)      card.style.display = 'none';
+            if (detailDiv) detailDiv.style.display = 'none';
+            if (clearBtn)  clearBtn.style.display = 'none';
+            var suffixes = [
+              'first_name','last_name','email','phone','sessions_booked','sessions_checked_in',
+              'late_cancelled','home_location','tags','customer_tags',
+              'first_seen','last_seen','total_visits',
+              'active_membership','membership_type','membership_end_date',
+              'membership_sessions_used','membership_sessions_limit','membership_frozen',
+              'recent_sessions_count','last_session_name','last_session_date',
+            ];
+            suffixes.forEach(function(sfx) {
+              var el = document.querySelector('[name="' + pfx + '_' + sfx + '"]');
+              if (el) { el.value = ''; el.dispatchEvent(new Event('change', {bubbles:true})); }
+            });
           }
 
+          // ── Per-widget wiring ─────────────────────────────────────────────
           document.querySelectorAll('[data-momence-search]').forEach(function (wrap) {
             var inp     = wrap.querySelector('.member-search-input');
             var dd      = wrap.querySelector('.member-search-dropdown');
+            var btn     = wrap.querySelector('.member-search-btn');
             var spinner = wrap.querySelector('.member-search-spinner');
-            var hostId  = parseInt(wrap.dataset.hostId || '33905', 10);
+            var btnText = wrap.querySelector('.msr-btn-text');
 
-            var doSearch = debounce(function (q) {
-              if (!q || q.length < 2) { dd.style.display = 'none'; return; }
-              spinner.style.display = 'inline';
+            function setLoading(on) {
+              btn.disabled = on;
+              spinner.style.display = on ? 'inline-flex' : 'none';
+              if (btnText) btnText.style.display = on ? 'none' : '';
+            }
+
+            function doSearch() {
+              var q = inp ? inp.value.trim() : '';
+              if (!q) return;
+              setLoading(true);
+              var hostId = resolveHostId(wrap);
               fetch(PROXY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: q, hostId: hostId, pageSize: 10 }),
+                body: JSON.stringify({ action: 'search', query: q, hostId: hostId, pageSize: 20 }),
               })
-                .then(function (r) { return r.json(); })
-                .then(function (data) { renderResults(wrap, data.members || []); })
-                .catch(function () { dd.innerHTML = '<div class="msr-empty">Search failed</div>'; dd.style.display = 'block'; })
-                .finally(function () { spinner.style.display = 'none'; });
-            }, 320);
+              .then(function(r) { return r.json(); })
+              .then(function(data) { renderResults(wrap, data.members || []); })
+              .catch(function() {
+                dd.innerHTML = '<div class="msr-empty">Search failed — check connection and try again.</div>';
+                dd.style.display = 'block';
+              })
+              .finally(function() { setLoading(false); });
+            }
 
-            inp.addEventListener('input', function () { doSearch(this.value.trim()); });
-            inp.addEventListener('focus', function () { if (this.value.length >= 2) doSearch(this.value.trim()); });
-            inp.addEventListener('blur', function () { setTimeout(function () { dd.style.display = 'none'; }, 180); });
+            if (btn) btn.addEventListener('click', doSearch);
+            if (inp) inp.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); doSearch(); } });
+            var clearBtn = wrap.querySelector('.msr-card-clear');
+            if (clearBtn) clearBtn.addEventListener('click', function() { clearMember(wrap); });
+            document.addEventListener('mousedown', function(e) {
+              if (dd && !wrap.contains(e.target)) dd.style.display = 'none';
+            });
           });
         })();`;
 }
+
+function generateMomenceSessionsScript(config: FormConfig): string {
+  const hasSessions = config.fields.some(f => f.type === 'momence-sessions');
+  if (!hasSessions) return '';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  return `
+        // ── Momence Sessions Picker ────────────────────────────────────────────
+        (function () {
+          var SESS_URL = '${supabaseUrl}/functions/v1/momence-sessions';
+
+          function pad(n) { return n < 10 ? '0' + n : String(n); }
+          function toDateStr(d) {
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+          }
+          function fmtDate(iso) {
+            if (!iso) return '';
+            var d = new Date(iso);
+            return d.toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+          }
+          function fmtTime(iso) {
+            if (!iso) return '';
+            return new Date(iso).toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
+          }
+          function fmtDateTime(iso) {
+            return iso ? fmtDate(iso) + ' · ' + fmtTime(iso) : '';
+          }
+          // Format ISO date as DD-MM-YYYY HH:MM:SS in IST (UTC+5:30) — for stored field values
+          function fmtIST(iso) {
+            if (!iso) return '';
+            try {
+              var d   = new Date(iso);
+              var ist = new Date(d.getTime() + (5 * 60 + 30) * 60000);
+              var p2  = function(n) { return n < 10 ? '0' + n : String(n); };
+              return p2(ist.getUTCDate()) + '-' + p2(ist.getUTCMonth() + 1) + '-' + ist.getUTCFullYear()
+                   + ' ' + p2(ist.getUTCHours()) + ':' + p2(ist.getUTCMinutes()) + ':' + p2(ist.getUTCSeconds());
+            } catch(e) { return String(iso || ''); }
+          }
+          // Like pick() but applies a formatter to each value before joining
+          function pickFmt(sessions, prop, fmt) {
+            return sessions.map(function(s) {
+              var v = s[prop];
+              return (v != null && v !== '') ? fmt(String(v)) : '';
+            }).filter(Boolean).join(', ');
+          }
+          function escHtml(s) {
+            return String(s == null ? '' : s)
+              .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+              .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          }
+          // Write a value to a named form field & fire events
+          function fillField(name, val) {
+            if (!name || val == null || val === '') return;
+            var el = document.querySelector('[name="' + name + '"]');
+            if (!el) return;
+            el.value = String(val);
+            el.dispatchEvent(new Event('input',  { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          // Collect values from multiple sessions for a given property
+          function pick(sessions, prop) {
+            return sessions.map(function(s){ return s[prop] != null ? String(s[prop]) : ''; })
+              .filter(Boolean).join(', ');
+          }
+
+          // ── render session list ───────────────────────────────────────────
+          function renderSessions(wrap, sessions) {
+            var list = wrap.querySelector('.msess-list');
+            list.innerHTML = '';
+            if (!sessions || !sessions.length) {
+              list.innerHTML = '<div class="msess-placeholder">No sessions found for this date range.</div>';
+              return;
+            }
+            var allowMultiple = wrap.dataset.allowMultiple === 'true';
+            var inputType = allowMultiple ? 'checkbox' : 'radio';
+            var hidEl = wrap.querySelector('input[type=hidden]');
+            var groupName = 'msess_' + (hidEl ? hidEl.id : Math.random().toString(36).slice(2));
+
+            sessions.forEach(function (s) {
+              var item = document.createElement('label');
+              item.className = 'msess-item';
+
+              var check = document.createElement('input');
+              check.type  = inputType;
+              check.className = 'msess-check';
+              check.name  = groupName;
+              check.value = String(s.id);
+              item.appendChild(check);
+
+              var info = document.createElement('div');
+              info.className = 'msess-item-info';
+
+              // ─ Name row ─
+              var nameDiv = document.createElement('div');
+              nameDiv.className = 'msess-item-name';
+              nameDiv.textContent = s.name || 'Session';
+              info.appendChild(nameDiv);
+
+              // ─ Primary meta: date/time, instructor, location ─
+              var meta1 = [];
+              if (s.startsAt)   meta1.push('<span>🗓 ' + escHtml(fmtDate(s.startsAt)) + ' &nbsp;⏰ ' + escHtml(fmtTime(s.startsAt)) + (s.endsAt ? ' – ' + escHtml(fmtTime(s.endsAt)) : '') + '</span>');
+              if (s.instructor) meta1.push('<span>👤 ' + escHtml(s.instructor) + '</span>');
+              if (s.location)   meta1.push('<span>📍 ' + escHtml(s.location)   + '</span>');
+              if (meta1.length) {
+                var m1 = document.createElement('div');
+                m1.className = 'msess-item-meta';
+                m1.innerHTML = meta1.join('');
+                info.appendChild(m1);
+              }
+
+              // ─ Secondary meta: level, category, duration, price ─
+              var meta2 = [];
+              if (s.level)       meta2.push('<span>🏋️ ' + escHtml(s.level) + '</span>');
+              if (s.category)    meta2.push('<span>🏷 ' + escHtml(s.category) + '</span>');
+              if (s.durationMin) meta2.push('<span>⏱ ' + s.durationMin + ' min</span>');
+              if (s.price != null && s.price !== '') meta2.push('<span>💰 ' + escHtml(String(s.price)) + '</span>');
+              if (meta2.length) {
+                var m2 = document.createElement('div');
+                m2.className = 'msess-item-meta';
+                m2.innerHTML = meta2.join('');
+                info.appendChild(m2);
+              }
+
+              // ─ Capacity row: spots, booked, late cancelled ─
+              var meta3 = [];
+              if (s.spotsLeft   != null) meta3.push('<span style="color:#10b981;font-weight:600;">✅ ' + s.spotsLeft + ' spots left</span>');
+              if (s.bookedCount != null) meta3.push('<span>📋 ' + s.bookedCount + ' booked</span>');
+              if (s.capacity    != null) meta3.push('<span>👥 capacity ' + s.capacity + '</span>');
+              if (s.lateCancelled != null && s.lateCancelled > 0)
+                meta3.push('<span style="color:#f59e0b;font-weight:600;">⚠️ ' + s.lateCancelled + ' late cancel</span>');
+              if (meta3.length) {
+                var m3 = document.createElement('div');
+                m3.className = 'msess-item-meta';
+                m3.innerHTML = meta3.join('');
+                info.appendChild(m3);
+              }
+
+              item.appendChild(info);
+
+              // change handler: highlight + sync
+              check.addEventListener('change', function () {
+                if (!allowMultiple) {
+                  list.querySelectorAll('.msess-item').forEach(function(el){ el.classList.remove('selected'); });
+                }
+                item.classList.toggle('selected', check.checked);
+                syncHidden(wrap, sessions);
+              });
+
+              list.appendChild(item);
+            });
+          }
+
+          // ── sync hidden field + auto-fill all prefix-named sub-fields ─────
+          function syncHidden(wrap, sessions) {
+            var pfx  = wrap.dataset.fieldPrefix || '';
+            var hid  = wrap.querySelector('input[type=hidden]');
+            var checks = Array.prototype.slice.call(wrap.querySelectorAll('.msess-check:checked'));
+            var ids  = checks.map(function(c){ return c.value; });
+            if (hid) { hid.value = ids.join(','); hid.dispatchEvent(new Event('change', { bubbles: true })); }
+
+            var selected = ids.map(function(id){
+              return sessions.find(function(x){ return String(x.id) === id; });
+            }).filter(Boolean);
+
+            // sv() always writes (even '') to clear stale values on deselect
+            function sv(name, val) {
+              var el = document.querySelector('[name="' + name + '"]');
+              if (!el) return;
+              el.value = val == null ? '' : String(val);
+              el.dispatchEvent(new Event('input',  { bubbles: true }));
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+
+            sv(pfx + '_session_name',        pick(selected, 'name'));
+            sv(pfx + '_session_start',        pickFmt(selected, 'startsAt', fmtIST));
+            sv(pfx + '_session_end',          pickFmt(selected, 'endsAt',   fmtIST));
+            sv(pfx + '_duration_min',         pick(selected, 'durationMin'));
+            sv(pfx + '_instructor',           pick(selected, 'instructor'));
+            sv(pfx + '_location',             pick(selected, 'location'));
+            sv(pfx + '_level',                pick(selected, 'level'));
+            sv(pfx + '_category',             pick(selected, 'category'));
+            sv(pfx + '_capacity',             pick(selected, 'capacity'));
+            sv(pfx + '_spots_left',           pick(selected, 'spotsLeft'));
+            sv(pfx + '_booked_count',         pick(selected, 'bookedCount'));
+            sv(pfx + '_late_cancelled',       pick(selected, 'lateCancelled'));
+            sv(pfx + '_price',                pick(selected, 'price'));
+            sv(pfx + '_is_recurring',         pick(selected, 'isRecurring'));
+            sv(pfx + '_is_in_person',         pick(selected, 'isInPerson'));
+            sv(pfx + '_description',          pick(selected, 'description'));
+            sv(pfx + '_tags',                 pick(selected, 'tags'));
+            sv(pfx + '_teacher_email',        pick(selected, 'teacherEmail'));
+            sv(pfx + '_original_teacher',     pick(selected, 'originalTeacher'));
+            sv(pfx + '_additional_teachers',  pick(selected, 'additionalTeachers'));
+            sv(pfx + '_waitlist_capacity',    pick(selected, 'waitlistCapacity'));
+            sv(pfx + '_waitlist_booked',      pick(selected, 'waitlistBookingCount'));
+            sv(pfx + '_zoom_link',            pick(selected, 'zoomLink'));
+            sv(pfx + '_online_stream_url',    pick(selected, 'onlineStreamUrl'));
+          }
+
+          // ── fetch & render ────────────────────────────────────────────────
+          function loadSessions(wrap) {
+            var btn     = wrap.querySelector('.msess-load-btn');
+            var startEl = wrap.querySelector('.msess-start');
+            var endEl   = wrap.querySelector('.msess-end');
+            var list    = wrap.querySelector('.msess-list');
+            var rangeDays = parseInt(wrap.dataset.rangeDays || '30', 10);
+
+            var today  = new Date();
+            var future = new Date(); future.setDate(today.getDate() + rangeDays);
+            var startDate = startEl ? startEl.value : toDateStr(today);
+            var endDate   = endEl   ? endEl.value   : toDateStr(future);
+
+            if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+            list.innerHTML = '<div class="msess-placeholder">Loading sessions…</div>';
+
+            fetch(SESS_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ startDate: startDate, endDate: endDate }),
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (data) { renderSessions(wrap, data.sessions || []); })
+              .catch(function () {
+                list.innerHTML = '<div class="msess-error">Failed to load sessions — please try again.</div>';
+              })
+              .finally(function () {
+                if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+              });
+          }
+
+          // ── init ──────────────────────────────────────────────────────────
+          document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-momence-sessions]').forEach(function (wrap) {
+              var rangeDays = parseInt(wrap.dataset.rangeDays || '30', 10);
+              var today  = new Date();
+              var future = new Date(); future.setDate(today.getDate() + rangeDays);
+              var startEl = wrap.querySelector('.msess-start');
+              var endEl   = wrap.querySelector('.msess-end');
+              if (startEl) startEl.value = toDateStr(today);
+              if (endEl)   endEl.value   = toDateStr(future);
+
+              var btn = wrap.querySelector('.msess-load-btn');
+              if (btn) btn.addEventListener('click', function () { loadSessions(wrap); });
+
+              // Auto-load on page ready
+              loadSessions(wrap);
+            });
+          });
+        })();`;}
 
 function generateSheetsSubmitScript(config: FormConfig): string {
   const { googleSheetsConfig } = config;
@@ -651,7 +1194,9 @@ function generateLayoutCss(config: FormConfig): string {
     'tile':     { size: 'auto',       repeat: 'repeat'    },
   };
   const { size: bgSize, repeat: bgRepeat } = FIT_MAP[imgFit] ?? FIT_MAP['cover'];
-  const imgSrc = config.layoutImageUrl ? `url('${config.layoutImageUrl}')` : 'none';
+  // Page 0 hero image overrides the global layout image for the initial panel render
+  const initImg = config.pageHeroImages?.[0] ?? config.layoutImageUrl ?? '';
+  const imgSrc = initImg ? `url('${initImg}')` : 'none';
   const posX = config.layoutImagePositionX ?? '50';
   const posY = config.layoutImagePositionY ?? '50';
   const imgPanelW = config.layoutImagePanelWidth ?? 45;
@@ -915,7 +1460,8 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     `<div class="form-fields-grid">\n${fields.map(f => generateFieldHtml(f, sortedFields)).join('\n')}\n              </div>`;
 
   const pagesHtml = isMultiPage
-    ? pages.map((pageFields, pi) => `
+    ? pages.map((pageFields, pi) => {
+        return `
               <div class="form-page${pi === 0 ? ' active' : ''}" data-page="${pi}">
                 ${wrapFields(pageFields)}
                 ${pi < pages.length - 1 ? `
@@ -927,18 +1473,25 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
                   ${pi > 0 ? `<button type="button" class="btn-prev" onclick="goToPage(${pi - 1})">← Back</button>` : ''}
                   <button type="submit" class="submit-btn">${escapeHtml(config.submitButtonText)}</button>
                 </div>`}
-              </div>`).join('\n')
-    : `
+              </div>`;
+      }).join('\n')
+    : (() => {
+        return `
                 ${wrapFields(sortedFields)}
                 <div style="margin-top: 20px;">
                     <button type="submit" class="submit-btn">${escapeHtml(config.submitButtonText)}</button>
                 </div>`;
+      })();
 
   const pageIndicatorHtml = isMultiPage 
     ? `<div class="page-indicator">${pages.map((_, i) => `<div class="page-dot${i === 0 ? ' active' : ''}" data-dot="${i}"></div>`).join('')}</div>`
     : '';
 
+  const pageHeroMap = JSON.stringify(config.pageHeroImages ?? {});
+  const defaultLayoutImg = config.layoutImageUrl ?? '';
   const multiPageScript = isMultiPage ? `
+        var _PAGE_HERO = ${pageHeroMap};
+        var _LAYOUT_IMG_DEFAULT = ${JSON.stringify(defaultLayoutImg)};
         function goToPage(n) {
             var allPages = document.querySelectorAll('.form-page');
             var dots = document.querySelectorAll('.page-dot');
@@ -946,6 +1499,14 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             dots.forEach(function(d) { d.classList.remove('active'); });
             allPages[n].classList.add('active');
             dots[n].classList.add('active');
+            // Swap layout panel background to the hero image for this page
+            var heroUrl = _PAGE_HERO[n] || _LAYOUT_IMG_DEFAULT;
+            var panel = document.querySelector('.layout-image-panel') ||
+                        document.querySelector('.layout-banner') ||
+                        document.querySelector('.layout-backdrop');
+            if (panel) {
+                panel.style.backgroundImage = heroUrl ? "url('" + heroUrl + "')" : '';
+            }
             document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }` : '';
 
@@ -1242,33 +1803,178 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
 
         /* ── Momence Member Search styles ──────────────────────────── */
         .member-search-wrap { position: relative; }
-        .member-search-input-row { position: relative; }
-        .member-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
-        .member-search-input { padding-left: 40px !important; }
-        .member-search-spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--text-light); }
-        .member-search-dropdown {
-          position: absolute; z-index: 999; width: 100%;
-          background: var(--bg-primary); border: 2px solid var(--border-color);
-          border-radius: 10px; box-shadow: 0 12px 32px -4px rgba(0,0,0,0.18);
-          max-height: 280px; overflow-y: auto; margin-top: 4px;
+        .member-search-input-row { display: flex; align-items: center; gap: 8px; position: relative; }
+        .member-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; flex-shrink: 0; }
+        .member-search-input { flex: 1; padding-left: 40px !important; padding-right: 12px !important; }
+        .member-search-btn {
+          flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+          padding: 0 16px; height: 42px; border-radius: 8px; border: none; cursor: pointer;
+          background: var(--primary-gradient); color: white;
+          font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+          transition: opacity 0.15s, transform 0.1s; white-space: nowrap;
         }
+        .member-search-btn:hover   { opacity: 0.88; }
+        .member-search-btn:active  { transform: scale(0.97); }
+        .member-search-btn:disabled{ opacity: 0.55; cursor: not-allowed; }
+        .msr-btn-icon { flex-shrink: 0; }
+        @keyframes msr-spin { to { transform: rotate(360deg); } }
+        .msr-spin { animation: msr-spin 0.8s linear infinite; }
+        .member-search-dropdown {
+          position: absolute; z-index: 999; left: 0; right: 0; margin-top: 4px;
+          background: var(--bg-primary); border: 2px solid var(--border-color);
+          border-radius: 12px; box-shadow: 0 16px 40px -6px rgba(0,0,0,0.22);
+          max-height: 420px; overflow-y: auto;
+        }
+        /* Result card */
         .msr-item {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 14px; cursor: pointer; transition: background 0.12s;
+          display: flex; align-items: flex-start; gap: 12px;
+          padding: 12px 14px; cursor: pointer; transition: background 0.12s;
           border-bottom: 1px solid var(--border-color);
         }
         .msr-item:last-child { border-bottom: none; }
         .msr-item:hover { background: var(--bg-secondary); }
-        .msr-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .msr-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; flex-shrink: 0; margin-top: 2px; }
         .msr-avatar-placeholder {
-          width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+          width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
           display: flex; align-items: center; justify-content: center;
-          background: var(--primary-gradient); color: white; font-weight: 700; font-size: 15px;
+          background: var(--primary-gradient); color: white; font-weight: 700; font-size: 16px;
         }
-        .msr-info { display: flex; flex-direction: column; min-width: 0; }
-        .msr-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
-        .msr-sub  { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .msr-empty { padding: 14px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+        .msr-info { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 3px; }
+        .msr-name { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+        .msr-contact { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        /* Stats row */
+        .msr-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 3px; }
+        .msr-stat {
+          display: inline-flex; align-items: center; gap: 3px;
+          padding: 1px 7px; border-radius: 20px; font-size: 11px; font-weight: 600;
+          background: rgba(99,102,241,0.10); color: #6366f1;
+        }
+        .msr-stat.late-canc { background: rgba(239,68,68,0.10); color: #ef4444; }
+        .msr-stat.location  { background: rgba(16,185,129,0.10); color: #10b981; }
+        /* Tags */
+        .msr-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+        .msr-tag {
+          padding: 1px 8px; border-radius: 20px; font-size: 10px; font-weight: 600;
+          background: var(--bg-secondary); color: var(--text-secondary);
+          border: 1px solid var(--border-color);
+        }
+        .msr-empty { padding: 18px 14px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+        /* ── Member info card (shown after selection) ──────────────── */
+        .msr-member-card {
+          margin-top: 10px; border: 2px solid var(--border-color); border-radius: 10px;
+          padding: 14px 14px 10px; background: var(--bg-secondary);
+        }
+        .msr-card-top { display: flex; align-items: center; gap: 12px; }
+        .msr-card-photo-wrap { flex-shrink: 0; }
+        .msr-card-photo { width: 46px; height: 46px; border-radius: 50%; object-fit: cover; display: block; }
+        .msr-card-initials {
+          width: 46px; height: 46px; border-radius: 50%;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--primary-gradient); color: white; font-weight: 700; font-size: 18px; flex-shrink: 0;
+        }
+        .msr-card-identity { flex: 1; min-width: 0; }
+        .msr-card-name { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+        .msr-card-contact { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+        .msr-card-clear {
+          flex-shrink: 0; border: 1px solid var(--border-color); background: var(--bg-primary);
+          cursor: pointer; color: var(--text-secondary); font-size: 13px; line-height: 1;
+          padding: 4px 8px; border-radius: 6px; transition: all 0.12s;
+        }
+        .msr-card-clear:hover { background: #fee2e2; border-color: #fca5a5; color: #ef4444; }
+        .msr-card-stats-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+        .msr-card-tags-row  { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        /* ── Momence Sessions Picker ───────────────────────────────── */
+        .msess-wrap { position: relative; }
+        .msess-controls {
+          display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
+        }
+        .msess-start, .msess-end { flex: 1; min-width: 130px; }
+        .msess-sep { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+        .msess-load-btn {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 0 16px; height: 42px; border-radius: 8px; border: none; cursor: pointer;
+          background: var(--primary-gradient); color: white;
+          font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+          transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0;
+        }
+        .msess-load-btn:hover   { opacity: 0.88; }
+        .msess-load-btn:active  { transform: scale(0.97); }
+        .msess-load-btn:disabled{ opacity: 0.55; cursor: not-allowed; }
+        .msess-load-btn svg { animation: none; }
+        .msess-load-btn.loading svg { animation: msr-spin 0.8s linear infinite; }
+        .msess-placeholder { padding: 18px 0; text-align: center; color: var(--text-secondary); font-size: 13px; }
+        .msess-list { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; }
+        .msess-item {
+          display: flex; align-items: flex-start; gap: 12px;
+          padding: 11px 13px; border: 2px solid var(--border-color); border-radius: 10px;
+          cursor: pointer; transition: border-color 0.12s, background 0.12s;
+          background: var(--bg-primary);
+        }
+        .msess-item:hover  { border-color: var(--primary-color); background: var(--bg-secondary); }
+        .msess-item.selected { border-color: var(--primary-color); background: rgba(99,102,241,0.06); }
+        .msess-check { margin-top: 2px; flex-shrink: 0; accent-color: var(--primary-color); width: 16px; height: 16px; cursor: pointer; }
+        .msess-item-info { flex: 1; min-width: 0; }
+        .msess-item-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .msess-item-meta {
+          display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+          font-size: 12px; color: var(--text-secondary);
+        }
+        .msess-item-meta span { white-space: nowrap; }
+        /* ── Member Search Section ──────────────────────────────────── */
+        .mmember-section {
+          border: 2px solid var(--border-color); border-radius: 14px;
+          background: var(--bg-secondary); padding: 0; overflow: visible;
+        }
+        .mmember-section-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 12px 16px; background: var(--bg-primary);
+          border-radius: 12px 12px 0 0; border-bottom: 2px solid var(--border-color);
+        }
+        .mmember-header-left { display: flex; align-items: center; gap: 8px; color: var(--primary-color); }
+        .mmember-section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+        .mmember-search-row { padding: 14px 16px 0; position: relative; }
+        .mmember-section .member-search-dropdown { left: 0; right: 0; }
+        .mmember-section .msr-member-card { margin: 10px 16px 0; }
+        .mmember-detail-fields { padding: 0 16px 16px; }
+        .mmember-detail-divider {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 12px 0 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
+          text-transform: uppercase; letter-spacing: 0.06em;
+          border-top: 1px solid var(--border-color); margin-top: 14px;
+        }
+        .mmember-detail-loading { font-weight: 400; normal-case: none; text-transform: none; color: var(--primary-color); font-size: 11px; }
+        .mmember-fields-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+        .mmember-field-group > label { font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+        .mmember-field { background: var(--bg-primary) !important; font-size: 12.5px !important; color: var(--text-secondary) !important; }
+        /* ── Sessions Section ────────────────────────────────────────── */
+        .msess-section {
+          border: 2px solid var(--border-color); border-radius: 14px;
+          background: var(--bg-secondary); padding: 0; overflow: visible;
+        }
+        .msess-section-header {
+          display: flex; align-items: center; gap: 8px;
+          padding: 12px 16px; background: var(--bg-primary);
+          border-radius: 12px 12px 0 0; border-bottom: 2px solid var(--border-color);
+          color: var(--primary-color);
+        }
+        .msess-section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+        .msess-section > .msess-controls { padding: 12px 16px 0; }
+        .msess-section > .msess-list { margin: 10px 16px 0; }
+        .msess-detail-fields { padding: 0 16px 16px; }
+        .msess-detail-divider {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 12px 0 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
+          text-transform: uppercase; letter-spacing: 0.06em;
+          border-top: 1px solid var(--border-color); margin-top: 14px;
+        }
+        .msess-detail-hint { font-weight: 400; text-transform: none; color: var(--text-light); font-size: 11px; }
+        .msess-fields-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+        .msess-field-group > label { font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
+        .msess-field { background: var(--bg-primary) !important; font-size: 12.5px !important; color: var(--text-secondary) !important; }
+        .msess-error { padding: 14px; text-align:center; color:#ef4444; font-size:13px; }
+        @media (max-width: 520px) {
+          .mmember-fields-grid, .msess-fields-grid { grid-template-columns: 1fr; }
+        }
     </style>
     <script>
     // ── Confetti ──────────────────────────────────────────────────────────────
@@ -1591,6 +2297,7 @@ ${pagesHtml}
         })();
         ${generateAnimationScript(config)}
         ${generateMomenceSearchScript(config)}
+        ${generateMomenceSessionsScript(config)}
     </script>
 </body>
 </html>`;

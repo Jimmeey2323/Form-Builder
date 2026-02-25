@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -50,7 +50,15 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
   const hasOptions = ['select', 'radio', 'checkbox'].includes(draft.type || field.type);
   const isAdvanced = ['lookup', 'formula', 'conditional', 'dependent'].includes(draft.type || field.type);
-  const isMomenceSearch = (draft.type || field.type) === 'member-search';
+  const isMomenceSearch  = (draft.type || field.type) === 'member-search';
+  const isMomenceSession = (draft.type || field.type) === 'momence-sessions';
+
+  const updateSession = (key: keyof MomenceSessionsConfig, value: any) => {
+    update('momenceSessionsConfig', {
+      ...(draft.momenceSessionsConfig || { dateRangeDays: 30, showDatePicker: true, allowMultiple: true }),
+      [key]: value,
+    });
+  };
 
   const updateMomence = (key: keyof MomenceSearchConfig, value: any) => {
     update('momenceSearchConfig', {
@@ -181,7 +189,8 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
               <TabsTrigger value="style">Style</TabsTrigger>
-              {isMomenceSearch && <TabsTrigger value="momence">Momence</TabsTrigger>}
+              {isMomenceSearch  && <TabsTrigger value="momence">Momence</TabsTrigger>}
+              {isMomenceSession && <TabsTrigger value="sessions">Sessions</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
@@ -827,21 +836,39 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   Configure the Momence member search autocomplete behaviour.
                 </p>
 
-                {/* Host ID */}
+                {/* ── Location field → dynamic hostId ── */}
                 <div className="space-y-2">
-                  <Label>Host ID</Label>
+                  <Label className="font-semibold">Location field (drives hostId)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Select the form field whose value determines which Momence location to search.
+                    If it contains <strong>kenkere</strong> or <strong>copper</strong> → host 33905 (Bengaluru), otherwise → 13752.
+                  </p>
+                  <Select
+                    value={draft.momenceSearchConfig?.locationFieldName || '__none__'}
+                    onValueChange={v => updateMomence('locationFieldName', v === '__none__' ? '' : v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="— none (use static hostId) —" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">— none (use static host ID below) —</SelectItem>
+                      {allFields.filter(f => f.id !== field.id).map(f => (
+                        <SelectItem key={f.id} value={f.name}>{f.label} ({f.name})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* ── Fallback static Host ID ── */}
+                <div className="space-y-2">
+                  <Label>Fallback / static Host ID</Label>
                   <div className="flex gap-2">
                     <Select
                       value={[33905, 13752].includes(draft.momenceSearchConfig?.hostId ?? 33905)
-                        ? String(draft.momenceSearchConfig?.hostId ?? 33905)
-                        : 'custom'}
-                      onValueChange={v => {
-                        if (v !== 'custom') updateMomence('hostId', Number(v));
-                      }}
+                        ? String(draft.momenceSearchConfig?.hostId ?? 33905) : 'custom'}
+                      onValueChange={v => { if (v !== 'custom') updateMomence('hostId', Number(v)); }}
                     >
                       <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="33905">33905 — Bengaluru</SelectItem>
+                        <SelectItem value="33905">33905 — Bengaluru / Kenkere</SelectItem>
                         <SelectItem value="13752">13752 — Alt location</SelectItem>
                         <SelectItem value="custom">Custom…</SelectItem>
                       </SelectContent>
@@ -855,7 +882,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   </div>
                 </div>
 
-                {/* Search placeholder */}
+                {/* ── Search placeholder ── */}
                 <div className="space-y-2">
                   <Label>Search placeholder</Label>
                   <Input
@@ -865,40 +892,140 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   />
                 </div>
 
-                {/* Auto-fill mappings */}
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Auto-fill other fields on select</Label>
+                {/* ── Auto-fill info ── */}
+                <div className="space-y-3">
+                  <Label className="font-semibold">Auto-filled fields</Label>
                   <p className="text-xs text-muted-foreground">
-                    Choose which form field should receive each Momence value when a member is selected.
+                    When a member is selected all fields below are populated automatically.
+                    They are inline sub-fields named <strong>{draft.name || field.name}_*</strong> — no manual mapping needed.
                   </p>
-                  {(
-                    [
-                      { key: 'autoFillFirstName' as keyof MomenceSearchConfig, label: 'First Name' },
-                      { key: 'autoFillLastName'  as keyof MomenceSearchConfig, label: 'Last Name' },
-                      { key: 'autoFillEmail'     as keyof MomenceSearchConfig, label: 'Email' },
-                      { key: 'autoFillPhone'     as keyof MomenceSearchConfig, label: 'Phone' },
-                    ]
-                  ).map(({ key, label }) => (
-                    <div key={key} className="grid grid-cols-2 gap-3 items-center py-1 border-b border-border/30 last:border-0">
-                      <Label className="text-sm font-normal text-muted-foreground">{label} →</Label>
-                      <Select
-                        value={(draft.momenceSearchConfig?.[key] as string) || '__none__'}
-                        onValueChange={v => updateMomence(key, v === '__none__' ? '' : v)}
-                      >
-                        <SelectTrigger><SelectValue placeholder="— skip —" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">— skip —</SelectItem>
-                          {allFields
-                            .filter(f => f.id !== field.id)
-                            .map(f => (
-                              <SelectItem key={f.id} value={f.name}>
-                                {f.label} ({f.name})
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ))}
+                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-1 max-h-64 overflow-y-auto">
+                    {([
+                      ['first_name',                'First Name'],
+                      ['last_name',                 'Last Name'],
+                      ['email',                     'Email'],
+                      ['phone',                     'Phone'],
+                      ['sessions_booked',           'Sessions Booked'],
+                      ['sessions_checked_in',       'Sessions Checked-In'],
+                      ['late_cancelled',            'Late Cancelled'],
+                      ['home_location',             'Home Location'],
+                      ['tags',                      'Tags'],
+                      ['customer_tags',             'Customer Tags'],
+                      ['first_seen',                'First Seen'],
+                      ['last_seen',                 'Last Seen'],
+                      ['total_visits',              'Total Visits'],
+                      ['active_membership',         'Active Membership'],
+                      ['membership_type',           'Membership Type'],
+                      ['membership_end_date',       'Membership End Date'],
+                      ['membership_sessions_used',  'Sessions Used'],
+                      ['membership_sessions_limit', 'Sessions Limit'],
+                      ['membership_frozen',         'Membership Frozen'],
+                      ['recent_sessions_count',     'Recent Sessions Count'],
+                      ['last_session_name',         'Last Session Name'],
+                      ['last_session_date',         'Last Session Date'],
+                    ] as [string, string][]).map(([suffix, lbl]) => (
+                      <div key={suffix} className="flex items-center justify-between text-xs py-0.5">
+                        <span className="text-muted-foreground">{lbl}</span>
+                        <code className="font-mono text-primary bg-primary/8 px-1.5 py-0.5 rounded text-[11px]">
+                          {(draft.name || field.name)}_{suffix}
+                        </code>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            )}
+            {isMomenceSession && (
+              <TabsContent value="sessions" className="space-y-5 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Configure how sessions are fetched from Momence and displayed to the user.
+                </p>
+
+                {/* Date range days */}
+                <div className="space-y-2">
+                  <Label className="font-semibold">Default date range (days)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Number of days ahead to look for sessions when no date picker is shown, or as the default range.
+                  </p>
+                  <Input
+                    type="number" min={1} max={365}
+                    value={draft.momenceSessionsConfig?.dateRangeDays ?? 30}
+                    onChange={e => updateSession('dateRangeDays', Number(e.target.value))}
+                    className="w-32"
+                  />
+                </div>
+
+                {/* Show date picker */}
+                <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                  <div className="space-y-0.5">
+                    <Label className="font-semibold">Show date range picker</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Let users choose a custom start/end date before loading sessions.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={draft.momenceSessionsConfig?.showDatePicker ?? true}
+                    onCheckedChange={v => updateSession('showDatePicker', v)}
+                  />
+                </div>
+
+                {/* Allow multiple */}
+                <div className="flex items-center justify-between rounded-lg border border-border/50 p-4">
+                  <div className="space-y-0.5">
+                    <Label className="font-semibold">Allow multiple selections</Label>
+                    <p className="text-xs text-muted-foreground">
+                      When enabled users can select more than one session (checkboxes). Otherwise single selection (radio).
+                    </p>
+                  </div>
+                  <Switch
+                    checked={draft.momenceSessionsConfig?.allowMultiple ?? true}
+                    onCheckedChange={v => updateSession('allowMultiple', v)}
+                  />
+                </div>
+
+                {/* ── Auto-fill info ── */}
+                <div className="space-y-3">
+                  <Label className="font-semibold">Auto-filled fields</Label>
+                  <p className="text-xs text-muted-foreground">
+                    When a session is selected all fields below are populated automatically.
+                    They are inline sub-fields named <strong>{draft.name || field.name}_*</strong> — no manual mapping needed.
+                    For multi-select, values are comma-separated.
+                  </p>
+                  <div className="rounded-lg border border-border/50 bg-muted/30 p-3 space-y-1 max-h-72 overflow-y-auto">
+                    {([
+                      ['session_name',        'Session Name'],
+                      ['session_start',       'Start Time'],
+                      ['session_end',         'End Time'],
+                      ['duration_min',        'Duration (min)'],
+                      ['instructor',          'Instructor'],
+                      ['location',            'Location'],
+                      ['level',               'Level'],
+                      ['category',            'Category'],
+                      ['capacity',            'Capacity'],
+                      ['spots_left',          'Spots Left'],
+                      ['booked_count',        'Booked Count'],
+                      ['late_cancelled',      'Late Cancelled'],
+                      ['price',               'Price'],
+                      ['is_recurring',        'Is Recurring'],
+                      ['is_in_person',        'Is In-Person'],
+                      ['description',         'Description'],
+                      ['tags',                'Tags'],
+                      ['teacher_email',       'Teacher Email'],
+                      ['original_teacher',    'Original Teacher'],
+                      ['additional_teachers', 'Additional Teachers'],
+                      ['waitlist_capacity',   'Waitlist Capacity'],
+                      ['waitlist_booked',     'Waitlist Booked'],
+                      ['zoom_link',           'Zoom Link'],
+                      ['online_stream_url',   'Online Stream URL'],
+                    ] as [string, string][]).map(([suffix, lbl]) => (
+                      <div key={suffix} className="flex items-center justify-between text-xs py-0.5">
+                        <span className="text-muted-foreground">{lbl}</span>
+                        <code className="font-mono text-primary bg-primary/8 px-1.5 py-0.5 rounded text-[11px]">
+                          {(draft.name || field.name)}_{suffix}
+                        </code>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </TabsContent>
             )}
