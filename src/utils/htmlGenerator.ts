@@ -127,6 +127,38 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     case 'formula':
       inputHtml = `<input type="text" id="${field.id}" name="${field.name}" readonly class="form-input formula-field${cssClass}"${condAttrs} data-formula="${escapeHtml(field.formulaConfig?.expression || '')}"${defaultVal}>`;
       break;
+    case 'member-search': {
+      const mCfg = field.momenceSearchConfig;
+      const searchPh = escapeHtml(mCfg?.searchPlaceholder || 'Type a name, email or phone…');
+      const hostId = mCfg?.hostId ?? 33905;
+      const fillFirst = escapeHtml(mCfg?.autoFillFirstName || '');
+      const fillLast  = escapeHtml(mCfg?.autoFillLastName  || '');
+      const fillEmail = escapeHtml(mCfg?.autoFillEmail     || '');
+      const fillPhone = escapeHtml(mCfg?.autoFillPhone     || '');
+      inputHtml = `<div class="member-search-wrap${cssClass}"${condAttrs}
+        data-momence-search="true"
+        data-host-id="${hostId}"
+        data-fill-first="${fillFirst}"
+        data-fill-last="${fillLast}"
+        data-fill-email="${fillEmail}"
+        data-fill-phone="${fillPhone}">
+        <div class="member-search-input-row">
+          <svg class="member-search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input
+            type="text"
+            id="${field.id}_search"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="${searchPh}"
+            class="form-input member-search-input"
+          >
+          <span class="member-search-spinner" style="display:none;">&#8987;</span>
+        </div>
+        <div class="member-search-dropdown" style="display:none;"></div>
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    }
     case 'conditional':
     case 'dependent':
       inputHtml = `<input type="text" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${condAttrs}${defaultVal} class="form-input${cssClass}">`;
@@ -400,6 +432,109 @@ function generateWebhookScript(config: FormConfig): string {
                 submitBtn.textContent = '${escapeHtml(config.submitButtonText)}';
             });
         });`;
+}
+
+function generateMomenceSearchScript(config: FormConfig): string {
+  const hasMomenceField = config.fields.some(f => f.type === 'member-search');
+  if (!hasMomenceField) return '';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  return `
+        // ── Momence Member Search ──────────────────────────────────────────────
+        (function () {
+          var PROXY_URL = '${supabaseUrl}/functions/v1/momence-proxy';
+
+          function debounce(fn, ms) {
+            var t;
+            return function () {
+              var args = arguments, ctx = this;
+              clearTimeout(t);
+              t = setTimeout(function () { fn.apply(ctx, args); }, ms);
+            };
+          }
+
+          function renderResults(wrap, members) {
+            var dd = wrap.querySelector('.member-search-dropdown');
+            dd.innerHTML = '';
+            if (!members || !members.length) {
+              dd.innerHTML = '<div class="msr-empty">No members found</div>';
+              dd.style.display = 'block';
+              return;
+            }
+            members.forEach(function (m) {
+              var item = document.createElement('div');
+              item.className = 'msr-item';
+              var avatar = m.pictureUrl
+                ? '<img src="' + m.pictureUrl + '" class="msr-avatar" onerror="this.style.display=\'none\'" />'
+                : '<div class="msr-avatar-placeholder">' + (m.firstName || '?').charAt(0).toUpperCase() + '</div>';
+              item.innerHTML = avatar +
+                '<div class="msr-info">' +
+                  '<span class="msr-name">' + escHtml(m.firstName + ' ' + m.lastName) + '</span>' +
+                  (m.email ? '<span class="msr-sub">' + escHtml(m.email) + '</span>' : '') +
+                  (m.phoneNumber ? '<span class="msr-sub">' + escHtml(m.phoneNumber) + '</span>' : '') +
+                '</div>';
+              item.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                autoFill(wrap, m);
+                dd.style.display = 'none';
+              });
+              dd.appendChild(item);
+            });
+            dd.style.display = 'block';
+          }
+
+          function autoFill(wrap, m) {
+            var fillFirst = wrap.dataset.fillFirst;
+            var fillLast  = wrap.dataset.fillLast;
+            var fillEmail = wrap.dataset.fillEmail;
+            var fillPhone = wrap.dataset.fillPhone;
+            var inp = wrap.querySelector('.member-search-input');
+            inp.value = (m.firstName + ' ' + m.lastName).trim();
+            // store member id in hidden field
+            var hid = wrap.querySelector('input[type=hidden]');
+            if (hid) hid.value = String(m.id);
+            // fill target fields
+            function set(name, val) {
+              if (!name || !val) return;
+              var el = document.querySelector('[name="' + name + '"]');
+              if (el) { el.value = val; el.dispatchEvent(new Event('input', { bubbles: true })); }
+            }
+            set(fillFirst, m.firstName);
+            set(fillLast,  m.lastName);
+            set(fillEmail, m.email);
+            set(fillPhone, m.phoneNumber);
+          }
+
+          function escHtml(s) {
+            return String(s || '')
+              .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+              .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+          }
+
+          document.querySelectorAll('[data-momence-search]').forEach(function (wrap) {
+            var inp     = wrap.querySelector('.member-search-input');
+            var dd      = wrap.querySelector('.member-search-dropdown');
+            var spinner = wrap.querySelector('.member-search-spinner');
+            var hostId  = parseInt(wrap.dataset.hostId || '33905', 10);
+
+            var doSearch = debounce(function (q) {
+              if (!q || q.length < 2) { dd.style.display = 'none'; return; }
+              spinner.style.display = 'inline';
+              fetch(PROXY_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: q, hostId: hostId, pageSize: 10 }),
+              })
+                .then(function (r) { return r.json(); })
+                .then(function (data) { renderResults(wrap, data.members || []); })
+                .catch(function () { dd.innerHTML = '<div class="msr-empty">Search failed</div>'; dd.style.display = 'block'; })
+                .finally(function () { spinner.style.display = 'none'; });
+            }, 320);
+
+            inp.addEventListener('input', function () { doSearch(this.value.trim()); });
+            inp.addEventListener('focus', function () { if (this.value.length >= 2) doSearch(this.value.trim()); });
+            inp.addEventListener('blur', function () { setTimeout(function () { dd.style.display = 'none'; }, 180); });
+          });
+        })();`;
 }
 
 function generateSheetsSubmitScript(config: FormConfig): string {
@@ -1104,6 +1239,36 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         ${theme.customCss || ''}
         ${generateAnimationCss(config)}
         ${generateLayoutCss(config)}
+
+        /* ── Momence Member Search styles ──────────────────────────── */
+        .member-search-wrap { position: relative; }
+        .member-search-input-row { position: relative; }
+        .member-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+        .member-search-input { padding-left: 40px !important; }
+        .member-search-spinner { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--text-light); }
+        .member-search-dropdown {
+          position: absolute; z-index: 999; width: 100%;
+          background: var(--bg-primary); border: 2px solid var(--border-color);
+          border-radius: 10px; box-shadow: 0 12px 32px -4px rgba(0,0,0,0.18);
+          max-height: 280px; overflow-y: auto; margin-top: 4px;
+        }
+        .msr-item {
+          display: flex; align-items: center; gap: 12px;
+          padding: 10px 14px; cursor: pointer; transition: background 0.12s;
+          border-bottom: 1px solid var(--border-color);
+        }
+        .msr-item:last-child { border-bottom: none; }
+        .msr-item:hover { background: var(--bg-secondary); }
+        .msr-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .msr-avatar-placeholder {
+          width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+          background: var(--primary-gradient); color: white; font-weight: 700; font-size: 15px;
+        }
+        .msr-info { display: flex; flex-direction: column; min-width: 0; }
+        .msr-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .msr-sub  { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .msr-empty { padding: 14px; text-align: center; color: var(--text-secondary); font-size: 13px; }
     </style>
     <script>
     // ── Confetti ──────────────────────────────────────────────────────────────
@@ -1425,6 +1590,7 @@ ${pagesHtml}
             });
         })();
         ${generateAnimationScript(config)}
+        ${generateMomenceSearchScript(config)}
     </script>
 </body>
 </html>`;

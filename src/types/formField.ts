@@ -49,7 +49,8 @@ export type FieldType =
   | 'image'
   | 'video'
   | 'pdf-viewer'
-  | 'social-links';
+  | 'social-links'
+  | 'member-search';
 
 export interface FieldOption {
   label: string;
@@ -101,6 +102,22 @@ export interface FormulaConfig {
   referencedFieldIds: string[];
 }
 
+/** Config for the Momence member search / autofill field */
+export interface MomenceSearchConfig {
+  /** Momence hostId to search members within (default 33905 for Bengaluru) */
+  hostId: number;
+  /** Placeholder text for the search input */
+  searchPlaceholder?: string;
+  /** Name of the form field to auto-fill with First Name */
+  autoFillFirstName?: string;
+  /** Name of the form field to auto-fill with Last Name */
+  autoFillLastName?: string;
+  /** Name of the form field to auto-fill with Email */
+  autoFillEmail?: string;
+  /** Name of the form field to auto-fill with Phone */
+  autoFillPhone?: string;
+}
+
 export interface FormField {
   id: string;
   name: string;
@@ -132,6 +149,7 @@ export interface FormField {
   conditionalRules?: ConditionalRule[];
   lookupConfig?: LookupConfig;
   formulaConfig?: FormulaConfig;
+  momenceSearchConfig?: MomenceSearchConfig;
   dependsOnFieldId?: string;
   /** Filters the visible options of this select/radio/checkbox based on another field's value */
   dependentOptionsConfig?: DependentOptionsConfig;
@@ -332,6 +350,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   video: 'Video',
   'pdf-viewer': 'PDF Viewer',
   'social-links': 'Social Media Links',
+  'member-search': 'Member Search (Momence)',
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
   divider: 'Divider',
@@ -358,6 +377,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'html-snippet', 'page-break', 'hidden'],
   'Media': ['image', 'video', 'pdf-viewer', 'social-links'],
   'Advanced': ['lookup', 'formula', 'conditional', 'dependent'],
+  'Integrations': ['member-search'],
 };
 
 export function createDefaultField(type: FieldType, order: number): FormField {
@@ -406,6 +426,18 @@ export function createDefaultField(type: FieldType, order: number): FormField {
 
   if (type === 'subform' || type === 'section-collapse') {
     base.helpText = 'Drop your nested fields here';
+  }
+
+  if (type === 'member-search') {
+    base.label = 'Search Member';
+    base.momenceSearchConfig = {
+      hostId: 33905,
+      searchPlaceholder: 'Type a name, email or phone…',
+      autoFillFirstName: 'firstName',
+      autoFillLastName: 'lastName',
+      autoFillEmail: 'email',
+      autoFillPhone: 'phoneNumber',
+    };
   }
 
   return base;

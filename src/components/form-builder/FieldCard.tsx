@@ -32,6 +32,7 @@ import {
   PenTool,
   Minus,
   SlidersHorizontal,
+  Users,
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -60,6 +61,7 @@ const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
   rating: <Star className="h-3.5 w-3.5" />,
   signature: <PenTool className="h-3.5 w-3.5" />,
   range: <SlidersHorizontal className="h-3.5 w-3.5" />,
+  'member-search': <Users className="h-3.5 w-3.5" />,
 };
 
 interface FieldCardProps {
@@ -187,6 +189,12 @@ export function FieldCard({
           {field.conditionalRules && field.conditionalRules.length > 0 && (
             <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 border-amber-300 text-amber-600 gap-0.5">
               <GitBranch className="h-2.5 w-2.5" />
+            </Badge>
+          )}
+          {field.type === 'member-search' && (
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-violet-400 text-violet-600 font-semibold gap-0.5">
+              <Users className="h-2.5 w-2.5" />
+              Momence
             </Badge>
           )}
         </div>

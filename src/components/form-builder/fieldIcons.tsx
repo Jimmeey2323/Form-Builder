@@ -41,6 +41,7 @@ import {
   Clock,
   Mail,
   Minus,
+  Users,
 } from 'lucide-react';
 
 const iconClass = 'h-4 w-4';
@@ -97,4 +98,5 @@ export const FIELD_ICONS: Record<FieldType, ReactNode> = {
   video: <Video className={iconClass} />,
   'pdf-viewer': <FileText className={iconClass} />,
   'social-links': <Share2 className={iconClass} />,
+  'member-search': <Users className={iconClass} />,
 } as Record<FieldType, ReactNode>;

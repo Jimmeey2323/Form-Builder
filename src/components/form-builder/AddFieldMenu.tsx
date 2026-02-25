@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Type, Mail, Phone, Hash, Link, Lock, AlignLeft, ChevronDown, Circle, CheckSquare, Star, Calendar, Clock, Timer, Paperclip, Palette, PenTool, Minus, SplitSquareHorizontal, EyeOff, Database, Calculator, GitBranch, NetworkIcon, SlidersHorizontal } from 'lucide-react';
+import { Plus, Type, Mail, Phone, Hash, Link, Lock, AlignLeft, ChevronDown, Circle, CheckSquare, Star, Calendar, Clock, Timer, Paperclip, Palette, PenTool, Minus, SplitSquareHorizontal, EyeOff, Database, Calculator, GitBranch, NetworkIcon, SlidersHorizontal, Users } from 'lucide-react';
 import { FIELD_TYPE_CATEGORIES, FIELD_TYPE_LABELS, FieldType } from '@/types/formField';
 
 const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
@@ -31,6 +31,7 @@ const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
   conditional: <GitBranch className="h-3.5 w-3.5" />,
   dependent: <NetworkIcon className="h-3.5 w-3.5" />,
   range: <SlidersHorizontal className="h-3.5 w-3.5" />,
+  'member-search': <Users className="h-3.5 w-3.5" />,
 };
 
 interface AddFieldMenuProps {

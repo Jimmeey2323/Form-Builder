@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -50,6 +50,14 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
   const hasOptions = ['select', 'radio', 'checkbox'].includes(draft.type || field.type);
   const isAdvanced = ['lookup', 'formula', 'conditional', 'dependent'].includes(draft.type || field.type);
+  const isMomenceSearch = (draft.type || field.type) === 'member-search';
+
+  const updateMomence = (key: keyof MomenceSearchConfig, value: any) => {
+    update('momenceSearchConfig', {
+      ...(draft.momenceSearchConfig || { hostId: 33905 }),
+      [key]: value,
+    });
+  };
 
   const addOption = () => {
     const opts = [...(draft.options || [])];
@@ -173,6 +181,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
               <TabsTrigger value="conditions">Conditions</TabsTrigger>
               <TabsTrigger value="style">Style</TabsTrigger>
+              {isMomenceSearch && <TabsTrigger value="momence">Momence</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
@@ -811,6 +820,88 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 <Input value={draft.cssClass || ''} onChange={e => update('cssClass', e.target.value)} placeholder="custom-class" />
               </div>
             </TabsContent>
+
+            {isMomenceSearch && (
+              <TabsContent value="momence" className="space-y-5 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Configure the Momence member search autocomplete behaviour.
+                </p>
+
+                {/* Host ID */}
+                <div className="space-y-2">
+                  <Label>Host ID</Label>
+                  <div className="flex gap-2">
+                    <Select
+                      value={[33905, 13752].includes(draft.momenceSearchConfig?.hostId ?? 33905)
+                        ? String(draft.momenceSearchConfig?.hostId ?? 33905)
+                        : 'custom'}
+                      onValueChange={v => {
+                        if (v !== 'custom') updateMomence('hostId', Number(v));
+                      }}
+                    >
+                      <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="33905">33905 — Bengaluru</SelectItem>
+                        <SelectItem value="13752">13752 — Alt location</SelectItem>
+                        <SelectItem value="custom">Custom…</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      className="font-mono w-28"
+                      value={draft.momenceSearchConfig?.hostId ?? 33905}
+                      onChange={e => updateMomence('hostId', Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+
+                {/* Search placeholder */}
+                <div className="space-y-2">
+                  <Label>Search placeholder</Label>
+                  <Input
+                    value={draft.momenceSearchConfig?.searchPlaceholder ?? ''}
+                    onChange={e => updateMomence('searchPlaceholder', e.target.value)}
+                    placeholder="Type a name, email or phone…"
+                  />
+                </div>
+
+                {/* Auto-fill mappings */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold">Auto-fill other fields on select</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Choose which form field should receive each Momence value when a member is selected.
+                  </p>
+                  {(
+                    [
+                      { key: 'autoFillFirstName' as keyof MomenceSearchConfig, label: 'First Name' },
+                      { key: 'autoFillLastName'  as keyof MomenceSearchConfig, label: 'Last Name' },
+                      { key: 'autoFillEmail'     as keyof MomenceSearchConfig, label: 'Email' },
+                      { key: 'autoFillPhone'     as keyof MomenceSearchConfig, label: 'Phone' },
+                    ]
+                  ).map(({ key, label }) => (
+                    <div key={key} className="grid grid-cols-2 gap-3 items-center py-1 border-b border-border/30 last:border-0">
+                      <Label className="text-sm font-normal text-muted-foreground">{label} →</Label>
+                      <Select
+                        value={(draft.momenceSearchConfig?.[key] as string) || '__none__'}
+                        onValueChange={v => updateMomence(key, v === '__none__' ? '' : v)}
+                      >
+                        <SelectTrigger><SelectValue placeholder="— skip —" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">— skip —</SelectItem>
+                          {allFields
+                            .filter(f => f.id !== field.id)
+                            .map(f => (
+                              <SelectItem key={f.id} value={f.name}>
+                                {f.label} ({f.name})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
           </div>
         </ScrollArea>
