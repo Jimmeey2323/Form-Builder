@@ -118,6 +118,58 @@ function FieldPreview({ field }: { field: FormField }) {
       return <div className={`${base} flex items-center gap-2`}><Calendar className="h-3 w-3" /><span className="text-[11px]">{field.type === 'time' ? 'HH:MM' : 'DD / MM / YYYY'}</span></div>;
     case 'hidden':
       return <div className={`${base} opacity-40 border-dashed`}>Hidden field: {field.name}</div>;
+    case 'image':
+      return <div className={`${base} h-24 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">📷 Image Upload</span></div>;
+    case 'video':
+      return <div className={`${base} h-24 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">🎥 Video Upload</span></div>;
+    case 'pdf-viewer':
+      return <div className={`${base} h-20 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">📄 PDF Viewer</span></div>;
+    case 'voice-recording':
+      return <div className={`${base} border-dashed flex items-center gap-2`}><span className="text-xs">🎤</span><span className="text-xs text-muted-foreground">Voice Recording</span></div>;
+    case 'social-links':
+      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">🔗</span><span className="text-xs text-muted-foreground">Social Media Links</span></div>;
+    case 'address':
+      return <div className={`${base} h-16`}>{field.placeholder || 'Street address, city, state, zip…'}</div>;
+    case 'currency':
+      return <div className={`${base} flex items-center gap-1`}><span className="text-xs text-muted-foreground">$</span><span>{field.placeholder || '0.00'}</span></div>;
+    case 'ranking':
+      return <div className="space-y-1"><div className={`${base} text-xs`}>1. Option A</div><div className={`${base} text-xs`}>2. Option B</div><div className={`${base} text-xs`}>3. Option C</div></div>;
+    case 'star-rating':
+      return <div className="flex gap-1">{Array.from({ length: field.max || 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />)}</div>;
+    case 'opinion-scale':
+      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">1</span><div className="flex-1 h-1.5 bg-border rounded-full"><div className="w-1/2 h-full bg-primary/30 rounded-full" /></div><span className="text-xs">10</span></div>;
+    case 'date-range':
+      return <div className={`${base} flex items-center gap-2`}><Calendar className="h-3 w-3" /><span className="text-[11px]">Start → End Date</span></div>;
+    case 'picture-choice':
+      return <div className="grid grid-cols-2 gap-1"><div className="aspect-square bg-muted/50 rounded border border-dashed border-border/60 flex items-center justify-center"><span className="text-[10px] text-muted-foreground">📷</span></div><div className="aspect-square bg-muted/50 rounded border border-dashed border-border/60 flex items-center justify-center"><span className="text-[10px] text-muted-foreground">📷</span></div></div>;
+    case 'choice-matrix':
+      return <div className="space-y-1"><div className="flex gap-1"><span className="text-[10px] w-12">Row 1</span><div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="w-4 h-4 border border-border/60 rounded" />)}</div></div></div>;
+    case 'multiselect':
+      return <div className={`${base} flex items-center justify-between`}><span>{field.placeholder || 'Select multiple options'}</span><ChevronDown className="h-3 w-3" /></div>;
+    case 'switch':
+      return <div className="flex items-center gap-2"><div className="w-8 h-4 bg-border/60 rounded-full"><div className="w-3 h-3 bg-white rounded-full ml-0.5" /></div><span className="text-xs text-muted-foreground">Toggle</span></div>;
+    case 'subform':
+      return <div className={`${base} border-dashed bg-muted/20 h-16 flex items-center justify-center`}><span className="text-xs text-muted-foreground italic">Nested form fields</span></div>;
+    case 'section-collapse':
+      return <div className={`${base} border-dashed bg-muted/20 h-12 flex items-center justify-center`}><span className="text-xs text-muted-foreground italic">Collapsible section</span></div>;
+    case 'divider':
+      return <div className="flex items-center gap-2 py-1"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted-foreground">Divider</span><div className="flex-1 h-px bg-border" /></div>;
+    case 'html-snippet':
+      return <div className={`${base} border-dashed bg-muted/20 h-12 flex items-center justify-center font-mono text-[10px]`}>&lt;div&gt;HTML Content&lt;/div&gt;</div>;
+    case 'submission-picker':
+      return <div className={`${base} border-dashed flex items-center gap-2`}><span className="text-xs">📋</span><span className="text-xs text-muted-foreground">Select from previous submissions</span></div>;
+    case 'member-search':
+      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">👤</span><span className="text-xs text-muted-foreground">Search members…</span></div>;
+    case 'momence-sessions':
+      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">📅</span><span className="text-xs text-muted-foreground">Select sessions…</span></div>;
+    case 'rich-text':
+      return <div className={`${base} h-20`}><div className="text-xs text-muted-foreground">Rich text editor with formatting options…</div></div>;
+    case 'heading':
+      return <div className="text-lg font-bold text-foreground">{field.label || 'Heading'}</div>;
+    case 'paragraph':
+      return <div className="text-sm text-muted-foreground leading-relaxed">{field.label || 'This is a paragraph of text that can be displayed on the form.'}</div>;
+    case 'banner':
+      return <div className={`${base} h-16 bg-gradient-to-r from-primary/10 to-secondary/10 border-dashed flex items-center justify-center`}><span className="text-xs text-muted-foreground">🖼️ Banner Image</span></div>;
     default:
       return <div className={base}>{field.placeholder || `${FIELD_TYPE_LABELS[field.type]}…`}</div>;
   }

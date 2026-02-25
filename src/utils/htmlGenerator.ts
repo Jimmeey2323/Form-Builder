@@ -325,8 +325,150 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         <input type="hidden" id="${field.id}" name="${field.name}">
       </div>`;
       break;
+    case 'image':
+      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="image/*"${condAttrs} class="form-input${cssClass}">`;
+      break;
+    case 'video':
+      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="video/*"${condAttrs} class="form-input${cssClass}">`;
+      break;
+    case 'pdf-viewer':
+      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="application/pdf"${condAttrs} class="form-input${cssClass}">`;
+      break;
+    case 'voice-recording':
+      inputHtml = `<div class="voice-recording-group${cssClass}"${condAttrs}>
+        <button type="button" class="record-btn" onclick="startRecording('${field.id}')">🎤 Start Recording</button>
+        <button type="button" class="stop-btn" onclick="stopRecording('${field.id}')" style="display:none;">⏹️ Stop</button>
+        <audio id="${field.id}_preview" controls style="display:none;"></audio>
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    case 'social-links':
+      inputHtml = `<div class="social-links-group${cssClass}"${condAttrs}>
+        <input type="url" placeholder="Facebook URL" name="${field.name}_facebook" class="form-input social-link-input">
+        <input type="url" placeholder="Instagram URL" name="${field.name}_instagram" class="form-input social-link-input">
+        <input type="url" placeholder="Twitter URL" name="${field.name}_twitter" class="form-input social-link-input">
+        <input type="url" placeholder="LinkedIn URL" name="${field.name}_linkedin" class="form-input social-link-input">
+      </div>`;
+      break;
+    case 'address':
+      inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="form-input${cssClass}" rows="3" placeholder="Street address, city, state, zip…"></textarea>`;
+      break;
+    case 'currency':
+      inputHtml = `<div class="currency-input-group${cssClass}"${condAttrs}>
+        <span class="currency-symbol">$</span>
+        <input type="number" id="${field.id}" name="${field.name}"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || '0.00')}"${minVal}${maxVal}${stepVal}${autocomplete} class="form-input currency-input">
+      </div>`;
+      break;
+    case 'ranking':
+      inputHtml = `<div class="ranking-group${cssClass}"${condAttrs}>
+        ${(field.options || []).map((o, i) => `<div class="ranking-item" data-value="${i + 1}"><span class="ranking-number">${i + 1}.</span> <span class="ranking-label">${escapeHtml(o.label)}</span></div>`).join('\n        ')}
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    case 'star-rating':
+      const starMax = field.max || 5;
+      inputHtml = `<div class="star-rating-group${cssClass}"${condAttrs}>
+        ${Array.from({ length: starMax }, (_, i) => `<label class="star-rating-star"><input type="radio" name="${field.name}" value="${i + 1}"${required}> ★</label>`).join('\n        ')}
+      </div>`;
+      break;
+    case 'opinion-scale':
+      const scaleMin = field.min || 1;
+      const scaleMax = field.max || 10;
+      inputHtml = `<div class="opinion-scale-group${cssClass}"${condAttrs}>
+        <div class="scale-labels">
+          <span class="scale-min">${scaleMin}</span>
+          <span class="scale-max">${scaleMax}</span>
+        </div>
+        <div class="scale-inputs">
+          ${Array.from({ length: scaleMax - scaleMin + 1 }, (_, i) => `<label class="scale-option"><input type="radio" name="${field.name}" value="${scaleMin + i}"${required}> ${scaleMin + i}</label>`).join('\n          ')}
+        </div>
+      </div>`;
+      break;
+    case 'date-range':
+      inputHtml = `<div class="date-range-group${cssClass}"${condAttrs}>
+        <input type="date" id="${field.id}_start" name="${field.name}_start"${required}${disabled} class="form-input date-range-input" placeholder="Start date">
+        <span class="date-range-separator">→</span>
+        <input type="date" id="${field.id}_end" name="${field.name}_end"${required}${disabled} class="form-input date-range-input" placeholder="End date">
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    case 'picture-choice':
+      inputHtml = `<div class="picture-choice-group${cssClass}"${condAttrs}>
+        ${(field.options || []).map(o => `<label class="picture-choice-option"><input type="radio" name="${field.name}" value="${escapeHtml(o.value)}"${required}><img src="${escapeHtml(o.label)}" alt="Option" class="picture-choice-image"></label>`).join('\n        ')}
+      </div>`;
+      break;
+    case 'multiselect':
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}" multiple>
+        ${(field.options || []).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('\n        ')}
+      </select>`;
+      break;
+    case 'switch':
+      inputHtml = `<label class="switch-group${cssClass}"${condAttrs}>
+        <input type="checkbox" id="${field.id}" name="${field.name}"${required}${disabled}>
+        <span class="switch-slider"></span>
+        <span class="switch-label">${escapeHtml(field.label)}</span>
+      </label>`;
+      break;
+    case 'subform':
+      inputHtml = `<div class="subform-group${cssClass}"${condAttrs}>
+        <div class="subform-placeholder">Nested form fields will be rendered here</div>
+      </div>`;
+      break;
+    case 'section-collapse':
+      inputHtml = `<div class="section-collapse-group${cssClass}"${condAttrs}>
+        <button type="button" class="collapse-toggle" onclick="toggleCollapse('${field.id}')">▶ ${escapeHtml(field.label)}</button>
+        <div class="collapse-content" id="${field.id}_content" style="display:none;">
+          <!-- Nested fields go here -->
+        </div>
+      </div>`;
+      break;
+    case 'divider':
+      inputHtml = `<hr class="form-divider${cssClass}"${condAttrs}>`;
+      break;
+    case 'html-snippet':
+      inputHtml = `<div class="html-snippet${cssClass}"${condAttrs}>${field.helpText || '<p>Custom HTML content</p>'}</div>`;
+      break;
+    case 'submission-picker':
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="form-input${cssClass}">
+        <option value="" disabled selected>Select from previous submissions</option>
+        <!-- Options populated dynamically -->
+      </select>`;
+      break;
+    case 'momence-sessions':
+      inputHtml = `<div class="momence-sessions-group${cssClass}"${condAttrs}>
+        <div class="sessions-search">
+          <input type="text" placeholder="Search sessions…" class="form-input sessions-search-input">
+          <button type="button" class="sessions-search-btn">Search</button>
+        </div>
+        <div class="sessions-list">
+          <!-- Session options populated dynamically -->
+        </div>
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    case 'rich-text':
+      inputHtml = `<div class="rich-text-editor${cssClass}"${condAttrs}>
+        <div class="rte-toolbar">
+          <button type="button" class="rte-btn" onclick="formatText('bold')">B</button>
+          <button type="button" class="rte-btn" onclick="formatText('italic')">I</button>
+          <button type="button" class="rte-btn" onclick="formatText('underline')">U</button>
+        </div>
+        <div id="${field.id}_editor" class="rte-editor" contenteditable="true" oninput="updateRichText('${field.id}')">${field.defaultValue || ''}</div>
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    case 'heading':
+      return `<h2 class="form-heading"${hidden}${widthStyle}${condAttrs}>${escapeHtml(field.label)}</h2>`;
+    case 'paragraph':
+      return `<p class="form-paragraph"${hidden}${widthStyle}${condAttrs}>${escapeHtml(field.helpText || field.label)}</p>`;
+    case 'banner':
+      return `<div class="form-banner"${hidden}${widthStyle}${condAttrs} style="background-image: url('${escapeHtml(field.helpText || '')}');">
+        <div class="banner-content">
+          <h3>${escapeHtml(field.label)}</h3>
+        </div>
+      </div>`;
     default:
-      inputHtml = `<input type="${field.type}" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${defaultVal}${minLen}${maxLen}${minVal}${maxVal}${stepVal}${pattern}${accept}${autocomplete}${condAttrs} class="form-input${cssClass}">`;
+      inputHtml = `<input type="${field.type === 'color' || field.type === 'range' || field.type === 'date' || field.type === 'time' || field.type === 'datetime-local' || field.type === 'file' ? field.type : 'text'}" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${defaultVal}${minLen}${maxLen}${minVal}${maxVal}${stepVal}${pattern}${accept}${autocomplete}${condAttrs} class="form-input${cssClass}">`;
   }
 
   return `

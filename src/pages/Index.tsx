@@ -802,51 +802,116 @@ const Index = () => {
               /* ── No active form ─────────────────────────────────────── */
               forms.length > 0 ? (
               /* ── Workspace overview (forms exist) ───────────────────── */
-              <div className="space-y-7">
-                {/* Workspace masthead */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">Your Workspace</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {forms.length} form{forms.length !== 1 ? 's' : ''} &middot; {forms.filter(f => !!f.deployedUrl).length} live &middot; {forms.reduce((a, f) => a + f.fields.length, 0)} total fields
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setShowCsvImport(true)} className="h-9 gap-1.5 border-border/60">
-                      <Download className="h-3.5 w-3.5" />Import
-                    </Button>
-                    <Button size="sm" onClick={() => setShowTemplateDialog(true)}
-                      className="h-9 gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 border-0 shadow-md shadow-indigo-500/20">
-                      <Plus className="h-3.5 w-3.5" />New Form
-                    </Button>
+              <div className="space-y-8">
+                {/* Enhanced masthead */}
+                <div className="anim-fade-in-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 border border-border/40 shadow-xl shadow-indigo-500/5">
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-transparent to-violet-500/5"></div>
+                  <div className="relative px-8 py-10">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 shadow-lg shadow-indigo-500/25">
+                            <BarChart3 className="h-6 w-6 text-white" />
+                          </div>
+                          <div>
+                            <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent">
+                              Form Builder Dashboard
+                            </h1>
+                            <p className="text-slate-600 text-lg">Create, manage, and deploy beautiful forms with ease</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          onClick={() => setShowCsvImport(true)}
+                          variant="outline"
+                          className="rounded-xl border-2 border-dashed border-indigo-200/60 hover:border-indigo-300 hover:bg-indigo-50/50 text-indigo-700 font-semibold px-6 py-3 h-auto transition-all duration-200"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Import
+                        </Button>
+                        <Button
+                          onClick={() => setShowTemplateDialog(true)}
+                          className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white px-6 py-3 font-semibold shadow-md shadow-indigo-500/20 transition-all duration-200"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          New Form
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                {/* Stats strip */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Enhanced stats strip */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   {[
-                    { Icon: FileCode, label: 'Total Forms',   value: forms.length,                                                                                                                                                                                               sub: 'in workspace',    gradient: 'from-blue-500 to-indigo-500',    bg: 'bg-blue-50/80',    border: 'border-blue-100',    text: 'text-blue-700' },
-                    { Icon: Rocket,   label: 'Live',          value: forms.filter(f => !!f.deployedUrl).length,                                                                                                                                                                  sub: 'deployed',        gradient: 'from-emerald-500 to-teal-500',  bg: 'bg-emerald-50/80', border: 'border-emerald-100', text: 'text-emerald-700' },
-                    { Icon: Layers,   label: 'Total Fields',  value: forms.reduce((a, f) => a + f.fields.length, 0),                                                                                                                                                            sub: 'across all forms', gradient: 'from-violet-500 to-purple-500', bg: 'bg-violet-50/80',  border: 'border-violet-100',  text: 'text-violet-700' },
-                    { Icon: Webhook,  label: 'Integrations',  value: forms.filter(f => f.webhookConfig?.enabled || f.googleSheetsConfig?.enabled || !!(f.pixelConfig?.snapPixelId || f.pixelConfig?.metaPixelId || f.pixelConfig?.googleAdsId)).length, sub: 'forms connected', gradient: 'from-rose-500 to-pink-500',   bg: 'bg-rose-50/80',    border: 'border-rose-100',    text: 'text-rose-700' },
-                  ].map(stat => (
-                    <div key={stat.label} className={`rounded-2xl border ${stat.border} ${stat.bg} px-5 py-4`}>
-                      <div className="mb-3">
-                        <div className={`inline-flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-sm`}>
-                          <stat.Icon className="h-4 w-4 text-white" />
+                    {
+                      Icon: FileCode,
+                      label: 'Total Forms',
+                      value: forms.length,
+                      sub: 'in workspace',
+                      gradient: 'from-blue-500 to-indigo-500',
+                      bg: 'from-blue-500/10 to-indigo-500/5',
+                      ring: 'ring-blue-500/20',
+                      delay: 'delay-100',
+                    },
+                    {
+                      Icon: Rocket,
+                      label: 'Live',
+                      value: forms.filter(f => !!f.deployedUrl).length,
+                      sub: 'deployed',
+                      gradient: 'from-emerald-500 to-teal-500',
+                      bg: 'from-emerald-500/10 to-teal-500/5',
+                      ring: 'ring-emerald-500/20',
+                      delay: 'delay-200',
+                    },
+                    {
+                      Icon: Layers,
+                      label: 'Total Fields',
+                      value: forms.reduce((a, f) => a + f.fields.length, 0),
+                      sub: 'across all forms',
+                      gradient: 'from-violet-500 to-purple-500',
+                      bg: 'from-violet-500/10 to-purple-500/5',
+                      ring: 'ring-violet-500/20',
+                      delay: 'delay-300',
+                    },
+                    {
+                      Icon: Webhook,
+                      label: 'Integrations',
+                      value: forms.filter(f => f.webhookConfig?.enabled || f.googleSheetsConfig?.enabled || !!(f.pixelConfig?.snapPixelId || f.pixelConfig?.metaPixelId || f.pixelConfig?.googleAdsId)).length,
+                      sub: 'forms connected',
+                      gradient: 'from-rose-500 to-pink-500',
+                      bg: 'from-rose-500/10 to-pink-500/5',
+                      ring: 'ring-rose-500/20',
+                      delay: 'delay-400',
+                    },
+                  ].map((stat, index) => (
+                    <div
+                      key={stat.label}
+                      className={`anim-fade-in-up ${stat.delay} group relative overflow-hidden rounded-2xl bg-gradient-to-br ${stat.bg} border border-border/50 p-6 hover:shadow-lg hover:shadow-${stat.gradient.split(' ')[0]}/10 transition-all duration-300 hover:scale-[1.02] cursor-default`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                          <p className="text-3xl font-bold text-slate-900">{stat.value}</p>
+                          <p className="text-xs text-muted-foreground">{stat.sub}</p>
+                        </div>
+                        <div className={`flex items-center justify-center h-12 w-12 rounded-xl bg-gradient-to-br ${stat.gradient} shadow-md shadow-${stat.gradient.split(' ')[0]}/20 text-white group-hover:scale-110 transition-transform duration-200`}>
+                          <stat.Icon className="h-5 w-5" />
                         </div>
                       </div>
-                      <p className={`text-2xl font-extrabold ${stat.text} leading-none mb-1`}>{stat.value}</p>
-                      <p className="text-[12px] font-semibold text-slate-600">{stat.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{stat.sub}</p>
+                      <div className={`absolute -bottom-1 -right-1 h-20 w-20 rounded-full bg-gradient-to-br ${stat.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-300`}></div>
                     </div>
                   ))}
                 </div>
 
-                {/* Forms grid */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.25em] text-slate-400">All Forms</h3>
+                {/* Forms section */}
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-xl font-bold text-slate-900">Your Forms</h2>
+                      <p className="text-sm text-muted-foreground">Manage and edit your form collection</p>
+                    </div>
                     <div className="flex items-center gap-0.5 rounded-lg border border-border/60 bg-white p-0.5 shadow-sm">
                       <button onClick={() => setViewMode('grid')} className={`h-7 w-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-slate-100 text-slate-800' : 'text-slate-400 hover:text-slate-600'}`}>
                         <Grid3X3 className="h-3.5 w-3.5" />
@@ -856,8 +921,9 @@ const Index = () => {
                       </button>
                     </div>
                   </div>
-                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}>
-                    {forms.map(form => (
+
+                  <div className={`anim-fade-in-up delay-500 ${viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-2'}`}>
+                    {forms.map((form, index) => (
                       <FormCard
                         key={form.id}
                         form={form}
@@ -872,7 +938,7 @@ const Index = () => {
                     ))}
                     <button
                       onClick={() => setShowTemplateDialog(true)}
-                      className={`${viewMode === 'grid' ? 'min-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2' : 'h-14 rounded-xl flex items-center gap-2 px-4'} w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-slate-400 hover:text-indigo-500 transition-all duration-150 cursor-pointer`}
+                      className={`anim-fade-in-up delay-600 ${viewMode === 'grid' ? 'min-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2' : 'h-14 rounded-xl flex items-center gap-2 px-4'} w-full border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50 text-slate-400 hover:text-indigo-500 transition-all duration-200 cursor-pointer`}
                     >
                       <Plus className="h-5 w-5" />
                       <span className="text-[12px] font-medium">New Form</span>
@@ -882,111 +948,135 @@ const Index = () => {
               </div>
               ) : (
               /* ── Landing hero (0 forms exist) ────────────────────────── */
-              <div className="relative overflow-hidden rounded-3xl border border-white/8 min-h-[580px] flex flex-col items-center justify-center py-20 px-6">
-                {/* Animated background */}
+              <div className="relative overflow-hidden rounded-3xl border border-white/8 min-h-[620px] flex flex-col items-center justify-center py-24 px-6">
+                {/* Enhanced animated background */}
                 <div className="absolute inset-0 -z-10 rounded-3xl overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950" />
-                  <div className="anim-blob absolute -top-20 -left-20 h-80 w-80 rounded-full bg-gradient-to-br from-blue-500/25 to-indigo-600/15 blur-3xl" />
-                  <div className="anim-blob delay-400 absolute top-16 -right-16 h-96 w-96 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-600/10 blur-3xl" />
-                  <div className="anim-blob delay-200 absolute -bottom-16 left-1/3 h-72 w-72 rounded-full bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 blur-3xl" />
-                  {/* Dot grid */}
-                  <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.06)_1px,transparent_1px)] bg-[size:32px_32px]" />
-                  {/* Top radial glow */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_70%_40%_at_50%_-10%,rgba(99,102,241,0.18),transparent)]" />
+                  <div className="anim-blob absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/30 to-indigo-600/20 blur-3xl" />
+                  <div className="anim-blob delay-400 absolute top-20 -right-20 h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-violet-500/25 to-purple-600/15 blur-3xl" />
+                  <div className="anim-blob delay-200 absolute -bottom-20 left-1/4 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/15 blur-3xl" />
+                  <div className="anim-blob delay-600 absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-rose-500/15 to-pink-500/10 blur-3xl" />
+                  {/* Enhanced dot grid */}
+                  <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:36px_36px]" />
+                  {/* Multiple radial glows */}
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-15%,rgba(99,102,241,0.25),transparent)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_80%,rgba(139,92,246,0.15),transparent)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_30%_at_20%_70%,rgba(16,185,129,0.12),transparent)]" />
                 </div>
 
-                {/* Floating brand icon */}
-                <div className="anim-fade-in-up mb-7 relative">
-                  <div className="anim-float anim-glow-ring flex items-center justify-center h-20 w-20 rounded-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 shadow-2xl shadow-indigo-500/40 ring-1 ring-white/20">
-                    <Sparkles className="h-9 w-9 text-white" />
+                {/* Enhanced floating brand icon */}
+                <div className="anim-fade-in-up mb-8 relative">
+                  <div className="anim-float anim-glow-ring flex items-center justify-center h-24 w-24 rounded-3xl bg-gradient-to-br from-blue-500 via-indigo-500 to-violet-600 shadow-2xl shadow-indigo-500/50 ring-2 ring-white/25">
+                    <Sparkles className="h-10 w-10 text-white" />
                   </div>
-                  <div className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full bg-emerald-400 flex items-center justify-center ring-2 ring-slate-900 animate-bounce">
-                    <Plus className="h-3 w-3 text-white" />
+                  <div className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center ring-3 ring-slate-900 animate-bounce shadow-lg">
+                    <Plus className="h-4 w-4 text-white" />
                   </div>
+                  {/* Additional sparkle effects */}
+                  <div className="absolute -top-4 -left-4 h-2 w-2 rounded-full bg-blue-400 animate-ping opacity-75"></div>
+                  <div className="absolute top-8 -right-6 h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping opacity-60 delay-300"></div>
+                  <div className="absolute -bottom-2 left-12 h-1 w-1 rounded-full bg-emerald-400 animate-ping opacity-80 delay-500"></div>
                 </div>
 
-                {/* Badge */}
-                <div className="anim-fade-in-up delay-100 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-white/60 text-[10px] font-bold uppercase tracking-[0.3em] px-4 py-1.5 mb-5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {/* Enhanced badge */}
+                <div className="anim-fade-in-up delay-100 inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white/80 text-xs font-bold uppercase tracking-[0.25em] px-5 py-2 mb-6 shadow-lg shadow-black/20">
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-emerald-400 to-green-500 animate-pulse shadow-sm shadow-emerald-400/50" />
                   Professional Form Builder
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 animate-pulse shadow-sm shadow-blue-400/50 delay-200" />
                 </div>
 
-                {/* Headline */}
-                <div className="anim-fade-in-up delay-200 text-center mb-5 max-w-xl">
-                  <h2 className="text-4xl md:text-[3.25rem] font-extrabold tracking-tight text-white leading-[1.1] mb-3">
+                {/* Enhanced headline */}
+                <div className="anim-fade-in-up delay-200 text-center mb-6 max-w-2xl">
+                  <h2 className="text-5xl md:text-[3.75rem] font-extrabold tracking-tight text-white leading-[1.05] mb-4">
                     Build Forms That
-                    <span className="block anim-gradient-title">Actually Convert.</span>
+                    <span className="block anim-gradient-title bg-gradient-to-r from-blue-400 via-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                      Actually Convert.
+                    </span>
                   </h2>
-                  <p className="text-slate-400 text-base leading-relaxed max-w-md mx-auto">
+                  <p className="text-slate-300 text-lg leading-relaxed max-w-lg mx-auto">
                     Stunning forms with smart integrations, multi-page layouts, advanced field logic,
-                    and one-click Vercel deployment.
+                    and one-click Vercel deployment. Start building today.
                   </p>
                 </div>
 
-                {/* Feature pills */}
-                <div className="anim-fade-in-up delay-300 flex flex-wrap items-center justify-center gap-2.5 mb-9">
-                  {['20+ Field Types', '1-Click Deploy', 'Real-time Preview', 'Webhooks & Analytics', 'Hero Images'].map(s => (
-                    <span key={s} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 text-white/55 text-xs font-medium px-3.5 py-1">
-                      <span className="h-1 w-1 rounded-full bg-indigo-400" />
+                {/* Enhanced feature pills */}
+                <div className="anim-fade-in-up delay-300 flex flex-wrap items-center justify-center gap-3 mb-10">
+                  {[
+                    '20+ Field Types',
+                    '1-Click Deploy',
+                    'Real-time Preview',
+                    'Webhooks & Analytics',
+                    'Hero Images',
+                    'Conditional Logic'
+                  ].map((s, i) => (
+                    <span key={s} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 backdrop-blur-sm text-white/70 text-xs font-medium px-4 py-1.5 hover:bg-white/12 hover:text-white/90 transition-all duration-200 hover:scale-105">
+                      <span className={`h-1.5 w-1.5 rounded-full animate-pulse delay-${i * 100}`} style={{
+                        background: `linear-gradient(45deg, ${['#60a5fa', '#a855f7', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][i]})`
+                      }} />
                       {s}
                     </span>
                   ))}
                 </div>
 
-                {/* CTA buttons */}
-                <div className="anim-fade-in-up delay-400 flex flex-wrap items-center justify-center gap-3 mb-14">
+                {/* Enhanced CTA buttons */}
+                <div className="anim-fade-in-up delay-400 flex flex-wrap items-center justify-center gap-4 mb-16">
                   <button
                     onClick={createForm}
-                    className="anim-shimmer-btn inline-flex items-center gap-2 rounded-xl text-white font-semibold px-8 h-12 text-base shadow-2xl shadow-indigo-500/30 border-0 hover:brightness-110 active:scale-[0.98] transition-all duration-150"
+                    className="anim-shimmer-btn group inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-700 text-white font-bold px-10 h-14 text-lg shadow-2xl shadow-indigo-500/40 border-0 hover:shadow-indigo-500/60 hover:scale-105 active:scale-[0.98] transition-all duration-200"
                   >
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-200" />
                     Create Your First Form
+                    <div className="h-2 w-2 rounded-full bg-white animate-pulse"></div>
                   </button>
                   <button
                     onClick={() => setShowTemplateDialog(true)}
-                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/6 backdrop-blur-sm text-white/75 hover:bg-white/12 hover:text-white font-semibold px-6 h-12 text-sm transition-all duration-150"
+                    className="group inline-flex items-center gap-3 rounded-2xl border-2 border-white/25 bg-white/10 backdrop-blur-md text-white/85 hover:bg-white/20 hover:text-white hover:border-white/40 font-semibold px-8 h-14 text-base transition-all duration-200 hover:scale-105 active:scale-[0.98] shadow-lg shadow-black/20"
                   >
-                    <Layers className="h-4 w-4" />
+                    <Layers className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
                     Browse Templates
                   </button>
                 </div>
 
-                {/* Feature cards */}
-                <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Enhanced feature cards */}
+                <div className="w-full max-w-4xl grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {[
                     {
-                      icon: <Webhook className="h-5 w-5 text-blue-400" />,
-                      ring: 'ring-blue-500/20', bg: 'from-blue-500/10 to-transparent',
+                      icon: <Webhook className="h-6 w-6 text-blue-300" />,
+                      ring: 'ring-blue-500/30', bg: 'from-blue-500/15 to-blue-500/5',
                       title: 'Smart Integrations',
-                      desc: 'Webhooks, Google Sheets, Snap & Meta Pixel tracking.',
-                      delay: 'delay-300',
-                    },
-                    {
-                      icon: <Rocket className="h-5 w-5 text-emerald-400" />,
-                      ring: 'ring-emerald-500/20', bg: 'from-emerald-500/10 to-transparent',
-                      title: 'One-Click Deploy',
-                      desc: 'Instant deployment to Vercel. Live URL in seconds.',
-                      delay: 'delay-400',
-                    },
-                    {
-                      icon: <Layers className="h-5 w-5 text-violet-400" />,
-                      ring: 'ring-violet-500/20', bg: 'from-violet-500/10 to-transparent',
-                      title: 'Rich Field Logic',
-                      desc: '20+ field types, hero images, conditional logic & split layouts.',
+                      desc: 'Webhooks, Google Sheets, Snap & Meta Pixel tracking with real-time sync.',
                       delay: 'delay-500',
+                      glow: 'shadow-blue-500/20',
+                    },
+                    {
+                      icon: <Rocket className="h-6 w-6 text-emerald-300" />,
+                      ring: 'ring-emerald-500/30', bg: 'from-emerald-500/15 to-emerald-500/5',
+                      title: 'One-Click Deploy',
+                      desc: 'Instant deployment to Vercel with custom domains. Live URL in seconds.',
+                      delay: 'delay-600',
+                      glow: 'shadow-emerald-500/20',
+                    },
+                    {
+                      icon: <Layers className="h-6 w-6 text-violet-300" />,
+                      ring: 'ring-violet-500/30', bg: 'from-violet-500/15 to-violet-500/5',
+                      title: 'Rich Field Logic',
+                      desc: '20+ field types, hero images, conditional logic & multi-page layouts.',
+                      delay: 'delay-700',
+                      glow: 'shadow-violet-500/20',
                     },
                   ].map(f => (
                     <div
                       key={f.title}
-                      className={`anim-fade-in-up ${f.delay} rounded-2xl ring-1 ${f.ring} bg-gradient-to-br ${f.bg} backdrop-blur-sm p-4 hover:scale-[1.02] transition-transform duration-200 cursor-default`}
+                      className={`anim-fade-in-up ${f.delay} group rounded-3xl ring-2 ${f.ring} bg-gradient-to-br ${f.bg} backdrop-blur-md p-6 hover:scale-[1.03] hover:shadow-2xl hover:${f.glow} transition-all duration-300 cursor-default border border-white/10`}
                     >
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-white/6 ring-1 ring-white/10">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-white/10 ring-1 ring-white/20 group-hover:bg-white/20 transition-colors duration-200">
                           {f.icon}
                         </div>
-                        <span className="text-white/90 font-semibold text-sm">{f.title}</span>
+                        <span className="text-white/95 font-bold text-base group-hover:text-white transition-colors duration-200">{f.title}</span>
                       </div>
-                      <p className="text-white/40 text-xs leading-relaxed">{f.desc}</p>
+                      <p className="text-white/60 text-sm leading-relaxed group-hover:text-white/80 transition-colors duration-200">{f.desc}</p>
+                      <div className="mt-4 h-1 w-full bg-gradient-to-r from-transparent via-white/20 to-transparent rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                     </div>
                   ))}
                 </div>
@@ -1058,11 +1148,18 @@ const Index = () => {
 
                 <TabsContent value="settings">
                   <div className="rounded-2xl border border-border/60 bg-white shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 border-b border-border/50 bg-slate-50/60">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Form Settings</p>
-                      <p className="text-[13px] font-semibold text-slate-700 mt-0.5">Configure layout, theme, integrations &amp; more</p>
+                    <div className="px-6 py-4 border-b border-border/50 bg-gradient-to-r from-slate-50 to-indigo-50/40">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-500/15 to-violet-500/10 ring-1 ring-indigo-200/60">
+                          <Settings className="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-bold text-slate-800">Form Settings</p>
+                          <p className="text-[11px] text-muted-foreground">Layout, theme, integrations &amp; publishing</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="px-6 py-6">
+                    <div className="px-6 py-5">
                       <FormSettingsPanel
                         form={activeForm}
                         onUpdate={updates => updateForm(activeForm.id, updates)}

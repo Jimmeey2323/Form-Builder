@@ -41,6 +41,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const [showThemeDialog, setShowThemeDialog] = useState(false);
   const [showHeroPicker, setShowHeroPicker] = useState(false);
   const [heroPickerInitialPage, setHeroPickerInitialPage] = useState(0);
+  const [settingsTab, setSettingsTab] = useState<'content' | 'design' | 'integrations' | 'publish'>('content');
   const openHeroPicker = (page = 0) => { setHeroPickerInitialPage(page); setShowHeroPicker(true); };
 
   // Compute page count from form fields (number of page-break fields + 1)
@@ -108,7 +109,33 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
 
   return (
     <>
+    {/* ── Settings Tab Navigation ── */}
+    <div className="flex gap-1 p-1 mb-5 rounded-xl bg-slate-100/70 border border-border/40">
+      {([
+        { id: 'content'      as const, label: 'Content',      Icon: FileText },
+        { id: 'design'       as const, label: 'Design',       Icon: Palette  },
+        { id: 'integrations' as const, label: 'Integrations', Icon: Webhook  },
+        { id: 'publish'      as const, label: 'Publish',      Icon: Globe    },
+      ]).map(tab => (
+        <button
+          key={tab.id}
+          onClick={() => setSettingsTab(tab.id)}
+          className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[12px] font-semibold transition-all ${
+            settingsTab === tab.id
+              ? 'bg-white shadow-sm text-indigo-700'
+              : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+          }`}
+        >
+          <tab.Icon className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">{tab.label}</span>
+        </button>
+      ))}
+    </div>
+
     <Accordion type="multiple" defaultValue={['general', 'form-elements', 'hero-images', 'layout', 'webhook', 'utm', 'pixels', 'google-sheets', 'advanced', 'theme-basic', 'theme-dimensions', 'theme-typography', 'animations', 'deployment', 'custom-css']} className="space-y-3">
+
+      {/* ── CONTENT TAB ── */}
+      <div className={settingsTab === 'content' ? 'space-y-3' : 'hidden'}>
 
       {/* ── General ── */}
       <AccordionItem value="general" className="settings-section">
@@ -118,7 +145,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             General Settings
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <div className="space-y-2">
             <Label className="settings-label">Form Title</Label>
             <Input value={form.title} onChange={e => onUpdate({ title: e.target.value })} className="settings-input" />
@@ -148,7 +175,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Form Elements
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <div className="space-y-2">
             <Label className="settings-label flex items-center gap-1.5"><AlignLeft className="h-3 w-3" /> Sub-Header</Label>
             <Input
@@ -206,7 +233,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             </Badge>
           )}
         </AccordionTrigger>
-        <AccordionContent className="space-y-3 pb-5 pt-1">
+        <AccordionContent className="space-y-3 px-5 pb-6 pt-3">
           <p className="text-xs text-muted-foreground">
             Add a full-width banner image to the top of any form page. Images are selected from the built-in library and saved permanently with the form.
           </p>
@@ -258,13 +285,11 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           </Button>
         </AccordionContent>
       </AccordionItem>
-      <div className="pt-2 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Integrations</span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-      </div>
+      </div>{/* end content tab */}
+
+      {/* ── INTEGRATIONS TAB ── */}
+      <div className={settingsTab === 'integrations' ? 'space-y-3' : 'hidden'}>
+
       {/* ── Webhook Configuration ── */}
       <AccordionItem value="webhook" className="settings-section">
         <AccordionTrigger className="settings-trigger">
@@ -276,8 +301,8 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             {form.webhookConfig.enabled ? 'Active' : 'Off'}
           </Badge>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
+          <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-slate-50/70 px-4 py-3">
             <Label className="text-sm font-medium">Enable Webhook</Label>
             <Switch checked={form.webhookConfig.enabled} onCheckedChange={v => updateWebhook({ enabled: v })} />
           </div>
@@ -371,7 +396,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                 <Label className="settings-label">Redirect URL (after submit)</Label>
                 <Input value={form.webhookConfig.redirectUrl || ''} onChange={e => updateWebhook({ redirectUrl: e.target.value })} placeholder="https://…" className="settings-input" />
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3">
+              <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-slate-50/70 px-4 py-3">
                 <Label className="text-sm font-medium">Capture UTM Params from URL</Label>
                 <Switch checked={form.webhookConfig.includeUtmParams} onCheckedChange={v => updateWebhook({ includeUtmParams: v })} />
               </div>
@@ -409,7 +434,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             UTM Parameters
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <p className="text-xs text-muted-foreground leading-relaxed">
             Set static/default UTM values that are always sent with form submissions. Dynamic values from the page URL are appended on top when "Capture UTM Params from URL" is enabled.
           </p>
@@ -441,7 +466,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Tracking Pixels
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           {[
             { label: 'Snap Pixel ID', key: 'snapPixelId' as const, placeholder: 'e.g. 5217a3a7-…' },
             { label: 'Meta (Facebook) Pixel ID', key: 'metaPixelId' as const, placeholder: 'e.g. 527819981439695' },
@@ -477,24 +502,32 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             {form.googleSheetsConfig.spreadsheetId ? 'Connected' : form.googleSheetsConfig.enabled ? 'Pending' : 'Off'}
           </Badge>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
+          <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-slate-50/70 px-4 py-3">
             <Label className="text-sm font-medium">Record Submissions to Google Sheets</Label>
             <Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} />
           </div>
           {form.googleSheetsConfig.enabled && (
             <>
               {sheetUrl ? (
-                <div className="rounded-xl border border-green-200 bg-green-50 p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Sheet className="h-4 w-4 text-green-600" />
-                    <span className="font-semibold text-green-700">Spreadsheet connected</span>
+                <div className="rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-teal-50/60 p-4 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-300/50">
+                      <Sheet className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-[12px] font-bold text-emerald-800">Spreadsheet connected</p>
+                      <p className="text-[10px] text-emerald-600/70">Submissions auto-recorded</p>
+                    </div>
+                    <span className="ml-auto flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 border border-emerald-200/70 rounded-full px-2 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />Live
+                    </span>
                   </div>
                   <a
                     href={sheetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-green-600 underline flex items-center gap-1 font-medium"
+                    className="inline-flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-semibold underline underline-offset-2 transition-colors"
                   >
                     Open Google Sheet <ExternalLink className="h-3 w-3" />
                   </a>
@@ -514,14 +547,11 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
 
-      {/* ── Advanced Controls ── */}
-      <div className="pt-2 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Design & Appearance</span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-      </div>
+      </div>{/* end integrations tab */}
+
+      {/* ── DESIGN TAB ── */}
+      <div className={settingsTab === 'design' ? 'space-y-3' : 'hidden'}>
+
       {/* ── Advanced Controls ── */}
       <AccordionItem value="advanced" className="settings-section">
         <AccordionTrigger className="settings-trigger">
@@ -530,27 +560,36 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Advanced Controls
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Cinematic Animations</Label>
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
+          <div className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-violet-50/50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-indigo-500" />
+                  <Label className="text-[12px] font-semibold text-indigo-800">Animations</Label>
+                </div>
                 <Switch checked={form.animations?.enabled ?? false} onCheckedChange={v => updateAnimations({ enabled: v })} />
               </div>
-              <p className="text-[11px] text-muted-foreground">Stage reveals, fading headers, and polished feedback loops.</p>
+              <p className="text-[11px] text-indigo-600/70 leading-relaxed">Stage reveals, fading headers, polished feedback.</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Premium Depth</Label>
+            <div className="rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-purple-50/50 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Maximize2 className="h-4 w-4 text-violet-500" />
+                  <Label className="text-[12px] font-semibold text-violet-800">Premium Depth</Label>
+                </div>
                 <Switch checked={form.theme.formShadow === 'xl'} onCheckedChange={toggleProShadow} />
               </div>
-              <p className="text-[11px] text-muted-foreground">Toggle a stronger card shadow for gallery-ready layouts.</p>
+              <p className="text-[11px] text-violet-600/70 leading-relaxed">Gallery-ready card shadow effect.</p>
             </div>
-            <div className="rounded-2xl border border-border/60 bg-muted/30 p-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium">Layout Mode</Label>
+            <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-slate-100/50 p-4">
+              <div className="mb-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <Monitor className="h-4 w-4 text-slate-500" />
+                  <Label className="text-[12px] font-semibold text-slate-700">Layout Mode</Label>
+                </div>
                 <Select value={form.layout ?? 'classic'} onValueChange={value => handleLayoutChange(value as FormConfig['layout'])}>
-                  <SelectTrigger className="settings-input"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="settings-input h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {['classic', 'card', 'split-left', 'split-right', 'banner-top', 'floating', 'fullscreen'].map(layout => (
                       <SelectItem key={layout} value={layout}>{layout}</SelectItem>
@@ -558,7 +597,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-[11px] text-muted-foreground">Switch between hero, floating, and split layouts instantly.</p>
+              <p className="text-[11px] text-slate-500 leading-relaxed">Switch hero, floating, or split layouts.</p>
             </div>
           </div>
         </AccordionContent>
@@ -572,21 +611,20 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Colors & Branding
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           {/* Quick Theme Selection */}
-          <div className="rounded-xl border border-border/60 bg-gradient-to-r from-primary/5 to-secondary/5 p-3">
-            <div className="flex items-center justify-between mb-2">
+          <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-violet-50/60 p-4">
+            <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm font-medium text-primary">Quick Themes</Label>
-                <p className="text-xs text-muted-foreground">Apply professional color schemes instantly</p>
+                <p className="text-[12.5px] font-bold text-indigo-800">Theme Gallery</p>
+                <p className="text-[11px] text-indigo-600/70 mt-0.5">Apply polished color schemes instantly</p>
               </div>
               <Button 
                 size="sm" 
-                variant="outline" 
                 onClick={() => setShowThemeDialog(true)}
-                className="bg-background hover:bg-muted border-border/60"
+                className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 border-0 shadow-sm shadow-indigo-500/20 text-white text-[12px] h-8 px-3 font-semibold"
               >
-                <Sparkles className="h-3 w-3 mr-1" />
+                <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                 Browse
               </Button>
             </div>
@@ -618,7 +656,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3">
+          <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-slate-50/70 px-4 py-3">
             <Label className="text-sm font-medium">Show Logo</Label>
             <Switch checked={form.theme.showLogo} onCheckedChange={v => updateTheme({ showLogo: v })} />
           </div>
@@ -655,7 +693,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Dimensions & Layout
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <div className="space-y-2">
             <Label className="settings-label">Form Layout</Label>
             <Select value={form.theme.formLayout || 'single'} onValueChange={v => updateTheme({ formLayout: v as any })}>
@@ -709,7 +747,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Typography
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <div className="space-y-2">
             <Label className="settings-label">Font Family</Label>
             <Input value={form.theme.fontFamily} onChange={e => updateTheme({ fontFamily: e.target.value })} className="font-mono text-sm settings-input" />
@@ -811,14 +849,6 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
       </AccordionItem>
 
       {/* ── Form Layout ── */}
-      <div className="pt-2 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Layout & Animation</span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-      </div>
-      {/* ── Form Layout ── */}
       <AccordionItem value="layout" className="settings-section">
         <AccordionTrigger className="settings-trigger">
           <span className="flex items-center gap-2.5">
@@ -829,7 +859,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             {form.layout ?? 'classic'}
           </Badge>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-2 px-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <Label className="settings-label">Layout Style</Label>
           <div className="grid grid-cols-3 gap-2">
             {([
@@ -1012,8 +1042,8 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             {form.animations?.enabled ? 'On' : 'Off'}
           </Badge>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
-          <div className="flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 p-3">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
+          <div className="flex items-center justify-between rounded-2xl border border-border/50 bg-slate-50/70 px-4 py-3">
             <Label className="text-sm font-medium">Enable Animations</Label>
             <Switch
               checked={!!form.animations?.enabled}
@@ -1139,14 +1169,11 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </AccordionContent>
       </AccordionItem>
 
-      {/* ── Deployment ── */}
-      <div className="pt-2 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="h-px flex-1 bg-border/50" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-muted-foreground/70 px-1">Publishing</span>
-          <div className="h-px flex-1 bg-border/50" />
-        </div>
-      </div>
+      </div>{/* end design tab */}
+
+      {/* ── PUBLISH TAB ── */}
+      <div className={settingsTab === 'publish' ? 'space-y-3' : 'hidden'}>
+
       {/* ── Deployment ── */}
       <AccordionItem value="deployment" className="settings-section">
         <AccordionTrigger className="settings-trigger">
@@ -1155,7 +1182,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Deployment
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <div className="space-y-1.5">
             <Label className="settings-label">Existing Vercel Project Domain</Label>
             <p className="text-xs text-muted-foreground leading-snug">
@@ -1193,7 +1220,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             Custom CSS
           </span>
         </AccordionTrigger>
-        <AccordionContent className="space-y-4 pb-5 pt-1">
+        <AccordionContent className="space-y-4 px-5 pb-6 pt-3">
           <Textarea
             value={form.theme.customCss || ''}
             onChange={e => updateTheme({ customCss: e.target.value })}
@@ -1203,6 +1230,8 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           />
         </AccordionContent>
       </AccordionItem>
+
+      </div>{/* end publish tab */}
     </Accordion>
     
     <ThemeSelectionDialog
