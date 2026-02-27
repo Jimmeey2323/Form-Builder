@@ -1,11 +1,44 @@
 import { FormConfig, FormField } from '@/types/formField';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 interface GenerateOptions {
   logoBase64?: string;
 }
 
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+function generateFormTitle(config: FormConfig): string {
+  const title = config.title;
+  const theme = config.theme;
+  
+  // If cursive header is not enabled, return plain title
+  if (!theme.headerCursiveEnabled) {
+    return escapeHtml(title);
+  }
+  
+  const cursiveFont = theme.headerCursiveFont || 'Great Vibes';
+  const cursivePart = theme.headerCursivePart || 'all';
+  
+  if (cursivePart === 'all') {
+    return `<span style="font-family: ${cursiveFont}, cursive; font-size: 1.2em;">${escapeHtml(title)}</span>`;
+  }
+  
+  // Split the title in half
+  const midpoint = Math.ceil(title.length / 2);
+  const firstHalf = title.substring(0, midpoint);
+  const secondHalf = title.substring(midpoint);
+  
+  if (cursivePart === 'left') {
+    return `<span style="font-family: ${cursiveFont}, cursive; font-size: 1.2em;">${escapeHtml(firstHalf)}</span><span>${escapeHtml(secondHalf)}</span>`;
+  } else {
+    return `<span>${escapeHtml(firstHalf)}</span><span style="font-family: ${cursiveFont}, cursive; font-size: 1.2em;">${escapeHtml(secondHalf)}</span>`;
+  }
 }
 
 /**
@@ -425,6 +458,10 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     case 'divider':
       inputHtml = `<hr class="form-divider${cssClass}"${condAttrs}>`;
       break;
+    case 'spacer':
+      const spacerHeight = field.helpText || '20px';
+      inputHtml = `<div class="form-spacer${cssClass}" style="height: ${spacerHeight};"${condAttrs}></div>`;
+      break;
     case 'html-snippet':
       inputHtml = `<div class="html-snippet${cssClass}"${condAttrs}>${field.helpText || '<p>Custom HTML content</p>'}</div>`;
       break;
@@ -433,18 +470,6 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         <option value="" disabled selected>Select from previous submissions</option>
         <!-- Options populated dynamically -->
       </select>`;
-      break;
-    case 'momence-sessions':
-      inputHtml = `<div class="momence-sessions-group${cssClass}"${condAttrs}>
-        <div class="sessions-search">
-          <input type="text" placeholder="Search sessions…" class="form-input sessions-search-input">
-          <button type="button" class="sessions-search-btn">Search</button>
-        </div>
-        <div class="sessions-list">
-          <!-- Session options populated dynamically -->
-        </div>
-        <input type="hidden" id="${field.id}" name="${field.name}">
-      </div>`;
       break;
     case 'rich-text':
       inputHtml = `<div class="rich-text-editor${cssClass}"${condAttrs}>
@@ -1838,6 +1863,16 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             grid-column: 1 / -1;
         }
         .section-break h3 { font-size: 16px; font-weight: 600; }
+        .form-divider {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, var(--border-color) 0%, var(--border-color) 100%);
+            margin: 12px 0;
+            grid-column: 1 / -1;
+        }
+        .form-spacer {
+            grid-column: 1 / -1;
+        }
         .formula-field { background: var(--bg-secondary); font-family: monospace; }
 
         /* Phone input with country code */
@@ -2195,7 +2230,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     <div class="form-container">
         ${theme.showLogo && logoSrc ? `<div class="logo-container"><img src="${logoSrc}" alt="Logo"></div>` : ''}
         <div class="form-header">
-            <h1>${escapeHtml(config.title)}</h1>
+            <h1>${generateFormTitle(config)}</h1>
             ${config.subHeader ? `<p class="form-sub-header">${escapeHtml(config.subHeader)}</p>` : ''}
             ${config.description ? `<p>${escapeHtml(config.description)}</p>` : ''}
             ${(config.venue || config.dateTimeStamp) ? `

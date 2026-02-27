@@ -26,6 +26,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { Template } from '@/data/templates';
+import { FieldType } from '@/types/formField';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -167,6 +168,131 @@ function downloadSampleCsv() {
   URL.revokeObjectURL(url);
 }
 
+// ─── Local CSV parser (fallback when edge function is unavailable) ────────────
+function slugify(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function parseCsvText(raw: string): Record<string, string>[] {
+  const lines = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toUpperCase().replace(/\s+/g, '_'));
+  return lines.slice(1).map(line => {
+    // simple CSV split respecting double-quoted fields
+    const values: string[] = [];
+    let cur = '', inQ = false;
+    for (const ch of line + ',') {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { values.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => { row[h] = values[i] ?? ''; });
+    return row;
+  }).filter(r => Object.values(r).some(v => v.trim()));
+}
+
+const TYPE_MAP: Record<string, string> = {
+  'text': 'text', 'string': 'text', 'short text': 'text',
+  'email': 'email', 'e-mail': 'email',
+  'phone': 'tel', 'mobile': 'tel', 'tel': 'tel', 'telephone': 'tel',
+  'number': 'number', 'numeric': 'number', 'integer': 'number', 'age': 'number',
+  'url': 'url', 'link': 'url', 'website': 'url',
+  'password': 'password',
+  'textarea': 'textarea', 'long text': 'textarea', 'multiline': 'textarea', 'paragraph': 'textarea', 'message': 'textarea', 'notes': 'textarea',
+  'select': 'select', 'dropdown': 'select', 'single select': 'select',
+  'radio': 'radio', 'radio button': 'radio',
+  'checkbox': 'checkbox', 'boolean': 'checkbox', 'yes/no': 'checkbox',
+  'checkboxes': 'checkboxes', 'multi check': 'checkboxes',
+  'multiselect': 'multiselect', 'multi select': 'multiselect', 'multiple select': 'multiselect',
+  'date': 'date', 'time': 'time',
+  'file': 'file', 'upload': 'file', 'attachment': 'file',
+  'hidden': 'hidden',
+  'heading': 'heading', 'header': 'heading', 'section title': 'heading',
+  'switch': 'switch', 'toggle': 'switch',
+  'rating': 'rating', 'star': 'star-rating', 'star-rating': 'star-rating',
+  'signature': 'signature',
+  'address': 'address',
+  'currency': 'currency',
+};
+
+function mapFieldType(raw: string): string {
+  const normalized = (raw || 'text').toLowerCase().trim();
+  return TYPE_MAP[normalized] ?? 'text';
+}
+
+function parseBool(v: string): boolean {
+  return /^(yes|true|1|y|required|hidden)$/i.test((v || '').trim());
+}
+
+function parseOptions(raw: string) {
+  if (!raw?.trim()) return [];
+  const sep = raw.includes('|') ? '|' : ',';
+  return raw.split(sep).map(o => o.trim()).filter(Boolean).map(label => ({
+    label,
+    value: slugify(label),
+  }));
+}
+
+function localParseCsvToTemplates(csvText: string): Template[] {
+  const rows = parseCsvText(csvText);
+  if (!rows.length) return [];
+
+  const formGroups: Record<string, typeof rows> = {};
+  for (const row of rows) {
+    const name = row['FORM_NAME'] || row['FORM NAME'] || 'Imported Form';
+    if (!formGroups[name]) formGroups[name] = [];
+    formGroups[name].push(row);
+  }
+
+  const now = new Date().toISOString();
+  return Object.entries(formGroups).map(([formName, fieldRows]) => {
+    const firstRow = fieldRows[0];
+    const category = firstRow['CATEGORY'] || 'General';
+    const subCategory = firstRow['SUB_CATEGORY'] || firstRow['SUB CATEGORY'] || '';
+    const fields = fieldRows.map((row, idx) => {
+      const label = row['FIELD_LABEL'] || row['FIELD LABEL'] || `Field ${idx + 1}`;
+      const rawType = row['FIELD_TYPE'] || row['FIELD TYPE'] || 'text';
+      const type = mapFieldType(rawType);
+      const optionsRaw = row['OPTIONS'] || '';
+      const withOpts = ['select','radio','checkbox','checkboxes','multiselect','multiple-choice','picture-choice'].includes(type);
+      return {
+        id: `field_${slugify(label)}_${idx}`,
+        name: label.replace(/\s+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c: string) => c.toLowerCase()),
+        label,
+        type: type as FieldType,
+        placeholder: row['DESCRIPTION'] || '',
+        helpText: row['DESCRIPTION'] || '',
+        isRequired: parseBool(row['IS_REQUIRED'] || row['IS REQUIRED'] || ''),
+        isHidden: parseBool(row['IS_HIDDEN'] || row['IS HIDDEN'] || ''),
+        isReadOnly: false,
+        isDisabled: false,
+        width: '100',
+        order: idx,
+        options: withOpts ? parseOptions(optionsRaw) : [],
+      } as Template['fields'][number];
+    });
+
+    return {
+      id: slugify(formName),
+      name: formName,
+      description: `Imported from CSV — ${category}`,
+      category,
+      subCategory,
+      icon: '📋',
+      isUserCreated: true,
+      createdAt: now,
+      fields,
+      config: {
+        title: formName,
+        description: `Imported from CSV`,
+        submitButtonText: 'Submit',
+        successMessage: 'Thank you for your submission!',
+      },
+    } as Template;
+  });
+}
+
 // ─── Main Dialog ─────────────────────────────────────────────────────────────
 export function CsvImportDialog({
   open,
@@ -264,8 +390,20 @@ export function CsvImportDialog({
       setStep('preview');
     } catch (err: any) {
       clearInterval(ticker);
-      setError(err.message || 'An unexpected error occurred');
-      setStep('error');
+      // ── Fallback: local parsing (no AI required) ──────────────────────────
+      try {
+        setProcessingMsg('Parsing locally (AI unavailable)…');
+        const localTemplates = localParseCsvToTemplates(csvText);
+        if (localTemplates.length === 0 || localTemplates.every(t => t.fields.length === 0)) {
+          throw new Error('No fields found. Make sure your CSV has FIELD LABEL and FIELD TYPE columns.');
+        }
+        setTemplates(localTemplates);
+        setStep('preview');
+        toast.info('Parsed locally — AI was unavailable. Field types may need review.');
+      } catch (localErr: any) {
+        setError((err.message || 'An unexpected error occurred') + '\n\nLocal fallback: ' + localErr.message);
+        setStep('error');
+      }
     }
   };
 

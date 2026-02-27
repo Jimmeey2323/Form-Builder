@@ -34,145 +34,466 @@ import {
 import {
   GripVertical, Pencil, Trash2, Copy,
   ChevronDown, Star, Calendar,
-  FileUp, Plus,
+  FileUp, Plus, Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { generateFormHtml } from '@/utils/htmlGenerator';
 
 
 
-// ── Field input preview ───────────────────────────────────────────────────────
-function FieldPreview({ field }: { field: FormField }) {
-  const base = 'rounded-md border border-border/60 bg-background text-xs text-muted-foreground px-2.5 py-1.5 w-full';
+// ── Real field input preview ───────────────────────────────────────────────────────
+function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: { 
+  field: FormField; 
+  onEdit: (field: FormField) => void;
+  onDelete: (fieldId: string) => void;
+  onDuplicate: (fieldId: string) => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
 
-  if (field.type === 'section-break') {
-    return (
-      <div className="flex items-center gap-2 py-0.5">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs font-semibold text-muted-foreground truncate">{field.label}</span>
-        <div className="flex-1 h-px bg-border" />
-      </div>
-    );
-  }
-  if (field.type === 'page-break') {
-    return (
-      <div className="flex items-center gap-2 py-0.5">
-        <div className="flex-1 border-t-2 border-dashed border-primary/30" />
-        <Badge variant="secondary" className="text-[10px] px-2">Page Break</Badge>
-        <div className="flex-1 border-t-2 border-dashed border-primary/30" />
-      </div>
-    );
-  }
+  const renderFieldInput = () => {
+    const baseClasses = "form-input";
+    const required = field.isRequired;
+    const placeholder = field.placeholder || getDefaultPlaceholder(field.type);
 
-  switch (field.type) {
-    case 'textarea':
-      return <div className={`${base} h-14`}>{field.placeholder || 'Text area…'}</div>;
-    case 'select':
-      return (
-        <div className={`${base} flex items-center justify-between`}>
-          <span>{field.placeholder || 'Select an option'}</span>
-          <ChevronDown className="h-3 w-3 shrink-0" />
-        </div>
-      );
-    case 'radio':
-      return (
-        <div className="space-y-1">
-          {(field.options || []).slice(0, 2).map(o => (
-            <div key={o.value} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-3 w-3 rounded-full border border-border/80 shrink-0" />
-              {o.label}
+    switch (field.type) {
+      case 'textarea':
+        return <textarea className={baseClasses} placeholder={placeholder} required={required} />;
+
+      case 'select':
+        return (
+          <select className={baseClasses} required={required} defaultValue="">
+            <option value="" disabled>{placeholder || 'Select an option'}</option>
+            {(field.options || []).map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        );
+
+      case 'radio':
+        return (
+          <div className="radio-group">
+            {(field.options || []).slice(0, 3).map(o => (
+              <label key={o.value} className="radio-option">
+                <input type="radio" name={field.id} value={o.value} />
+                <span>{o.label}</span>
+              </label>
+            ))}
+            {(field.options?.length ?? 0) > 3 && (
+              <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
+            )}
+          </div>
+        );
+
+      case 'checkbox':
+        if (field.options && field.options.length > 1) {
+          return (
+            <div className="checkbox-group">
+              {(field.options || []).slice(0, 3).map(o => (
+                <label key={o.value} className="checkbox-option">
+                  <input type="checkbox" name={field.id} value={o.value} />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+              {(field.options?.length ?? 0) > 3 && (
+                <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
+              )}
             </div>
-          ))}
-          {(field.options?.length ?? 0) > 2 && <div className="text-[10px] text-muted-foreground pl-5">+{(field.options?.length ?? 0) - 2} more…</div>}
-        </div>
-      );
-    case 'checkbox':
-      return (
-        <div className="space-y-1">
-          {(field.options || []).slice(0, 2).map(o => (
-            <div key={o.value} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="h-3 w-3 rounded-[3px] border border-border/80 shrink-0" />
-              {o.label}
+          );
+        } else {
+          return (
+            <label className="checkbox-option">
+              <input type="checkbox" />
+              <span>{field.label}</span>
+            </label>
+          );
+        }
+
+      case 'rating':
+        return (
+          <div className="flex gap-1">
+            {Array.from({ length: field.max || 5 }).map((_, i) => (
+              <Star key={i} className="h-5 w-5 text-muted-foreground/40 hover:text-yellow-400 cursor-pointer transition-colors" />
+            ))}
+          </div>
+        );
+
+      case 'range':
+        return (
+          <div className="space-y-2">
+            <input type="range" className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer" min={field.min || 0} max={field.max || 100} />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{field.min || 0}</span>
+              <span>{field.max || 100}</span>
             </div>
-          ))}
-          {(field.options?.length ?? 0) > 2 && <div className="text-[10px] text-muted-foreground pl-5">+{(field.options?.length ?? 0) - 2} more…</div>}
-        </div>
-      );
-    case 'rating':
-      return (
-        <div className="flex gap-1">
-          {Array.from({ length: field.max || 5 }).map((_, i) => (
-            <Star key={i} className="h-4 w-4 text-muted-foreground/30" />
-          ))}
-        </div>
-      );
-    case 'range':
-      return <div className={`${base} flex items-center gap-2`}><div className="flex-1 h-1.5 bg-border rounded-full"><div className="w-1/3 h-full bg-primary/30 rounded-full" /></div></div>;
-    case 'color':
-      return <div className={`${base} flex items-center gap-2`}><div className="h-4 w-8 rounded border border-border/60 bg-gradient-to-r from-primary/50 to-secondary/50" /><span>Color</span></div>;
-    case 'file':
-      return <div className={`${base} border-dashed flex items-center gap-2`}><FileUp className="h-3 w-3" /><span>Upload file…</span></div>;
-    case 'signature':
-      return <div className={`${base} h-12 border-dashed flex items-center justify-center`}><span className="italic text-[11px]">✍ Signature area</span></div>;
-    case 'date': case 'datetime-local': case 'time':
-      return <div className={`${base} flex items-center gap-2`}><Calendar className="h-3 w-3" /><span className="text-[11px]">{field.type === 'time' ? 'HH:MM' : 'DD / MM / YYYY'}</span></div>;
-    case 'hidden':
-      return <div className={`${base} opacity-40 border-dashed`}>Hidden field: {field.name}</div>;
-    case 'image':
-      return <div className={`${base} h-24 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">📷 Image Upload</span></div>;
-    case 'video':
-      return <div className={`${base} h-24 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">🎥 Video Upload</span></div>;
-    case 'pdf-viewer':
-      return <div className={`${base} h-20 border-dashed flex items-center justify-center bg-muted/30`}><span className="text-xs text-muted-foreground">📄 PDF Viewer</span></div>;
-    case 'voice-recording':
-      return <div className={`${base} border-dashed flex items-center gap-2`}><span className="text-xs">🎤</span><span className="text-xs text-muted-foreground">Voice Recording</span></div>;
-    case 'social-links':
-      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">🔗</span><span className="text-xs text-muted-foreground">Social Media Links</span></div>;
-    case 'address':
-      return <div className={`${base} h-16`}>{field.placeholder || 'Street address, city, state, zip…'}</div>;
-    case 'currency':
-      return <div className={`${base} flex items-center gap-1`}><span className="text-xs text-muted-foreground">$</span><span>{field.placeholder || '0.00'}</span></div>;
-    case 'ranking':
-      return <div className="space-y-1"><div className={`${base} text-xs`}>1. Option A</div><div className={`${base} text-xs`}>2. Option B</div><div className={`${base} text-xs`}>3. Option C</div></div>;
-    case 'star-rating':
-      return <div className="flex gap-1">{Array.from({ length: field.max || 5 }).map((_, i) => <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />)}</div>;
-    case 'opinion-scale':
-      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">1</span><div className="flex-1 h-1.5 bg-border rounded-full"><div className="w-1/2 h-full bg-primary/30 rounded-full" /></div><span className="text-xs">10</span></div>;
-    case 'date-range':
-      return <div className={`${base} flex items-center gap-2`}><Calendar className="h-3 w-3" /><span className="text-[11px]">Start → End Date</span></div>;
-    case 'picture-choice':
-      return <div className="grid grid-cols-2 gap-1"><div className="aspect-square bg-muted/50 rounded border border-dashed border-border/60 flex items-center justify-center"><span className="text-[10px] text-muted-foreground">📷</span></div><div className="aspect-square bg-muted/50 rounded border border-dashed border-border/60 flex items-center justify-center"><span className="text-[10px] text-muted-foreground">📷</span></div></div>;
-    case 'choice-matrix':
-      return <div className="space-y-1"><div className="flex gap-1"><span className="text-[10px] w-12">Row 1</span><div className="flex gap-0.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="w-4 h-4 border border-border/60 rounded" />)}</div></div></div>;
-    case 'multiselect':
-      return <div className={`${base} flex items-center justify-between`}><span>{field.placeholder || 'Select multiple options'}</span><ChevronDown className="h-3 w-3" /></div>;
-    case 'switch':
-      return <div className="flex items-center gap-2"><div className="w-8 h-4 bg-border/60 rounded-full"><div className="w-3 h-3 bg-white rounded-full ml-0.5" /></div><span className="text-xs text-muted-foreground">Toggle</span></div>;
-    case 'subform':
-      return <div className={`${base} border-dashed bg-muted/20 h-16 flex items-center justify-center`}><span className="text-xs text-muted-foreground italic">Nested form fields</span></div>;
-    case 'section-collapse':
-      return <div className={`${base} border-dashed bg-muted/20 h-12 flex items-center justify-center`}><span className="text-xs text-muted-foreground italic">Collapsible section</span></div>;
-    case 'divider':
-      return <div className="flex items-center gap-2 py-1"><div className="flex-1 h-px bg-border" /><span className="text-xs text-muted-foreground">Divider</span><div className="flex-1 h-px bg-border" /></div>;
-    case 'html-snippet':
-      return <div className={`${base} border-dashed bg-muted/20 h-12 flex items-center justify-center font-mono text-[10px]`}>&lt;div&gt;HTML Content&lt;/div&gt;</div>;
-    case 'submission-picker':
-      return <div className={`${base} border-dashed flex items-center gap-2`}><span className="text-xs">📋</span><span className="text-xs text-muted-foreground">Select from previous submissions</span></div>;
-    case 'member-search':
-      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">👤</span><span className="text-xs text-muted-foreground">Search members…</span></div>;
-    case 'momence-sessions':
-      return <div className={`${base} flex items-center gap-2`}><span className="text-xs">📅</span><span className="text-xs text-muted-foreground">Select sessions…</span></div>;
-    case 'rich-text':
-      return <div className={`${base} h-20`}><div className="text-xs text-muted-foreground">Rich text editor with formatting options…</div></div>;
-    case 'heading':
-      return <div className="text-lg font-bold text-foreground">{field.label || 'Heading'}</div>;
-    case 'paragraph':
-      return <div className="text-sm text-muted-foreground leading-relaxed">{field.label || 'This is a paragraph of text that can be displayed on the form.'}</div>;
-    case 'banner':
-      return <div className={`${base} h-16 bg-gradient-to-r from-primary/10 to-secondary/10 border-dashed flex items-center justify-center`}><span className="text-xs text-muted-foreground">🖼️ Banner Image</span></div>;
-    default:
-      return <div className={base}>{field.placeholder || `${FIELD_TYPE_LABELS[field.type]}…`}</div>;
+          </div>
+        );
+
+      case 'color':
+        return (
+          <div className="flex gap-2 items-center">
+            <input type="color" className="w-10 h-8 border border-border rounded cursor-pointer" defaultValue="#000000" />
+            <input type="text" className="form-input flex-1" placeholder="#000000" />
+          </div>
+        );
+
+      case 'file':
+        return (
+          <div className="border-2 border-dashed border-border rounded-md p-4 text-center hover:border-primary/50 transition-colors">
+            <FileUp className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
+            <div className="text-sm text-muted-foreground">Choose file or drag here</div>
+          </div>
+        );
+
+      case 'signature':
+        return (
+          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+            <div className="text-sm text-muted-foreground italic">Signature area</div>
+          </div>
+        );
+
+      case 'date':
+        return <input type="date" className="form-input" required={required} />;
+
+      case 'datetime-local':
+        return <input type="datetime-local" className="form-input" required={required} />;
+
+      case 'time':
+        return <input type="time" className="form-input" required={required} />;
+
+      case 'hidden':
+        return (
+          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded border border-dashed border-border">
+            <div className="text-xs text-muted-foreground">Hidden field:</div>
+            <code className="text-xs bg-background px-1 py-0.5 rounded">{field.name}</code>
+          </div>
+        );
+
+      case 'image':
+        return (
+          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+            <div className="text-2xl mb-2">📷</div>
+            <div className="text-sm text-muted-foreground">Image Upload</div>
+          </div>
+        );
+
+      case 'video':
+        return (
+          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+            <div className="text-2xl mb-2">🎥</div>
+            <div className="text-sm text-muted-foreground">Video Upload</div>
+          </div>
+        );
+
+      case 'pdf-viewer':
+        return (
+          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+            <div className="text-2xl mb-2">📄</div>
+            <div className="text-sm text-muted-foreground">PDF Viewer</div>
+          </div>
+        );
+
+      case 'voice-recording':
+        return (
+          <div className="flex items-center gap-3 p-3 border border-border rounded-md bg-muted/20">
+            <div className="text-lg">🎤</div>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Voice Recording</div>
+              <div className="text-xs text-muted-foreground">Click to start recording</div>
+            </div>
+          </div>
+        );
+
+      case 'social-links':
+        return (
+          <div className="space-y-2">
+            <input type="url" className={baseClasses} placeholder="https://facebook.com/yourpage" />
+            <input type="url" className={baseClasses} placeholder="https://twitter.com/yourhandle" />
+            <input type="url" className={baseClasses} placeholder="https://instagram.com/yourprofile" />
+          </div>
+        );
+
+      case 'address':
+        return <textarea className={`${baseClasses} min-h-[100px] resize-none`} placeholder={placeholder || "Street address, city, state, zip…"} required={required} />;
+
+      case 'currency':
+        return (
+          <div className="flex gap-1">
+            <div className="flex items-center px-3 py-2 border border-border rounded-l-md bg-muted text-muted-foreground text-sm">$</div>
+            <input type="number" className={`${baseClasses} rounded-l-none rounded-r-md`} placeholder="0.00" min="0" step="0.01" required={required} />
+          </div>
+        );
+
+      case 'ranking':
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
+              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
+              Option A
+            </div>
+            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
+              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">2</span>
+              Option B
+            </div>
+            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
+              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">3</span>
+              Option C
+            </div>
+          </div>
+        );
+
+      case 'star-rating':
+        return (
+          <div className="flex gap-1">
+            {Array.from({ length: field.max || 5 }).map((_, i) => (
+              <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+            ))}
+          </div>
+        );
+
+      case 'opinion-scale':
+        return (
+          <div className="space-y-3">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Strongly Disagree</span>
+              <span>Strongly Agree</span>
+            </div>
+            <div className="flex justify-between gap-1">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <button key={i} className="w-8 h-8 rounded-full border border-border hover:border-primary hover:bg-primary/10 text-xs font-medium transition-colors">
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'date-range':
+        return (
+          <div className="flex gap-2">
+            <input type="date" className="form-input" placeholder="Start date" />
+            <input type="date" className="form-input" placeholder="End date" />
+          </div>
+        );
+
+      case 'picture-choice':
+        return (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer">
+              <div className="text-center">
+                <div className="text-lg mb-1">📷</div>
+                <div className="text-xs text-muted-foreground">Option A</div>
+              </div>
+            </div>
+            <div className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer">
+              <div className="text-center">
+                <div className="text-lg mb-1">📷</div>
+                <div className="text-xs text-muted-foreground">Option B</div>
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'choice-matrix':
+        return (
+          <div className="space-y-2">
+            <div className="text-xs text-muted-foreground mb-2">Rate each option:</div>
+            <div className="grid grid-cols-6 gap-1 text-xs">
+              <div></div>
+              <div className="text-center">1</div>
+              <div className="text-center">2</div>
+              <div className="text-center">3</div>
+              <div className="text-center">4</div>
+              <div className="text-center">5</div>
+              <div className="py-1">Row 1</div>
+              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+            </div>
+          </div>
+        );
+
+      case 'multiselect':
+        return (
+          <select className="form-input" multiple size={4} required={required}>
+            {(field.options || []).map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        );
+
+      case 'switch':
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-5 bg-border rounded-full relative">
+              <div className="w-4 h-4 bg-white rounded-full absolute left-0.5 top-0.5 transition-transform"></div>
+            </div>
+            <span className="text-sm text-foreground">{field.label}</span>
+          </div>
+        );
+
+      case 'multiple-choice':
+        return (
+          <div className="checkbox-group">
+            {(field.options || []).slice(0, 3).map(o => (
+              <label key={o.value} className="checkbox-option">
+                <input type="checkbox" name={field.id} value={o.value} />
+                <span>{o.label}</span>
+              </label>
+            ))}
+            {(field.options?.length ?? 0) > 3 && (
+              <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
+            )}
+          </div>
+        );
+
+      case 'subform':
+        return (
+          <div className="border border-border rounded-md p-4 bg-muted/20">
+            <div className="text-sm text-muted-foreground text-center">Subform: {field.label}</div>
+          </div>
+        );
+
+      case 'section-collapse':
+        return (
+          <div className="border border-border rounded-md">
+            <div className="flex items-center justify-between p-3 bg-muted/50 cursor-pointer">
+              <span className="font-medium text-sm">{field.label}</span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
+        );
+
+      case 'divider':
+        return <div className="border-t border-border my-4"></div>;
+
+      case 'html-snippet':
+        return (
+          <div className="border border-border rounded-md p-4 bg-muted/20">
+            <div className="text-sm text-muted-foreground text-center">Custom HTML: {field.label}</div>
+          </div>
+        );
+
+      case 'submission-picker':
+        return (
+          <select className="form-input" required={required} defaultValue="">
+            <option value="" disabled>Select a submission</option>
+            <option value="sub1">Submission 1</option>
+            <option value="sub2">Submission 2</option>
+          </select>
+        );
+
+      case 'momence-sessions':
+        return (
+          <select className="form-input" required={required} defaultValue="">
+            <option value="" disabled>Select a session</option>
+            <option value="session1">Morning Session</option>
+            <option value="session2">Afternoon Session</option>
+          </select>
+        );
+
+      case 'rich-text':
+        return (
+          <div className="border border-border rounded-md p-3 bg-background min-h-[100px]">
+            <div className="text-sm text-muted-foreground">Rich text editor content area</div>
+          </div>
+        );
+
+      case 'heading':
+        return <h2 className="text-xl font-bold text-foreground mb-2">{field.label}</h2>;
+
+      case 'paragraph':
+        return <p className="text-sm text-muted-foreground mb-4">{field.helpText || field.label}</p>;
+
+      case 'banner':
+        return (
+          <div className="bg-primary/10 border border-primary/20 rounded-md p-4 text-center">
+            <div className="text-lg font-semibold text-primary">{field.label}</div>
+            {field.helpText && <div className="text-sm text-primary/80 mt-1">{field.helpText}</div>}
+          </div>
+        );
+
+      default:
+        return <input type="text" className="form-input" placeholder={placeholder} required={required} />;
+    }
+  };
+
+  function getDefaultPlaceholder(type: FieldType): string {
+    const placeholders: Record<string, string> = {
+      text: 'Enter text here',
+      email: 'your@email.com',
+      tel: '+1 (555) 123-4567',
+      number: '123',
+      url: 'https://example.com',
+      password: 'Enter password',
+      textarea: 'Enter your message here',
+      select: 'Select an option',
+      date: 'Select date',
+      'datetime-local': 'Select date and time',
+      time: 'Select time',
+      file: 'Choose file',
+      color: '#000000',
+      range: 'Select value',
+      hidden: 'Hidden field',
+    };
+    return placeholders[type] || 'Enter value';
   }
+
+  return (
+    <div 
+      className="form-group relative group"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* Field Label */}
+      <label className="block">
+        {field.label}
+        {field.isRequired && <span className="required">*</span>}
+      </label>
+
+      {/* Help Text */}
+      {field.helpText && (
+        <span className="help-text">{field.helpText}</span>
+      )}
+
+      {/* Field Input */}
+      <div className="relative mt-1">
+        {renderFieldInput()}
+        
+        {/* Edit Overlay */}
+        <div className={`absolute inset-0 bg-black/5 rounded-md transition-opacity duration-200 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="absolute top-2 right-2 flex gap-1">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-6 w-6 p-0 bg-white/90 hover:bg-white shadow-sm"
+              onClick={() => onEdit(field)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-6 w-6 p-0 bg-white/90 hover:bg-white shadow-sm"
+              onClick={() => onDuplicate(field.id)}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-6 w-6 p-0 bg-white/90 hover:bg-white shadow-sm"
+              onClick={() => onDelete(field.id)}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Width string → Tailwind col-span class (safe static map for purge)
@@ -205,9 +526,9 @@ function CanvasField({
 }: {
   field: FormField;
   formLayout?: string;
-  onEdit: () => void;
-  onDelete: () => void;
-  onDuplicate: () => void;
+  onEdit: (field: FormField) => void;
+  onDelete: (fieldId: string) => void;
+  onDuplicate: (fieldId: string) => void;
   insertDropActive: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -233,7 +554,7 @@ function CanvasField({
         isLayoutField
           ? 'border-dashed border-border/50 bg-muted/20 p-2.5'
           : `bg-card ${ hovered ? 'border-primary/30 shadow-md' : 'border-border/40 shadow-sm'}`
-      }`} style={{ padding: isLayoutField ? undefined : '10px 12px 10px 28px' }}>
+      }`} style={{ padding: isLayoutField ? undefined : '16px 20px 16px 44px' }}>
         {/* Drag handle */}
         <div
           {...listeners}
@@ -255,33 +576,10 @@ function CanvasField({
             </div>
           )}
 
-          <FieldPreview field={field} />
+          <RealFieldPreview field={field} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} />
         </div>
 
-        {/* Action buttons */}
-        <div className={`absolute top-2 right-2 flex items-center gap-1 transition-opacity ${hovered ? 'opacity-100' : 'opacity-0'}`}>
-          <button
-            onClick={onDuplicate}
-            className="h-6 w-6 rounded-md border border-border/60 bg-background/90 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors"
-            title="Duplicate"
-          >
-            <Copy className="h-3 w-3" />
-          </button>
-          <button
-            onClick={onEdit}
-            className="h-6 w-6 rounded-md border border-border/60 bg-background/90 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
-            title="Edit"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="h-6 w-6 rounded-md border border-border/60 bg-background/90 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="h-3 w-3" />
-          </button>
-        </div>
+        {/* Action buttons - now handled by RealFieldPreview overlay */}
       </div>
     </div>
   );
@@ -321,9 +619,10 @@ interface FormCanvasProps {
   onDuplicate: (fieldId: string) => void;
   onAdd: (type: FieldType) => void;
   onReorder: (orderedIds: string[]) => void;
+  isLocked?: boolean;
 }
 
-export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReorder }: FormCanvasProps) {
+export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReorder, isLocked }: FormCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -365,8 +664,116 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
   const primaryGradient = `linear-gradient(135deg, ${form.theme.primaryColor} 0%, ${form.theme.secondaryColor} 100%)`;
 
+  // CSS for matching preview styling
+  const formCss = `
+    .form-canvas-wrapper {
+      --primary-color: ${form.theme.primaryColor};
+      --secondary-color: ${form.theme.secondaryColor};
+      --primary-gradient: linear-gradient(135deg, ${form.theme.primaryColor} 0%, ${form.theme.secondaryColor} 100%);
+      --text-primary: ${form.theme.textColor};
+      --text-secondary: #64748b;
+      --text-light: #94a3b8;
+      --bg-primary: ${form.theme.formBackgroundColor};
+      --bg-secondary: #f8fafc;
+      --border-color: ${form.theme.inputBorderColor};
+      --border-focus: ${form.theme.primaryColor};
+      --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
+      --radius: ${form.theme.borderRadius};
+    }
+    .form-canvas-wrapper * { box-sizing: border-box; }
+    .form-canvas-wrapper .form-fields-grid {
+      display: grid;
+      ${form.theme.formLayout === 'two-column' ? 'grid-template-columns: repeat(2, 1fr);' : form.theme.formLayout === 'three-column' ? 'grid-template-columns: repeat(3, 1fr);' : 'grid-template-columns: 1fr;'}
+      gap: ${form.theme.fieldGap || '16px'};
+    }
+    .form-canvas-wrapper .form-group {
+      line-height: ${form.theme.lineHeight || '1.6'};
+    }
+    .form-canvas-wrapper .form-group label {
+      display: block;
+      font-size: ${form.theme.labelFontSize};
+      font-weight: 500;
+      color: ${form.theme.labelColor};
+      text-align: ${form.theme.labelAlign || 'left'};
+      margin-bottom: 6px;
+    }
+    .form-canvas-wrapper .required { color: #ef4444; margin-left: 2px; }
+    .form-canvas-wrapper .form-input {
+      width: 100%;
+      padding: ${form.theme.inputPadding};
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: ${form.theme.inputFontSize};
+      background: ${form.theme.inputBackgroundColor};
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+    }
+    .form-canvas-wrapper .form-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px ${form.theme.primaryColor}1a;
+    }
+    .form-canvas-wrapper .form-input::placeholder { color: var(--text-light); }
+    .form-canvas-wrapper select.form-input {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 12px center;
+      background-repeat: no-repeat;
+      background-size: 16px;
+      padding-right: 40px;
+    }
+    .form-canvas-wrapper textarea.form-input { resize: vertical; min-height: 100px; }
+    .form-canvas-wrapper .help-text { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .form-canvas-wrapper .radio-group, .form-canvas-wrapper .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+    .form-canvas-wrapper .radio-option, .form-canvas-wrapper .checkbox-option {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 14px; cursor: pointer; padding: 10px 14px;
+      border: 2px solid var(--border-color); border-radius: 8px;
+      transition: all 0.15s ease;
+    }
+    .form-canvas-wrapper .radio-option:hover, .form-canvas-wrapper .checkbox-option:hover { 
+      border-color: var(--border-focus); background: var(--bg-secondary); 
+    }
+    .form-canvas-wrapper .section-break {
+      margin: 8px 0;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border-color);
+      grid-column: 1 / -1;
+    }
+    .form-canvas-wrapper .section-break h3 { font-size: 16px; font-weight: 600; }
+    .form-canvas-wrapper .submit-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--primary-gradient);
+      color: ${form.theme.buttonTextColor};
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow-md);
+    }
+    .form-canvas-wrapper .submit-btn:hover { 
+      transform: translateY(-2px); 
+      box-shadow: var(--shadow-lg); 
+    }
+    @media (max-width: 640px) {
+      .form-canvas-wrapper .form-fields-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  `;
+
   return (
     <>
+    <style>{formCss}</style>
     <div className="h-[calc(100vh-168px)] overflow-hidden rounded-xl border border-border/60 shadow-sm bg-background">
 
       {/* ── Canvas Area ────────────────────────────────────────────────────── */}
@@ -375,16 +782,23 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
           <p className="text-[11px] font-semibold text-muted-foreground">
             Canvas — <span className="text-foreground">{form.title}</span>
           </p>
-          <span className="text-[10px] text-muted-foreground/60 font-mono">
-            {sortedFields.length} field{sortedFields.length !== 1 ? 's' : ''}
-          </span>
+          <div className="flex items-center gap-2">
+            {isLocked && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                <Lock className="h-2.5 w-2.5" /> Locked — read only
+              </span>
+            )}
+            <span className="text-[10px] text-muted-foreground/60 font-mono">
+              {sortedFields.length} field{sortedFields.length !== 1 ? 's' : ''}
+            </span>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
           <div className="p-4">
             {/* Form card */}
             <div
-              className="w-full rounded-xl overflow-hidden bg-card shadow-xl"
+              className="w-full rounded-xl overflow-hidden bg-card shadow-xl form-canvas-wrapper"
               style={{ maxWidth: form.theme.formMaxWidth || '100%', lineHeight: form.theme.lineHeight || '1.6' }}
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
@@ -398,24 +812,24 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
               {/* Header */}
               <div
-                className="px-7 pt-7 pb-4"
-                style={{ textAlign: (form.theme.headerAlign || 'center') as any }}
+                className="px-8 pt-8 pb-6 bg-muted"
+                style={{ textAlign: (form.theme.headerAlign || 'center') as any, borderBottom: `1px solid ${form.theme.inputBorderColor}` }}
               >
                 {form.theme.showLogo && form.theme.logoUrl && (
                   <img
                     src={form.theme.logoUrl}
                     alt="Logo"
-                    className="h-10 mx-auto mb-3 object-contain"
+                    className="h-12 mx-auto mb-4 object-contain"
                     onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                 )}
-                <h2 className="text-lg font-bold text-foreground leading-snug">{form.title}</h2>
-                {form.subHeader && <p className="text-sm font-semibold mt-1.5 leading-snug" style={{ color: form.theme.primaryColor }}>{form.subHeader}</p>}
-                {form.description && <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">{form.description}</p>}
+                <h2 className="text-2xl font-bold text-foreground leading-snug">{form.title}</h2>
+                {form.subHeader && <p className="text-sm font-semibold mt-2 leading-snug" style={{ color: form.theme.primaryColor }}>{form.subHeader}</p>}
+                {form.description && <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{form.description}</p>}
               </div>
 
               {/* Fields */}
-              <div className="px-6 pb-5">
+              <div className="px-8 pb-8">
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -426,15 +840,15 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                     items={sortedFields.map(f => f.id)}
                     strategy={rectSortingStrategy}
                   >
-                    <div className={gridClass} style={{ gap: fieldGap }}>
+                    <div className="form-fields-grid">
                       {sortedFields.map(field => (
                         <CanvasField
                           key={field.id}
                           field={field}
                           formLayout={form.theme.formLayout}
-                          onEdit={() => onEdit(field)}
-                          onDelete={() => setPendingDeleteId(field.id)}
-                          onDuplicate={() => onDuplicate(field.id)}
+                          onEdit={(field) => onEdit(field)}
+                          onDelete={(fieldId) => setPendingDeleteId(fieldId)}
+                          onDuplicate={(fieldId) => onDuplicate(fieldId)}
                           insertDropActive={false}
                         />
                       ))}
@@ -448,7 +862,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                     {activeField && (
                       <div className="rounded-xl border-2 border-primary bg-card shadow-xl p-3 opacity-90 w-48">
                         <div className="text-[11px] font-semibold text-foreground/80 mb-1.5">{activeField.label}</div>
-                        <FieldPreview field={activeField} />
+                        <RealFieldPreview field={activeField} onEdit={() => {}} onDelete={() => {}} onDuplicate={() => {}} />
                       </div>
                     )}
                   </DragOverlay>
@@ -456,10 +870,10 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
               </div>
 
               {/* Submit button */}
-              <div className="px-6 pb-6 pt-1">
+              <div className="px-8 pb-8 pt-2">
                 <button
                   type="button"
-                  className="w-full rounded-lg py-3 text-sm font-semibold text-white cursor-default leading-snug"
+                  className="w-full rounded-lg py-3 px-6 text-sm font-semibold text-white cursor-default leading-snug transition-all hover:opacity-90"
                   style={{ background: primaryGradient }}
                 >
                   {form.submitButtonText}
@@ -468,7 +882,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
               {/* Footer */}
               {form.footer && (
-                <div className="px-6 pb-5 border-t border-border/40 pt-3 text-center">
+                <div className="px-8 pb-6 border-t border-border/40 pt-4 text-center">
                   <p className="text-xs text-muted-foreground leading-relaxed">{form.footer}</p>
                 </div>
               )}

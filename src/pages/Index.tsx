@@ -23,6 +23,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +78,10 @@ import {
   Type,
   Mail,
   Phone,
+  Lock,
+  LockOpen,
+  Save,
+  Bot,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -144,6 +151,12 @@ const Index = () => {
   const [confirmDeleteForm, setConfirmDeleteForm] = useState(false);
   const [confirmDeploy, setConfirmDeploy] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
+  const [copiedFormSettings, setCopiedFormSettings] = useState<Partial<FormConfig> | null>(null);
+  const [aiFormDescription, setAiFormDescription] = useState('');
 
   const handleDeploy = async () => {
     if (!activeForm) return;
@@ -162,8 +175,13 @@ const Index = () => {
       if (data?.url) {
         console.log('Deployment successful. Live URL from Vercel:', data.url);
         setDeployUrl(data.url);
-        updateForm(activeForm.id, { deployedUrl: data.url });
-        toast.success(`Form deployed successfully! Live at: ${data.url}`);
+        // Lock the form when it's deployed to prevent accidental changes
+        updateForm(activeForm.id, { 
+          deployedUrl: data.url,
+          isLocked: true,
+          isPublished: true
+        });
+        toast.success(`Form deployed successfully and locked! Live at: ${data.url}`);
       }
     } catch (err: any) {
       console.error('Deployment failed:', err);
@@ -258,14 +276,139 @@ const Index = () => {
     });
   };
 
+  const toggleFormLock = () => {
+    if (!activeForm) return;
+    
+    // If the form is published and user tries to unlock it, show a warning
+    if (activeForm.isPublished && activeForm.isLocked) {
+      const confirmed = window.confirm(
+        'This form is live! Unlocking it may cause accidental changes to be saved. Are you sure you want to unlock this published form?'
+      );
+      if (!confirmed) return;
+    }
+    
+    updateForm(activeForm.id, { isLocked: !activeForm.isLocked });
+    toast.success(activeForm.isLocked ? 'Form unlocked' : 'Form locked');
+  };
+
+  const saveFormAsTemplate = () => {
+    if (!activeForm || !templateName.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+    const newTemplate: Template = {
+      id: `template_${Date.now()}`,
+      name: templateName,
+      description: templateDescription,
+      category: 'User Created',
+      icon: '⭐',
+      fields: activeForm.fields,
+      config: {
+        title: activeForm.title,
+        subHeader: activeForm.subHeader,
+        description: activeForm.description,
+        theme: activeForm.theme,
+        webhookConfig: activeForm.webhookConfig,
+        pixelConfig: activeForm.pixelConfig,
+      },
+      isUserCreated: true,
+      createdAt: new Date().toISOString(),
+    };
+    addTemplates([newTemplate]);
+    setShowSaveTemplate(false);
+    setTemplateName('');
+    setTemplateDescription('');
+    toast.success(`Template "${templateName}" saved successfully!`);
+  };
+
+  const handleDeleteFormWithConfirmation = () => {
+    if (!activeForm) return;
+    deleteForm(activeForm.id);
+    setConfirmDeleteForm(false);
+    toast.success('Form deleted');
+  };
+
+  const copyFormSettings = () => {
+    if (!activeForm) return;
+    setCopiedFormSettings({
+      theme: activeForm.theme,
+      webhookConfig: activeForm.webhookConfig,
+      pixelConfig: activeForm.pixelConfig,
+      googleSheetsConfig: activeForm.googleSheetsConfig,
+      submitButtonText: activeForm.submitButtonText,
+      successMessage: activeForm.successMessage,
+      redirectUrl: activeForm.redirectUrl,
+    });
+    toast.success('Form settings copied! You can paste them to another form');
+  };
+
+  const pasteFormSettings = () => {
+    if (!activeForm || !copiedFormSettings) {
+      toast.error('No settings copied yet');
+      return;
+    }
+    updateForm(activeForm.id, copiedFormSettings);
+    toast.success('Form settings pasted!');
+  };
+
+  const generateFormFromDescription = () => {
+    if (!activeForm || !aiFormDescription.trim()) {
+      toast.error('Please describe your form');
+      return;
+    }
+    if (activeForm.isLocked) {
+      toast.error('Form is locked. Unlock it to make changes.');
+      return;
+    }
+
+    const description = aiFormDescription.toLowerCase();
+    const fieldKeywords = [
+      { keywords: ['name', 'full name'], type: 'text' as FieldType, label: 'Full Name' },
+      { keywords: ['email'], type: 'email' as FieldType, label: 'Email Address' },
+      { keywords: ['phone', 'number', 'contact'], type: 'tel' as FieldType, label: 'Phone Number' },
+      { keywords: ['address'], type: 'text' as FieldType, label: 'Address' },
+      { keywords: ['message', 'comment', 'feedback', 'description'], type: 'textarea' as FieldType, label: 'Message' },
+      { keywords: ['select', 'choice', 'option', 'prefer'], type: 'select' as FieldType, label: 'Select an Option' },
+      { keywords: ['date', 'when', 'schedule'], type: 'date' as FieldType, label: 'Date' },
+      { keywords: ['file', 'upload', 'attachment'], type: 'file' as FieldType, label: 'File Upload' },
+      { keywords: ['agree', 'terms', 'checkbox'], type: 'checkbox' as FieldType, label: 'I Agree' },
+    ];
+
+    const fieldsToAdd: { type: FieldType; label: string }[] = [];
+    const addedLabels = new Set<string>();
+
+    for (const { keywords, type, label } of fieldKeywords) {
+      if (keywords.some(kw => description.includes(kw)) && !addedLabels.has(label)) {
+        fieldsToAdd.push({ type, label });
+        addedLabels.add(label);
+      }
+    }
+
+    if (fieldsToAdd.length === 0) {
+      toast.error('Could not parse form description. Please mention field types like email, name, message, etc.');
+      return;
+    }
+
+    // Add generated fields to the form
+    fieldsToAdd.forEach(field => {
+      addField(activeForm.id, field.type, { label: field.label });
+    });
+
+    setAiFormDescription('');
+    setShowAIChat(false);
+    toast.success(`Generated ${fieldsToAdd.length} fields from your description!`);
+  };
+
   const handleAddField = (type: FieldType) => {
     if (!activeForm) return;
+    if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
     addField(activeForm.id, type);
     setSidebarTab('library');
   };
 
   const handleAddPresetField = (preset: FieldPreset) => {
     if (!activeForm) return;
+    if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
     addField(activeForm.id, preset.type, {
       label:       preset.label,
       name:        preset.name,
@@ -386,6 +529,35 @@ const Index = () => {
     }
   };
 
+  const handleUpdateSheetStructure = async () => {
+    if (!activeForm || !activeForm.googleSheetsConfig?.spreadsheetId) {
+      toast.error('No Google Sheet connected to this form');
+      return;
+    }
+    setCreatingSheetsFor(activeForm.id);
+    try {
+      const fieldHeaders = activeForm.fields
+        .filter(f => f.type !== 'page-break' && f.type !== 'section-break')
+        .sort((a, b) => a.order - b.order)
+        .map(f => f.label);
+
+      const { data, error } = await supabase.functions.invoke('google-sheets', {
+        body: {
+          action: 'update-structure',
+          spreadsheetId: activeForm.googleSheetsConfig.spreadsheetId,
+          headers: fieldHeaders,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('Google Sheet structure updated with new fields!');
+    } catch (err: any) {
+      toast.error('Failed to update sheet: ' + (err.message || 'Unknown error'));
+    } finally {
+      setCreatingSheetsFor(null);
+    }
+  };
+
   const handlePreviewInNewTab = async () => {
     if (!activeForm) return;
     const html = await generateHtmlWithEmbeddedLogo(activeForm);
@@ -442,6 +614,44 @@ const Index = () => {
                     className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
                     <Eye className="h-3.5 w-3.5 mr-1.5" />Preview
                   </Button>
+                  <Button variant="outline" size="sm" onClick={toggleFormLock}
+                    className={`h-8 text-[12.5px] border-border/60 shadow-none hover:border-border ${activeForm.isLocked ? 'bg-red-50 border-red-200 text-red-600' : ''}`}>
+                    {activeForm.isLocked ? <Lock className="h-3.5 w-3.5 mr-1.5" /> : <LockOpen className="h-3.5 w-3.5 mr-1.5" />}
+                    {activeForm.isLocked ? 'Locked' : 'Unlocked'}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowSaveTemplate(true)}
+                    className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                    <Save className="h-3.5 w-3.5 mr-1.5" />Template
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowAIChat(true)}
+                    className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                    <Bot className="h-3.5 w-3.5 mr-1.5" />AI
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm"
+                        className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem onClick={handleCopyForm.bind(null, activeForm)}>
+                        <Copy className="h-4 w-4 mr-2" />Duplicate Form
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={copyFormSettings}>
+                        <Copy className="h-4 w-4 mr-2" />Copy Settings
+                      </DropdownMenuItem>
+                      {copiedFormSettings && (
+                        <DropdownMenuItem onClick={pasteFormSettings}>
+                          <Copy className="h-4 w-4 mr-2" />Paste Settings
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => setConfirmDeleteForm(true)} className="text-red-600">
+                        <Trash2 className="h-4 w-4 mr-2" />Delete Form
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button size="sm" onClick={() => setConfirmDeploy(true)} disabled={deploying}
                     className="h-8 text-[12.5px] bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 shadow-md shadow-indigo-500/25 border-0 font-semibold">
                     {deploying ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1.5" />}
@@ -501,7 +711,7 @@ const Index = () => {
                   Pro
                 </Badge>
               </div>
-              <div className="grid gap-3 pt-4 md:grid-cols-3">
+              <div className="grid gap-3 pt-4 md:grid-cols-4">
                 <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors p-4">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Animations</p>
@@ -522,6 +732,13 @@ const Index = () => {
                     <p className="text-sm font-semibold text-white mt-0.5">Auto-export rows</p>
                   </div>
                   <Switch checked={activeForm.googleSheetsConfig.enabled} onCheckedChange={toggleSheetsQuick} />
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors p-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400">Locked</p>
+                    <p className="text-sm font-semibold text-white mt-0.5">Prevent edits</p>
+                  </div>
+                  <Switch checked={activeForm.isLocked ?? false} onCheckedChange={toggleFormLock} />
                 </div>
               </div>
               {activeForm.deployedUrl && (
@@ -578,7 +795,7 @@ const Index = () => {
                               <button
                                 key={type}
                                 onClick={() => handleAddField(type)}
-                                disabled={!activeForm}
+                                disabled={!activeForm || activeForm.isLocked}
                                 className="flex items-center gap-2 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-left text-[11px] font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-40 truncate"
                               >
                                 <span className="shrink-0 text-muted-foreground">{FIELD_ICONS[type]}</span>
@@ -597,7 +814,7 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
-                              disabled={!activeForm}
+                              disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-violet-700/80 transition-colors hover:border-violet-400/60 hover:bg-violet-100/60 hover:text-violet-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-violet-800/40 dark:bg-violet-950/20 dark:text-violet-300"
                               title={`Add ${preset.label} dropdown (${preset.options!.length} options)`}
                             >
@@ -616,7 +833,7 @@ const Index = () => {
                           <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-teal-600/70">Session Fields</p>
                           <button
                             onClick={() => handleAddAllPresets(SESSION_MAPPING_FIELDS)}
-                            disabled={!activeForm}
+                            disabled={!activeForm || activeForm.isLocked}
                             className="text-[9px] font-semibold text-teal-600 hover:text-teal-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 transition-colors"
                           >+ Add All</button>
                         </div>
@@ -625,7 +842,7 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
-                              disabled={!activeForm}
+                              disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-teal-200/70 bg-teal-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-teal-700/80 transition-colors hover:border-teal-400/60 hover:bg-teal-100/60 hover:text-teal-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-teal-800/40 dark:bg-teal-950/20 dark:text-teal-300"
                               title={preset.helpText}
                             >
@@ -648,7 +865,7 @@ const Index = () => {
                           <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-blue-600/70">Member Fields</p>
                           <button
                             onClick={() => handleAddAllPresets(MEMBER_MAPPING_FIELDS)}
-                            disabled={!activeForm}
+                            disabled={!activeForm || activeForm.isLocked}
                             className="text-[9px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-blue-200 hover:border-blue-400 bg-blue-50 hover:bg-blue-100 transition-colors"
                           >+ Add All</button>
                         </div>
@@ -657,7 +874,7 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
-                              disabled={!activeForm}
+                              disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-blue-200/70 bg-blue-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-blue-700/80 transition-colors hover:border-blue-400/60 hover:bg-blue-100/60 hover:text-blue-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-blue-800/40 dark:bg-blue-950/20 dark:text-blue-300"
                               title={preset.helpText}
                             >
@@ -1128,17 +1345,28 @@ const Index = () => {
                 <TabsContent value="fields">
                   <FormCanvas
                     form={activeForm}
-                    onEdit={field => setEditingField(field)}
+                    isLocked={activeForm.isLocked}
+                    onEdit={field => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
+                      setEditingField(field);
+                    }}
                     onDelete={fieldId => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
                       deleteField(activeForm.id, fieldId);
                       toast.success('Field deleted');
                     }}
                     onDuplicate={fieldId => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
                       duplicateField(activeForm.id, fieldId);
                       toast.success('Field duplicated');
                     }}
-                    onAdd={type => addField(activeForm.id, type)}
-                    onReorder={orderedIds => reorderFields(activeForm.id, orderedIds)}
+                    onAdd={type => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
+                      addField(activeForm.id, type);
+                    }}
+                    onReorder={orderedIds => {
+                      if (!activeForm.isLocked) reorderFields(activeForm.id, orderedIds);
+                    }}
                   />
                 </TabsContent>
 
@@ -1165,6 +1393,7 @@ const Index = () => {
                         onUpdate={updates => updateForm(activeForm.id, updates)}
                         onCreateSheet={handleCreateSheet}
                         isCreatingSheet={creatingSheetsFor === activeForm.id}
+                        onUpdateSheetStructure={handleUpdateSheetStructure}
                       />
                     </div>
                   </div>
@@ -1273,6 +1502,105 @@ const Index = () => {
         onImportCsv={() => { setShowTemplateDialog(false); setShowCsvImport(true); }}
         onDeleteTemplate={deleteTemplate}
       />
+
+      {/* Confirm: delete single form */}
+      <AlertDialog open={confirmDeleteForm} onOpenChange={setConfirmDeleteForm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete form?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete "{activeForm?.title}" and all its fields. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteFormWithConfirmation}
+            >
+              Delete Form
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Save Form as Template */}
+      <AlertDialog open={showSaveTemplate} onOpenChange={setShowSaveTemplate}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Form as Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Save this form configuration for future use
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name" className="text-sm font-medium">Template Name</Label>
+              <Input
+                id="template-name"
+                placeholder="e.g., Contact Form, Signup Form"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="template-description" className="text-sm font-medium">Description (Optional)</Label>
+              <Textarea
+                id="template-description"
+                placeholder="Describe what this template is for..."
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+                className="w-full resize-none"
+                rows={3}
+              />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={saveFormAsTemplate} className="bg-indigo-600 hover:bg-indigo-700">
+              Save Template
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AI Form Generation */}
+      <AlertDialog open={showAIChat} onOpenChange={setShowAIChat}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-indigo-600" />
+              AI Form Generator
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Describe your form and AI will generate fields automatically
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="form-description" className="text-sm font-medium">Form Description</Label>
+              <Textarea
+                id="form-description"
+                placeholder="e.g., 'I need a form to collect customer feedback with their name, email, and message'"
+                value={aiFormDescription}
+                onChange={(e) => setAiFormDescription(e.target.value)}
+                className="w-full resize-none"
+                rows={4}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground bg-blue-50 border border-blue-200 rounded p-2">
+              <strong>Tip:</strong> Mention field types you need like name, email, phone, date, message, file, etc.
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={generateFormFromDescription} className="bg-indigo-600 hover:bg-indigo-700">
+              Generate Fields
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CsvImportDialog
         open={showCsvImport}

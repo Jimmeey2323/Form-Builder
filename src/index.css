@@ -274,3 +274,120 @@ All colors MUST be HSL.
 .delay-400 { animation-delay: 0.4s; }
 .delay-500 { animation-delay: 0.5s; }
 .delay-600 { animation-delay: 0.6s; }
+
+/* ═══════════════════════════════════════════════════════
+   ENHANCED UI COMPONENTS
+   ═══════════════════════════════════════════════════════ */
+
+/* Premium Button Styling */
+.premium-btn {
+  @apply relative overflow-hidden transition-all duration-300 shadow-lg hover:shadow-xl;
+}
+
+.premium-btn::before {
+  @apply absolute inset-0 bg-white/20 opacity-0 transition-opacity duration-300;
+  content: '';
+}
+
+.premium-btn:hover::before {
+  @apply opacity-100;
+}
+
+/* Enhanced Input Fields */
+input:focus, textarea:focus, select:focus {
+  @apply ring-2 ring-primary/30 border-primary;
+  outline: none;
+}
+
+input::placeholder, textarea::placeholder {
+  @apply text-muted-foreground/50 font-medium;
+}
+
+/* Form Group Enhancements */
+.form-group {
+  @apply transition-all duration-200 hover:bg-muted/20 rounded-lg p-2 mx-2;
+}
+
+.form-group:hover {
+  @apply border-primary/20;
+}
+
+/* Card Enhancements */
+.card {
+  @apply transition-all duration-300 hover:shadow-lg;
+}
+
+.card:hover {
+  @apply border-primary/30;
+}
+
+/* Badge Enhancements */
+.badge {
+  @apply font-semibold transition-all duration-200;
+}
+
+/* Settings Trigger Enhancement */
+.settings-trigger {
+  @apply transition-colors duration-200 hover:bg-accent/50;
+}
+
+/* Icon Wrap Enhancement */
+.settings-icon-wrap {
+  @apply flex items-center justify-center h-6 w-6 rounded-lg bg-primary/10 text-primary transition-all duration-200;
+}
+
+.settings-trigger:hover .settings-icon-wrap {
+  @apply bg-primary/20;
+}
+
+/* Smooth Transitions */
+button, a, input, select, textarea {
+  @apply transition-all duration-200;
+}
+
+/* Focus Ring Enhancement */
+*:focus-visible {
+  @apply outline-none ring-2 ring-primary/40 ring-offset-1;
+}
+
+/* Selection Color */
+::selection {
+  @apply bg-primary/30 text-primary;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  @apply w-2 h-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-muted/30;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary/20 rounded-full hover:bg-primary/40;
+}
+
+/* Dialog Enhancements */
+[role="dialog"] {
+  @apply shadow-2xl;
+}
+
+/* Hover State for List Items */
+[role="menuitem"], [role="option"] {
+  @apply transition-colors duration-150;
+}
+
+[role="menuitem"]:hover, [role="option"]:hover {
+  @apply bg-accent text-accent-foreground;
+}
+
+/* Enhanced Divider */
+hr {
+  @apply border-border/50;
+}
+
+/* Success State Enhancement */
+.text-green-600, .text-emerald-600, .text-teal-600 {
+  @apply font-semibold;
+}

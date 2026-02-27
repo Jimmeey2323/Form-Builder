@@ -125,6 +125,9 @@ function createDefaultForm(): FormConfig {
     webhookConfig: { ...defaultWebhook },
     pixelConfig: { ...defaultPixels },
     googleSheetsConfig: { ...defaultGoogleSheets },
+    isLocked: false,
+    isTemplate: false,
+    isPublished: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

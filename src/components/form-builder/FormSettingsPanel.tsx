@@ -33,9 +33,10 @@ interface FormSettingsPanelProps {
   onUpdate: (updates: Partial<FormConfig>) => void;
   onCreateSheet?: () => void;
   isCreatingSheet?: boolean;
+  onUpdateSheetStructure?: () => void;
 }
 
-export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingSheet }: FormSettingsPanelProps) {
+export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingSheet, onUpdateSheetStructure }: FormSettingsPanelProps) {
   const [newHeaderKey, setNewHeaderKey] = useState('');
   const [newHeaderVal, setNewHeaderVal] = useState('');
   const [showThemeDialog, setShowThemeDialog] = useState(false);
@@ -523,14 +524,26 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />Live
                     </span>
                   </div>
-                  <a
-                    href={sheetUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-semibold underline underline-offset-2 transition-colors"
-                  >
-                    Open Google Sheet <ExternalLink className="h-3 w-3" />
-                  </a>
+                  <div className="flex gap-2">
+                    <a
+                      href={sheetUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-semibold underline underline-offset-2 transition-colors"
+                    >
+                      Open Sheet <ExternalLink className="h-3 w-3" />
+                    </a>
+                    {onUpdateSheetStructure && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={onUpdateSheetStructure}
+                        className="border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      >
+                        Update Structure
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ) : (
                 <Button onClick={onCreateSheet} disabled={isCreatingSheet} className="w-full premium-btn">
@@ -797,6 +810,55 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             </div>
           </div>
 
+          {/* ── Cursive Header Styling ── */}
+          <div className="space-y-3 rounded-lg border border-violet-200/50 bg-violet-50/30 p-3">
+            <div className="flex items-center justify-between">
+              <Label className="settings-label flex items-center gap-2">
+                <Sparkles className="h-3.5 w-3.5 text-violet-600" /> Cursive Header
+              </Label>
+              <Switch checked={form.theme.headerCursiveEnabled ?? false} onCheckedChange={v => updateTheme({ headerCursiveEnabled: v })} />
+            </div>
+            {form.theme.headerCursiveEnabled && (
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Cursive Font</Label>
+                  <Select value={form.theme.headerCursiveFont || 'Great Vibes'} onValueChange={v => updateTheme({ headerCursiveFont: v })}>
+                    <SelectTrigger className="settings-input"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Great Vibes">Great Vibes</SelectItem>
+                      <SelectItem value="Brush Script MT">Brush Script</SelectItem>
+                      <SelectItem value="Cursive">Cursive (System)</SelectItem>
+                      <SelectItem value="Satisfy">Satisfy</SelectItem>
+                      <SelectItem value="Dancing Script">Dancing Script</SelectItem>
+                      <SelectItem value="Pacifico">Pacifico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">Apply To</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['left', 'right', 'all'] as const).map(part => (
+                      <button
+                        key={part}
+                        type="button"
+                        onClick={() => updateTheme({ headerCursivePart: part })}
+                        className={`px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
+                          (form.theme.headerCursivePart ?? 'all') === part
+                            ? 'border-violet-500 bg-violet-100 text-violet-900'
+                            : 'border-violet-200 bg-white text-violet-700 hover:bg-violet-50'
+                        }`}
+                      >
+                        {part === 'left' && 'Left Half'}
+                        {part === 'right' && 'Right Half'}
+                        {part === 'all' && 'All Text'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* ── Text Alignments ── */}
           <div className="space-y-2">
             <Label className="settings-label">Header &amp; Title Alignment</Label>
@@ -969,36 +1031,84 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               {/* Image Position */}
               <div className="space-y-2">
                 <Label className="settings-label">Image Position</Label>
-                {/* 3×3 snap grid */}
-                <div className="grid grid-cols-3 gap-1">
-                  {([
-                    { x: '0',  y: '0',   title: 'Top Left' },
-                    { x: '50', y: '0',   title: 'Top Center' },
-                    { x: '100',y: '0',   title: 'Top Right' },
-                    { x: '0',  y: '50',  title: 'Middle Left' },
-                    { x: '50', y: '50',  title: 'Center' },
-                    { x: '100',y: '50',  title: 'Middle Right' },
-                    { x: '0',  y: '100', title: 'Bottom Left' },
-                    { x: '50', y: '100', title: 'Bottom Center' },
-                    { x: '100',y: '100', title: 'Bottom Right' },
-                  ] as const).map(pos => {
-                    const active = (form.layoutImagePositionX ?? '50') === pos.x && (form.layoutImagePositionY ?? '50') === pos.y;
-                    return (
-                      <button
-                        key={`${pos.x}-${pos.y}`}
-                        type="button"
-                        title={pos.title}
-                        onClick={() => onUpdate({ layoutImagePositionX: pos.x, layoutImagePositionY: pos.y })}
-                        className={`h-8 rounded-md border-2 flex items-center justify-center transition-all ${
-                          active ? 'border-primary bg-primary/10' : 'border-border/60 hover:border-primary/40 hover:bg-muted/40'
-                        }`}
-                      >
-                        <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
-                          active ? 'bg-primary' : 'bg-muted-foreground/30'
-                        }`} />
-                      </button>
-                    );
-                  })}
+                <p className="text-[11px] text-muted-foreground mb-2">Click on the grid or drag the preview point to position</p>
+                {/* Interactive drag & drop position preview */}
+                <div className="space-y-2">
+                  <div 
+                    className="relative w-full h-48 rounded-lg border-2 border-border/60 bg-gradient-to-br from-muted to-muted/50 overflow-hidden cursor-crosshair"
+                    style={{
+                      backgroundImage: form.layoutImageUrl ? `url(${form.layoutImageUrl})` : undefined,
+                      backgroundSize: (form.layoutImageFit === 'cover' ? 'cover' : form.layoutImageFit === 'contain' ? 'contain' : 'cover'),
+                      backgroundPosition: `${form.layoutImagePositionX ?? '50'}% ${form.layoutImagePositionY ?? '50'}%`,
+                      backgroundRepeat: 'no-repeat'
+                    }}
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const x = ((e.clientX - rect.left) / rect.width) * 100;
+                      const y = ((e.clientY - rect.top) / rect.height) * 100;
+                      onUpdate({ 
+                        layoutImagePositionX: Math.round(Math.max(0, Math.min(100, x))).toString(),
+                        layoutImagePositionY: Math.round(Math.max(0, Math.min(100, y))).toString()
+                      });
+                    }}
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget;
+                      const x = ((e.clientX - rect.getBoundingClientRect().left) / rect.offsetWidth) * 100;
+                      const y = ((e.clientY - rect.getBoundingClientRect().top) / rect.offsetHeight) * 100;
+                      rect.style.setProperty('--cursor-x', x + '%');
+                      rect.style.setProperty('--cursor-y', y + '%');
+                    }}
+                  >
+                    {/* Visual position marker */}
+                    <div 
+                      className="absolute w-6 h-6 border-2 border-white rounded-full shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+                      style={{
+                        left: `${form.layoutImagePositionX ?? '50'}%`,
+                        top: `${form.layoutImagePositionY ?? '50'}%`,
+                        boxShadow: '0 0 0 2px #000, 0 0 10px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      <div className="absolute inset-1 rounded-full bg-primary/30" />
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Position: {form.layoutImagePositionX ?? '50'}% H, {form.layoutImagePositionY ?? '50'}% V
+                  </p>
+                </div>
+                
+                {/* Quick position grid */}
+                <div className="space-y-1.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Quick Select</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    {([
+                      { x: '0',  y: '0',   title: 'Top Left' },
+                      { x: '50', y: '0',   title: 'Top Center' },
+                      { x: '100',y: '0',   title: 'Top Right' },
+                      { x: '0',  y: '50',  title: 'Middle Left' },
+                      { x: '50', y: '50',  title: 'Center' },
+                      { x: '100',y: '50',  title: 'Middle Right' },
+                      { x: '0',  y: '100', title: 'Bottom Left' },
+                      { x: '50', y: '100', title: 'Bottom Center' },
+                      { x: '100',y: '100', title: 'Bottom Right' },
+                    ] as const).map(pos => {
+                      const active = (form.layoutImagePositionX ?? '50') === pos.x && (form.layoutImagePositionY ?? '50') === pos.y;
+                      return (
+                        <button
+                          key={`${pos.x}-${pos.y}`}
+                          type="button"
+                          title={pos.title}
+                          onClick={() => onUpdate({ layoutImagePositionX: pos.x, layoutImagePositionY: pos.y })}
+                          className={`h-8 rounded-md border-2 flex items-center justify-center transition-all ${
+                            active ? 'border-primary bg-primary/10' : 'border-border/60 hover:border-primary/40 hover:bg-muted/40'
+                          }`}
+                        >
+                          <div className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                            active ? 'bg-primary' : 'bg-muted-foreground/30'
+                          }`} />
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                 {/* Fine-tune sliders */}
                 <div className="space-y-3 pt-1">

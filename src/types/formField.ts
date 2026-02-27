@@ -45,6 +45,7 @@ export type FieldType =
   | 'subform'
   | 'section-collapse'
   | 'divider'
+  | 'spacer'
   | 'html-snippet'
   | 'image'
   | 'video'
@@ -341,6 +342,12 @@ export interface FormTheme {
   headerFontWeight?: string;
   /** Form title font style */
   headerFontStyle?: 'normal' | 'italic';
+  /** Enable cursive styling for part of the header */
+  headerCursiveEnabled?: boolean;
+  /** Which part of the header should be cursive: 'left', 'right', 'all' */
+  headerCursivePart?: 'left' | 'right' | 'all';
+  /** Cursive font family to use (e.g., 'Great Vibes', 'Brush Script MT') */
+  headerCursiveFont?: string;
   /** Text alignment for form header, logo container, and footer */
   headerAlign?: 'left' | 'center' | 'right';
   /** Text alignment for field labels */
@@ -413,6 +420,12 @@ export interface FormConfig {
   pageHeroImages?: Record<number, string>;
   /** Domain of the existing Vercel project to deploy to (e.g. mysite.vercel.app or mycustomdomain.com) */
   vercelProjectDomain?: string;
+  /** Whether the form is locked to prevent edits */
+  isLocked?: boolean;
+  /** Whether this form is a saved template for future use */
+  isTemplate?: boolean;
+  /** If true, live/published forms are locked by default */
+  isPublished?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -462,6 +475,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
   divider: 'Divider',
+  spacer: 'Spacer / Empty Space',
   'html-snippet': 'HTML Snippet',
   hidden: 'Hidden Field',
   lookup: 'Lookup Field',
@@ -482,7 +496,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Contact Info': ['email', 'tel', 'address'],
   'Number': ['number', 'currency'],
   'Miscellaneous': ['url', 'color', 'password', 'file', 'signature', 'voice-recording', 'submission-picker', 'subform'],
-  'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'html-snippet', 'page-break', 'hidden'],
+  'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'spacer', 'html-snippet', 'page-break', 'hidden'],
   'Media': ['image', 'video', 'pdf-viewer', 'social-links'],
   'Advanced': ['lookup', 'formula', 'conditional', 'dependent'],
   'Integrations': ['member-search', 'momence-sessions'],
@@ -562,6 +576,11 @@ export function createDefaultField(type: FieldType, order: number): FormField {
       autoFillHomeLocation: '',
       autoFillTags: '',
     };
+  }
+
+  if (type === 'spacer') {
+    base.label = 'Empty Space';
+    base.helpText = '20px'; // Default spacer height
   }
 
   return base;
