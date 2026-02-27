@@ -358,15 +358,60 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         <input type="hidden" id="${field.id}" name="${field.name}">
       </div>`;
       break;
-    case 'image':
-      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="image/*"${condAttrs} class="form-input${cssClass}">`;
+    case 'image': {
+      const imgSrc = field.defaultValue || field.placeholder || '';
+      const imgAlt = field.helpText || field.label || 'Image';
+      inputHtml = imgSrc
+        ? `<div class="media-display image-display${cssClass}"${condAttrs}>
+            <img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(imgAlt)}" style="max-width:100%;height:auto;border-radius:8px;display:block;">
+            ${field.helpText ? `<p class="help-text" style="margin-top:6px;text-align:center;">${escapeHtml(field.helpText)}</p>` : ''}
+          </div>`
+        : `<div class="media-display image-placeholder${cssClass}"${condAttrs} style="border:2px dashed #ddd;border-radius:12px;padding:32px;text-align:center;color:#999;">
+            <p style="margin:0;font-size:14px;">🖼️ Image URL not set</p>
+            <p style="margin:4px 0 0;font-size:12px;">Set the image URL in the field's Default Value or Placeholder</p>
+          </div>`;
       break;
-    case 'video':
-      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="video/*"${condAttrs} class="form-input${cssClass}">`;
+    }
+    case 'video': {
+      const vidSrc = field.defaultValue || field.placeholder || '';
+      const isYoutube = vidSrc.includes('youtube.com') || vidSrc.includes('youtu.be');
+      const isVimeo = vidSrc.includes('vimeo.com');
+      if (vidSrc && (isYoutube || isVimeo)) {
+        let embedUrl = vidSrc;
+        if (isYoutube) {
+          const match = vidSrc.match(/(?:v=|youtu\.be\/)([^&?#]+)/);
+          if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+        } else if (isVimeo) {
+          const match = vidSrc.match(/vimeo\.com\/(\d+)/);
+          if (match) embedUrl = `https://player.vimeo.com/video/${match[1]}`;
+        }
+        inputHtml = `<div class="media-display video-display${cssClass}"${condAttrs}>
+            <iframe src="${escapeHtml(embedUrl)}" style="width:100%;aspect-ratio:16/9;border:none;border-radius:8px;" allowfullscreen></iframe>
+          </div>`;
+      } else if (vidSrc) {
+        inputHtml = `<div class="media-display video-display${cssClass}"${condAttrs}>
+            <video src="${escapeHtml(vidSrc)}" controls style="max-width:100%;border-radius:8px;display:block;"></video>
+          </div>`;
+      } else {
+        inputHtml = `<div class="media-display video-placeholder${cssClass}"${condAttrs} style="border:2px dashed #ddd;border-radius:12px;padding:32px;text-align:center;color:#999;">
+            <p style="margin:0;font-size:14px;">🎬 Video URL not set</p>
+            <p style="margin:4px 0 0;font-size:12px;">Set a YouTube, Vimeo, or direct video URL in Default Value</p>
+          </div>`;
+      }
       break;
-    case 'pdf-viewer':
-      inputHtml = `<input type="file" id="${field.id}" name="${field.name}"${required}${disabled} accept="application/pdf"${condAttrs} class="form-input${cssClass}">`;
+    }
+    case 'pdf-viewer': {
+      const pdfSrc = field.defaultValue || field.placeholder || '';
+      inputHtml = pdfSrc
+        ? `<div class="media-display pdf-display${cssClass}"${condAttrs}>
+            <iframe src="${escapeHtml(pdfSrc)}" style="width:100%;height:500px;border:1px solid #e2e8f0;border-radius:8px;" title="${escapeHtml(field.label)}"></iframe>
+          </div>`
+        : `<div class="media-display pdf-placeholder${cssClass}"${condAttrs} style="border:2px dashed #ddd;border-radius:12px;padding:32px;text-align:center;color:#999;">
+            <p style="margin:0;font-size:14px;">📄 PDF URL not set</p>
+            <p style="margin:4px 0 0;font-size:12px;">Set the PDF URL in Default Value</p>
+          </div>`;
       break;
+    }
     case 'voice-recording':
       inputHtml = `<div class="voice-recording-group${cssClass}"${condAttrs}>
         <button type="button" class="record-btn" onclick="startRecording('${field.id}')">🎤 Start Recording</button>

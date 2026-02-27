@@ -14,61 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      forms: {
-        Row: {
-          id: string
-          title: string
-          config: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          title: string
-          config: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          title?: string
-          config?: Json
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      form_submissions: {
-        Row: {
-          id: string
-          form_id: string
-          form_title: string
-          data: Json
-          utm_params: Json | null
-          submitted_at: string
-          ip_address: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          id?: string
-          form_id: string
-          form_title: string
-          data: Json
-          utm_params?: Json | null
-          submitted_at?: string
-          ip_address?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          id?: string
-          form_id?: string
-          form_title?: string
-          data?: Json
-          utm_params?: Json | null
-          submitted_at?: string
-          ip_address?: string | null
-          user_agent?: string | null
-        }
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
