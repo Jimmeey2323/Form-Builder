@@ -34,6 +34,7 @@ import {
   SlidersHorizontal,
   Users,
   CalendarDays,
+  ShieldCheck,
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -41,6 +42,7 @@ import { CSS } from '@dnd-kit/utilities';
 const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
   text: <Type className="h-3.5 w-3.5" />,
   email: <Mail className="h-3.5 w-3.5" />,
+  'email-otp': <ShieldCheck className="h-3.5 w-3.5" />,
   tel: <Phone className="h-3.5 w-3.5" />,
   number: <Hash className="h-3.5 w-3.5" />,
   url: <Link className="h-3.5 w-3.5" />,
@@ -64,6 +66,7 @@ const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
   range: <SlidersHorizontal className="h-3.5 w-3.5" />,
   'member-search': <Users className="h-3.5 w-3.5" />,
   'momence-sessions': <CalendarDays className="h-3.5 w-3.5" />,
+  'appointment-slots': <CalendarDays className="h-3.5 w-3.5" />,
 };
 
 interface FieldCardProps {
@@ -217,4 +220,3 @@ export function FieldCard({
     </div>
   );
 }
-

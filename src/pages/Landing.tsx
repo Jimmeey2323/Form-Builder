@@ -40,6 +40,7 @@ function timeAgo(iso?: string) {
 function FormDashboardCard({ form, onDelete, onDuplicate }: {
   form: FormConfig; onDelete: (id: string) => void; onDuplicate: (form: FormConfig) => void;
 }) {
+  const isPublished = form.publicationState === 'published' && !!form.deployedUrl;
   const integrations: string[] = [];
   if (form.webhookConfig.enabled) integrations.push('webhook');
   if (form.googleSheetsConfig.enabled) integrations.push('sheets');
@@ -68,7 +69,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
             <DropdownMenuContent align="end" className="w-36">
               <DropdownMenuItem asChild><Link to={`/builder?formId=${form.id}`} className="flex items-center gap-2 text-[12px]"><PencilLine className="h-3 w-3" />Edit</Link></DropdownMenuItem>
               <DropdownMenuItem onClick={() => onDuplicate(form)} className="gap-2 text-[12px]"><Copy className="h-3 w-3" />Duplicate</DropdownMenuItem>
-              {form.deployedUrl && <DropdownMenuItem asChild><a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[12px]"><Globe className="h-3 w-3" />View live</a></DropdownMenuItem>}
+              {isPublished && <DropdownMenuItem asChild><a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-[12px]"><Globe className="h-3 w-3" />View live</a></DropdownMenuItem>}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => onDelete(form.id)} className="text-destructive focus:text-destructive gap-2 text-[12px]"><Trash2 className="h-3 w-3" />Delete</DropdownMenuItem>
             </DropdownMenuContent>
@@ -92,7 +93,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
 
         {/* Deploy status */}
         <div className="mt-auto">
-          {form.deployedUrl ? (
+          {isPublished ? (
             <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
@@ -104,7 +105,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
             </div>
           ) : (
             <div className="rounded-lg bg-muted/30 border border-border/30 px-3 py-2 flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">Not deployed</span>
+              <span className="text-[10px] text-muted-foreground">Draft</span>
               <Link to={`/builder?formId=${form.id}`} className="text-[10px] text-primary font-medium flex items-center gap-1"><Rocket className="h-2.5 w-2.5" />Deploy</Link>
             </div>
           )}
@@ -130,7 +131,7 @@ const Landing = () => {
     (f.description || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const deployedCount = forms.filter(f => !!f.deployedUrl).length;
+  const deployedCount = forms.filter(f => f.publicationState === 'published' && !!f.deployedUrl).length;
   const totalFields = forms.reduce((acc, f) => acc + f.fields.filter(x => x.type !== 'page-break' && x.type !== 'section-break').length, 0);
   const withIntegrations = forms.filter(f => f.webhookConfig.enabled || f.googleSheetsConfig.enabled).length;
 
@@ -165,6 +166,28 @@ const Landing = () => {
       </header>
 
       <main className="container py-8 space-y-6">
+        <section className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white p-8 md:p-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.35),transparent_45%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(16,185,129,0.2),transparent_40%)]" />
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">Form Operations</p>
+              <h2 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Build, deploy and scale branded forms faster.</h2>
+              <p className="mt-3 text-sm text-white/80 max-w-2xl">
+                Manage templates, advanced fields, live deployment, and connected workflows from one workspace.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Button size="sm" className="h-9 rounded-xl bg-white text-slate-900 hover:bg-white/90" onClick={handleCreateNew}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />Create Form
+              </Button>
+              <Button variant="outline" size="sm" asChild className="h-9 rounded-xl border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Link to="/builder"><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />Open Builder</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[

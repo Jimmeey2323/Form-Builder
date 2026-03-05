@@ -1,4 +1,5 @@
 import { FormConfig, FormField } from '@/types/formField';
+import { getHeroForPage, normalizeHeroImageValue, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
 
 function escapeHtml(str: string): string {
   return str
@@ -118,6 +119,32 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     case 'textarea':
       inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="form-input${cssClass}" rows="4">${field.defaultValue || ''}</textarea>`;
       break;
+    case 'email-otp': {
+      const cfg = field.emailOtpConfig || {};
+      const otpLen = Math.max(4, Math.min(8, cfg.otpLength ?? 6));
+      const otpExpiry = Math.max(1, Math.min(30, cfg.otpExpiryMinutes ?? 10));
+      inputHtml = `<div class="email-otp-group${cssClass}"${condAttrs}
+        data-email-otp="true"
+        data-otp-length="${otpLen}"
+        data-otp-expiry="${otpExpiry}"
+        data-mailtrap-token="${escapeHtml(cfg.mailtrapToken || '')}"
+        data-from-email="${escapeHtml(cfg.fromEmail || 'hello@physique57india.com')}"
+        data-from-name="${escapeHtml(cfg.fromName || 'Physique 57 India')}"
+        data-subject="${escapeHtml(cfg.subject || 'Your verification code')}"
+        data-send-label="${escapeHtml(cfg.sendButtonText || 'Send OTP')}">
+        <div class="email-otp-row">
+          <input type="email" id="${field.id}_email" name="${field.name}_raw"${required}${readonly}${disabled}${placeholder}${autocomplete} class="form-input email-otp-email" />
+          <button type="button" class="email-otp-send-btn">${escapeHtml(cfg.sendButtonText || 'Send OTP')}</button>
+        </div>
+        <div class="email-otp-row">
+          <input type="text" id="${field.id}_otp" class="form-input email-otp-code" placeholder="Enter OTP" inputmode="numeric" maxlength="${otpLen}" />
+          <button type="button" class="email-otp-verify-btn">${escapeHtml(cfg.verifyButtonText || 'Verify OTP')}</button>
+        </div>
+        <div class="email-otp-status" aria-live="polite"></div>
+        <input type="hidden" id="${field.id}" name="${field.name}">
+      </div>`;
+      break;
+    }
     case 'select':
       inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}">
         <option value="" disabled selected>${field.placeholder || 'Select an option'}</option>
@@ -323,6 +350,24 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       </div>
     </div>`;
     }
+    case 'appointment-slots': {
+      const cfg = field.appointmentSlotsConfig || { slots: [] };
+      const slotsJson = escapeHtml(JSON.stringify(cfg.slots || []));
+      const bookingStartDate = cfg.bookingStartDate ? ` data-booking-start="${escapeHtml(cfg.bookingStartDate)}"` : '';
+      const bookingEndDate = cfg.bookingEndDate ? ` data-booking-end="${escapeHtml(cfg.bookingEndDate)}"` : '';
+      const stopBookingsAt = cfg.stopBookingsAt ? ` data-stop-bookings-at="${escapeHtml(cfg.stopBookingsAt)}"` : '';
+      const timezone = cfg.timezone ? ` data-timezone="${escapeHtml(cfg.timezone)}"` : '';
+      inputHtml = `<div class="appointment-slots-group${cssClass}"${condAttrs}
+          data-appointment-slots="true"
+          data-field-name="${escapeHtml(field.name)}"
+          data-slots='${slotsJson}'${bookingStartDate}${bookingEndDate}${stopBookingsAt}${timezone}>
+          <div class="appointment-slots-list"></div>
+          <div class="appointment-slots-empty" style="display:none;">No slots available for the selected booking window.</div>
+          <div class="appointment-slots-status" aria-live="polite"></div>
+          <input type="hidden" id="${field.id}" name="${field.name}"${required}>
+      </div>`;
+      break;
+    }
     case 'conditional':
     case 'dependent':
       inputHtml = `<input type="text" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${condAttrs}${defaultVal} class="form-input${cssClass}">`;
@@ -341,18 +386,23 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     case 'tel':
       inputHtml = `<div class="phone-input-group${cssClass}"${condAttrs}>
         <select id="${field.id}_code" class="form-input country-code-select" onchange="updatePhoneValue('${field.id}')">
-          <option value="+91" selected>🇮🇳 +91</option>
-          <option value="+1">🇺🇸 +1</option>
-          <option value="+44">🇬🇧 +44</option>
-          <option value="+971">🇦🇪 +971</option>
-          <option value="+65">🇸🇬 +65</option>
-          <option value="+63">🇵🇭 +63</option>
-          <option value="+33">🇫🇷 +33</option>
-          <option value="+49">🇩🇪 +49</option>
-          <option value="+81">🇯🇵 +81</option>
-          <option value="+86">🇨🇳 +86</option>
-          <option value="+61">🇦🇺 +61</option>
-          <option value="+34">🇪🇸 +34</option>
+          <option value="+91" selected>India (+91)</option>
+          <option value="+1">United States (+1)</option>
+          <option value="+44">United Kingdom (+44)</option>
+          <option value="+971">United Arab Emirates (+971)</option>
+          <option value="+65">Singapore (+65)</option>
+          <option value="+63">Philippines (+63)</option>
+          <option value="+33">France (+33)</option>
+          <option value="+49">Germany (+49)</option>
+          <option value="+81">Japan (+81)</option>
+          <option value="+86">China (+86)</option>
+          <option value="+61">Australia (+61)</option>
+          <option value="+34">Spain (+34)</option>
+          <option value="+60">Malaysia (+60)</option>
+          <option value="+966">Saudi Arabia (+966)</option>
+          <option value="+974">Qatar (+974)</option>
+          <option value="+31">Netherlands (+31)</option>
+          <option value="+41">Switzerland (+41)</option>
         </select>
         <input type="tel" id="${field.id}_number" name="${field.name}_raw"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || 'Phone number')}"${minLen}${maxLen}${pattern}${autocomplete} class="form-input phone-number-input" oninput="updatePhoneValue('${field.id}')">
         <input type="hidden" id="${field.id}" name="${field.name}">
@@ -724,7 +774,7 @@ function generateWebhookScript(config: FormConfig): string {
             var submitBtn = this.querySelector('.submit-btn');
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
             var formData = new FormData(this);
-            formData.delete('phoneNumber_raw');
+            Array.from(formData.keys()).forEach(function(k) { if (k.endsWith('_raw')) formData.delete(k); });
             var baseData = Object.fromEntries(formData);
             var data = baseData;
             console.log('Form submitted:', baseData);${pixelEvents}
@@ -743,8 +793,8 @@ function generateWebhookScript(config: FormConfig): string {
             submitBtn.textContent = 'Submitting...';
 
             var formData = new FormData(this);
-            // Remove raw phone input, keep the combined one
-            formData.delete('phoneNumber_raw');
+            // Remove raw shadow inputs, keep combined hidden values
+            Array.from(formData.keys()).forEach(function(k) { if (k.endsWith('_raw')) formData.delete(k); });
             var baseData = Object.fromEntries(formData);
             ${dataBuilder}
 
@@ -1292,6 +1342,284 @@ function generateMomenceSessionsScript(config: FormConfig): string {
           });
         })();`;}
 
+function generateEmailOtpScript(config: FormConfig): string {
+  const hasEmailOtp = config.fields.some(f => f.type === 'email-otp');
+  if (!hasEmailOtp) return '';
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+
+  return `
+        (function () {
+          var OTP_URL = '${supabaseUrl}/functions/v1/send-email-otp';
+
+          function status(el, text, isError) {
+            if (!el) return;
+            el.textContent = text || '';
+            el.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+          }
+
+          function bindEmailOtp(wrap) {
+            var emailInput = wrap.querySelector('.email-otp-email');
+            var otpInput = wrap.querySelector('.email-otp-code');
+            var sendBtn = wrap.querySelector('.email-otp-send-btn');
+            var verifyBtn = wrap.querySelector('.email-otp-verify-btn');
+            var statusEl = wrap.querySelector('.email-otp-status');
+            var hidden = wrap.querySelector('input[type=\"hidden\"]');
+
+            function clearVerification() {
+              wrap.dataset.currentOtp = '';
+              wrap.dataset.otpExpiryAt = '';
+              wrap.dataset.verified = '';
+              if (hidden) hidden.value = '';
+            }
+
+            emailInput.addEventListener('input', clearVerification);
+
+            sendBtn.addEventListener('click', function () {
+              var email = (emailInput.value || '').trim();
+              if (!email) {
+                status(statusEl, 'Enter an email address first.', true);
+                return;
+              }
+
+              var token = wrap.dataset.mailtrapToken || '';
+              if (!token) {
+                status(statusEl, 'Missing Mailtrap token in field settings.', true);
+                return;
+              }
+
+              sendBtn.disabled = true;
+              sendBtn.textContent = 'Sending...';
+              status(statusEl, 'Sending OTP…', false);
+
+              fetch(OTP_URL, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'apikey': '${supabaseAnonKey}',
+                  'Authorization': 'Bearer ${supabaseAnonKey}'
+                },
+                body: JSON.stringify({
+                  to: email,
+                  fromEmail: wrap.dataset.fromEmail || 'hello@physique57india.com',
+                  fromName: wrap.dataset.fromName || 'Physique 57 India',
+                  subject: wrap.dataset.subject || 'Your verification code',
+                  otpLength: Number(wrap.dataset.otpLength || '6'),
+                  mailtrapToken: token,
+                  expiryMinutes: Number(wrap.dataset.otpExpiry || '10')
+                })
+              })
+                .then(function (res) { return res.json(); })
+                .then(function (payload) {
+                  if (!payload || !payload.success || !payload.otp) {
+                    throw new Error((payload && payload.error) || 'OTP send failed');
+                  }
+                  wrap.dataset.currentOtp = String(payload.otp);
+                  wrap.dataset.otpExpiryAt = String(Date.now() + Number(wrap.dataset.otpExpiry || '10') * 60000);
+                  wrap.dataset.verified = '';
+                  if (hidden) hidden.value = '';
+                  status(statusEl, 'OTP sent. Check your email and enter it below.', false);
+                })
+                .catch(function (err) {
+                  status(statusEl, err && err.message ? err.message : 'Failed to send OTP.', true);
+                })
+                .finally(function () {
+                  sendBtn.disabled = false;
+                  sendBtn.textContent = wrap.dataset.sendLabel || 'Send OTP';
+                });
+            });
+
+            verifyBtn.addEventListener('click', function () {
+              var entered = (otpInput.value || '').trim();
+              var expected = wrap.dataset.currentOtp || '';
+              var expiresAt = Number(wrap.dataset.otpExpiryAt || '0');
+
+              if (!expected) {
+                status(statusEl, 'Send OTP first.', true);
+                return;
+              }
+              if (!entered) {
+                status(statusEl, 'Enter the OTP code.', true);
+                return;
+              }
+              if (Date.now() > expiresAt) {
+                clearVerification();
+                status(statusEl, 'OTP expired. Please request a new code.', true);
+                return;
+              }
+              if (entered !== expected) {
+                status(statusEl, 'Invalid OTP. Please try again.', true);
+                return;
+              }
+
+              wrap.dataset.verified = 'true';
+              if (hidden) hidden.value = (emailInput.value || '').trim();
+              status(statusEl, 'Email verified successfully.', false);
+            });
+          }
+
+          document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-email-otp=\"true\"]').forEach(bindEmailOtp);
+
+            var form = document.getElementById('generated-form');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+              var groups = document.querySelectorAll('[data-email-otp=\"true\"]');
+              for (var i = 0; i < groups.length; i++) {
+                var g = groups[i];
+                var hidden = g.querySelector('input[type=\"hidden\"]');
+                var verified = g.dataset.verified === 'true';
+                if (hidden && !verified) {
+                  e.preventDefault();
+                  status(g.querySelector('.email-otp-status'), 'Please verify your email before submitting.', true);
+                  return;
+                }
+              }
+            });
+          });
+        })();`;
+}
+
+function generateAppointmentSlotsScript(config: FormConfig): string {
+  const hasAppointmentSlots = config.fields.some(f => f.type === 'appointment-slots');
+  if (!hasAppointmentSlots) return '';
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
+
+  return `
+        (function () {
+          function parseJson(v, fallback) {
+            try { return JSON.parse(v); } catch(e) { return fallback; }
+          }
+
+          function fmtDateTime(slot) {
+            return [slot.date, slot.startTime].filter(Boolean).join(' · ');
+          }
+
+          function isWithinWindow(wrap, slot) {
+            var start = wrap.dataset.bookingStart;
+            var end = wrap.dataset.bookingEnd;
+            if (!slot.date) return true;
+            if (start && slot.date < start) return false;
+            if (end && slot.date > end) return false;
+            return true;
+          }
+
+          function hasStopped(wrap) {
+            var stop = wrap.dataset.stopBookingsAt;
+            if (!stop) return false;
+            var dt = new Date(stop);
+            return Date.now() > dt.getTime();
+          }
+
+          function loadSubmissionCounts(fieldName) {
+            return fetch('${supabaseUrl}/rest/v1/form_submissions?select=data&form_id=eq.${escapeHtml(config.id)}', {
+              headers: {
+                'apikey': '${supabaseAnonKey}',
+                'Authorization': 'Bearer ${supabaseAnonKey}'
+              }
+            })
+              .then(function (res) { return res.ok ? res.json() : []; })
+              .then(function (rows) {
+                var counts = {};
+                (rows || []).forEach(function (row) {
+                  var data = row && row.data ? row.data : {};
+                  var val = data[fieldName];
+                  if (!val) return;
+                  counts[val] = (counts[val] || 0) + 1;
+                });
+                return counts;
+              })
+              .catch(function () { return {}; });
+          }
+
+          function bindAppointmentField(wrap) {
+            var fieldName = wrap.dataset.fieldName || '';
+            var slots = parseJson(wrap.dataset.slots || '[]', []);
+            var list = wrap.querySelector('.appointment-slots-list');
+            var empty = wrap.querySelector('.appointment-slots-empty');
+            var status = wrap.querySelector('.appointment-slots-status');
+            var hidden = wrap.querySelector('input[type=\"hidden\"]');
+
+            if (!fieldName || !list || !hidden) return;
+
+            if (hasStopped(wrap)) {
+              list.innerHTML = '';
+              empty.style.display = '';
+              status.textContent = 'Bookings are closed for this form.';
+              return;
+            }
+
+            loadSubmissionCounts(fieldName).then(function (counts) {
+              list.innerHTML = '';
+              var visible = 0;
+
+              slots.forEach(function (slot) {
+                if (!isWithinWindow(wrap, slot)) return;
+                visible++;
+                var booked = counts[slot.id] || 0;
+                var remaining = Math.max(0, Number(slot.maxBookings || 0) - booked);
+                var soldOut = remaining <= 0;
+
+                var row = document.createElement('label');
+                row.className = 'appointment-slot-option' + (soldOut ? ' soldout' : '');
+
+                var input = document.createElement('input');
+                input.type = 'radio';
+                input.name = fieldName + '_picker';
+                input.value = slot.id;
+                input.disabled = soldOut;
+                input.addEventListener('change', function () {
+                  hidden.value = slot.id;
+                  status.textContent = soldOut ? 'This slot is sold out.' : '';
+                });
+
+                var main = document.createElement('div');
+                main.className = 'appointment-slot-main';
+                main.innerHTML = '<div class=\"appointment-slot-title\">' + (slot.className || 'Session') + ' · ' + (slot.teacherName || 'Instructor') + '</div>' +
+                  '<div class=\"appointment-slot-meta\">' + fmtDateTime(slot) + ' · ' + (slot.durationMinutes || 0) + ' mins · ' + ((slot.sessionType || 'group') === 'group' ? 'Group' : 'Personal') + '</div>';
+
+                var cap = document.createElement('div');
+                cap.className = 'appointment-slot-capacity';
+                cap.textContent = soldOut ? 'Sold out' : (remaining + ' slots left');
+
+                row.appendChild(input);
+                row.appendChild(main);
+                row.appendChild(cap);
+                list.appendChild(row);
+              });
+
+              if (!visible) {
+                empty.style.display = '';
+              } else {
+                empty.style.display = 'none';
+              }
+            });
+          }
+
+          document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('[data-appointment-slots=\"true\"]').forEach(bindAppointmentField);
+            var form = document.getElementById('generated-form');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+              var groups = document.querySelectorAll('[data-appointment-slots=\"true\"]');
+              for (var i = 0; i < groups.length; i++) {
+                var g = groups[i];
+                var hidden = g.querySelector('input[type=\"hidden\"]');
+                var status = g.querySelector('.appointment-slots-status');
+                if (hidden && !hidden.value) {
+                  e.preventDefault();
+                  if (status) status.textContent = 'Please choose an available appointment slot.';
+                  return;
+                }
+              }
+            });
+          });
+        })();`;
+}
+
 function generateSheetsSubmitScript(config: FormConfig): string {
   const { googleSheetsConfig } = config;
   if (!googleSheetsConfig.enabled || !googleSheetsConfig.spreadsheetId) return '';
@@ -1392,25 +1720,18 @@ function getLayoutGridCss(layout: string, fieldGap = '16px'): string {
 function generateLayoutCss(config: FormConfig): string {
   const layout = config.layout ?? 'classic';
   if (layout === 'classic') return '';
-
-  const imgFit = config.layoutImageFit || 'cover';
-
-  // Map named fit options to CSS background-size + background-repeat
-  const FIT_MAP: Record<string, { size: string; repeat: string }> = {
-    'cover':    { size: 'cover',      repeat: 'no-repeat' },
-    'contain':  { size: 'contain',    repeat: 'no-repeat' },
-    'fill':     { size: '100% 100%',  repeat: 'no-repeat' },
-    'natural':  { size: 'auto',       repeat: 'no-repeat' },
-    'zoom-in':  { size: '130%',       repeat: 'no-repeat' },
-    'zoom-out': { size: '70%',        repeat: 'no-repeat' },
-    'tile':     { size: 'auto',       repeat: 'repeat'    },
-  };
-  const { size: bgSize, repeat: bgRepeat } = FIT_MAP[imgFit] ?? FIT_MAP['cover'];
-  // Page 0 hero image overrides the global layout image for the initial panel render
-  const initImg = config.pageHeroImages?.[0] ?? config.layoutImageUrl ?? '';
-  const imgSrc = initImg ? `url('${initImg}')` : 'none';
-  const posX = config.layoutImagePositionX ?? '50';
-  const posY = config.layoutImagePositionY ?? '50';
+  const defaultHeroHeight =
+    layout === 'banner-top'
+      ? 260
+      : layout === 'split-left' || layout === 'split-right'
+        ? 760
+        : 420;
+  const initialHero = getHeroForPage(config, 0, { defaultHeight: defaultHeroHeight });
+  const { size: bgSize, repeat: bgRepeat } = resolveHeroBackgroundStyle(config.layoutImageFit, initialHero?.zoom ?? 100);
+  const imgSrc = initialHero?.url ? `url('${initialHero.url}')` : 'none';
+  const posX = initialHero?.cropX ?? (config.layoutImagePositionX ?? '50');
+  const posY = initialHero?.cropY ?? (config.layoutImagePositionY ?? '50');
+  const heroHeight = initialHero?.height ?? defaultHeroHeight;
   const imgPanelW = config.layoutImagePanelWidth ?? 45;
   const formPanelW = 100 - imgPanelW;
 
@@ -1429,7 +1750,7 @@ function generateLayoutCss(config: FormConfig): string {
         body.layout-split-right { flex-direction: row-reverse; }
         .layout-image-panel {
             flex: 0 0 ${imgPanelW}%;
-            min-height: 100vh;
+            min-height: ${heroHeight}px;
             position: relative;
             overflow: hidden;
             background-color: #6366f1;
@@ -1444,7 +1765,7 @@ function generateLayoutCss(config: FormConfig): string {
         .layout-form-panel {
             flex: 0 0 ${formPanelW}%;
             min-width: 0;
-            min-height: 100vh;
+            min-height: ${heroHeight}px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
@@ -1464,6 +1785,9 @@ function generateLayoutCss(config: FormConfig): string {
             background: transparent;
             animation: none;
             flex-shrink: 0;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
         }
         body.layout-split-left .form-container::before,
         body.layout-split-right .form-container::before {
@@ -1479,6 +1803,10 @@ function generateLayoutCss(config: FormConfig): string {
             padding-left: 0;
             padding-right: 0;
         }
+        body.layout-split-left .form-body,
+        body.layout-split-right .form-body {
+            flex: 1;
+        }
         body.layout-banner-top {
             flex-direction: column;
             align-items: center;
@@ -1487,7 +1815,7 @@ function generateLayoutCss(config: FormConfig): string {
         }
         .layout-banner {
             width: 100%;
-            height: 260px;
+            height: ${heroHeight}px;
             flex-shrink: 0;
             background-color: #6366f1;
             background-image: ${imgSrc !== 'none' ? imgSrc : 'var(--primary-gradient)'};
@@ -1699,11 +2027,96 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     ? `<div class="page-indicator">${pages.map((_, i) => `<div class="page-dot${i === 0 ? ' active' : ''}" data-dot="${i}"></div>`).join('')}</div>`
     : '';
 
-  const pageHeroMap = JSON.stringify(config.pageHeroImages ?? {});
+  const defaultHeroHeight =
+    config.layout === 'banner-top'
+      ? 260
+      : config.layout === 'split-left' || config.layout === 'split-right'
+        ? 760
+        : 420;
+  const defaultPosX = Number(config.layoutImagePositionX ?? '50');
+  const defaultPosY = Number(config.layoutImagePositionY ?? '50');
+  const fallbackPosX = Number.isFinite(defaultPosX) ? defaultPosX : 50;
+  const fallbackPosY = Number.isFinite(defaultPosY) ? defaultPosY : 50;
+  const normalizedPageHeroEntries = Object.entries(config.pageHeroImages ?? {}).flatMap(([page, value]) => {
+    const hero = normalizeHeroImageValue(value, {
+      fallbackCropX: fallbackPosX,
+      fallbackCropY: fallbackPosY,
+      defaultHeight: defaultHeroHeight,
+    });
+    if (!hero) return [];
+    return [[page, hero] as const];
+  });
+  const pageHeroMap = JSON.stringify(Object.fromEntries(normalizedPageHeroEntries));
   const defaultLayoutImg = config.layoutImageUrl ?? '';
   const multiPageScript = isMultiPage ? `
         var _PAGE_HERO = ${pageHeroMap};
         var _LAYOUT_IMG_DEFAULT = ${JSON.stringify(defaultLayoutImg)};
+        var _LAYOUT_IMG_FIT = ${JSON.stringify(config.layoutImageFit || 'cover')};
+        var _LAYOUT_POS_X = ${fallbackPosX};
+        var _LAYOUT_POS_Y = ${fallbackPosY};
+        var _LAYOUT_DEFAULT_HEIGHT = ${defaultHeroHeight};
+        function _bgSizeForHero(fit, zoom) {
+            var z = Number(zoom || 100);
+            if (!isFinite(z)) z = 100;
+            z = Math.max(50, Math.min(240, z));
+            if (fit === 'tile') return { size: z === 100 ? 'auto' : (z + '%'), repeat: 'repeat' };
+            if (fit === 'fill') return { size: z === 100 ? '100% 100%' : (z + '% ' + z + '%'), repeat: 'no-repeat' };
+            if (fit === 'natural') return { size: z === 100 ? 'auto' : (z + '%'), repeat: 'no-repeat' };
+            if (fit === 'zoom-in') return { size: Math.round(130 * (z / 100)) + '%', repeat: 'no-repeat' };
+            if (fit === 'zoom-out') return { size: Math.round(70 * (z / 100)) + '%', repeat: 'no-repeat' };
+            if (z !== 100) return { size: z + '%', repeat: 'no-repeat' };
+            if (fit === 'contain') return { size: 'contain', repeat: 'no-repeat' };
+            return { size: 'cover', repeat: 'no-repeat' };
+        }
+        function _resolveHero(pageIndex) {
+            var val = _PAGE_HERO[pageIndex];
+            if (val && typeof val === 'object' && val.url) {
+                return {
+                    url: val.url,
+                    cropX: Number(val.cropX ?? _LAYOUT_POS_X),
+                    cropY: Number(val.cropY ?? _LAYOUT_POS_Y),
+                    zoom: Number(val.zoom ?? 100),
+                    height: Number(val.height ?? _LAYOUT_DEFAULT_HEIGHT)
+                };
+            }
+            if (_LAYOUT_IMG_DEFAULT) {
+                return {
+                    url: _LAYOUT_IMG_DEFAULT,
+                    cropX: _LAYOUT_POS_X,
+                    cropY: _LAYOUT_POS_Y,
+                    zoom: 100,
+                    height: _LAYOUT_DEFAULT_HEIGHT
+                };
+            }
+            return null;
+        }
+        function _applyPageHero(pageIndex) {
+            var panel = document.querySelector('.layout-image-panel') ||
+                        document.querySelector('.layout-banner') ||
+                        document.querySelector('.layout-backdrop');
+            if (!panel) return;
+            var hero = _resolveHero(pageIndex);
+            if (!hero || !hero.url) {
+                panel.style.backgroundImage = '';
+                return;
+            }
+            var fit = _bgSizeForHero(_LAYOUT_IMG_FIT, hero.zoom);
+            panel.style.backgroundImage = \"url('\" + hero.url + \"')\";
+            panel.style.backgroundPosition = hero.cropX + '% ' + hero.cropY + '%';
+            panel.style.backgroundSize = fit.size;
+            panel.style.backgroundRepeat = fit.repeat;
+            if (panel.classList.contains('layout-image-panel') || panel.classList.contains('layout-banner')) {
+                var heroHeight = Math.max(180, Math.min(1200, Number(hero.height || _LAYOUT_DEFAULT_HEIGHT)));
+                panel.style.minHeight = heroHeight + 'px';
+                if (panel.classList.contains('layout-banner')) {
+                    panel.style.height = heroHeight + 'px';
+                }
+                var formPanel = document.querySelector('.layout-form-panel');
+                if (formPanel) {
+                    formPanel.style.minHeight = heroHeight + 'px';
+                }
+            }
+        }
         function goToPage(n) {
             var allPages = document.querySelectorAll('.form-page');
             var dots = document.querySelectorAll('.page-dot');
@@ -1711,14 +2124,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             dots.forEach(function(d) { d.classList.remove('active'); });
             allPages[n].classList.add('active');
             dots[n].classList.add('active');
-            // Swap layout panel background to the hero image for this page
-            var heroUrl = _PAGE_HERO[n] || _LAYOUT_IMG_DEFAULT;
-            var panel = document.querySelector('.layout-image-panel') ||
-                        document.querySelector('.layout-banner') ||
-                        document.querySelector('.layout-backdrop');
-            if (panel) {
-                panel.style.backgroundImage = heroUrl ? "url('" + heroUrl + "')" : '';
-            }
+            _applyPageHero(n);
             document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }` : '';
 
@@ -1926,14 +2332,52 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             gap: 8px;
         }
         .country-code-select {
-            width: 110px !important;
+            width: 200px !important;
             flex-shrink: 0;
-            font-size: 14px !important;
+            font-size: 13px !important;
             padding-right: 28px !important;
         }
         .phone-number-input {
             flex: 1;
         }
+        .email-otp-group { display: flex; flex-direction: column; gap: 8px; }
+        .email-otp-row { display: flex; gap: 8px; align-items: stretch; }
+        .email-otp-row .form-input { flex: 1; min-width: 0; }
+        .email-otp-send-btn, .email-otp-verify-btn {
+            border: 0;
+            border-radius: 8px;
+            background: var(--primary-gradient);
+            color: #fff;
+            padding: 0 14px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .email-otp-send-btn:disabled, .email-otp-verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .email-otp-status { min-height: 18px; font-size: 12px; color: var(--text-secondary); }
+        .appointment-slots-group { display: flex; flex-direction: column; gap: 8px; }
+        .appointment-slots-list { display: flex; flex-direction: column; gap: 8px; }
+        .appointment-slot-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+        .appointment-slot-option:hover { border-color: var(--border-focus); background: var(--bg-secondary); }
+        .appointment-slot-option input { width: 16px; height: 16px; accent-color: var(--primary-color); }
+        .appointment-slot-main { flex: 1; min-width: 0; }
+        .appointment-slot-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+        .appointment-slot-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+        .appointment-slot-capacity { font-size: 11px; font-weight: 600; color: var(--primary-color); white-space: nowrap; }
+        .appointment-slot-option.soldout { opacity: 0.55; cursor: not-allowed; }
+        .appointment-slot-option.soldout .appointment-slot-capacity { color: #ef4444; }
+        .appointment-slots-status { min-height: 18px; font-size: 12px; color: var(--text-secondary); }
+        .appointment-slots-empty { font-size: 12px; color: var(--text-secondary); font-style: italic; }
 
         /* Advanced Signature */
         .signature-pad {
@@ -2018,6 +2462,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             .form-header { padding: 24px 20px 8px; }
             .phone-input-group { flex-direction: column; }
             .country-code-select { width: 100% !important; }
+            .email-otp-row { flex-direction: column; }
         }
         ${theme.customCss || ''}
         ${generateAnimationCss(config)}
@@ -2520,6 +2965,8 @@ ${pagesHtml}
         ${generateAnimationScript(config)}
         ${generateMomenceSearchScript(config)}
         ${generateMomenceSessionsScript(config)}
+        ${generateEmailOtpScript(config)}
+        ${generateAppointmentSlotsScript(config)}
     </script>
 </body>
 </html>`;

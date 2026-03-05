@@ -39,6 +39,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { generateFormHtml } from '@/utils/htmlGenerator';
+import { getHeroForPage, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
 
 
 
@@ -59,6 +60,38 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
     switch (field.type) {
       case 'textarea':
         return <textarea className={baseClasses} placeholder={placeholder} required={required} />;
+
+      case 'email-otp':
+        return (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input type="email" className={baseClasses} placeholder={placeholder || 'name@example.com'} required={required} />
+              <button type="button" className="px-3 py-2 text-xs rounded-md border border-border bg-muted whitespace-nowrap">Send OTP</button>
+            </div>
+            <div className="flex gap-2">
+              <input type="text" className={baseClasses} placeholder="Enter OTP" />
+              <button type="button" className="px-3 py-2 text-xs rounded-md border border-border bg-muted whitespace-nowrap">Verify</button>
+            </div>
+          </div>
+        );
+
+      case 'tel':
+        return (
+          <div className="phone-input-group">
+            <select className={`${baseClasses} country-code-select`} defaultValue="+91">
+              <option value="+91">India (+91)</option>
+              <option value="+1">United States (+1)</option>
+              <option value="+44">United Kingdom (+44)</option>
+              <option value="+971">UAE (+971)</option>
+              <option value="+65">Singapore (+65)</option>
+              <option value="+61">Australia (+61)</option>
+              <option value="+49">Germany (+49)</option>
+              <option value="+33">France (+33)</option>
+              <option value="+81">Japan (+81)</option>
+            </select>
+            <input type="tel" className={`${baseClasses} phone-number-input`} placeholder={placeholder || 'Phone number'} required={required} />
+          </div>
+        );
 
       case 'select':
         return (
@@ -394,6 +427,23 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
           </select>
         );
 
+      case 'appointment-slots': {
+        const slots = field.appointmentSlotsConfig?.slots || [];
+        return (
+          <div className="space-y-2">
+            {slots.slice(0, 3).map(slot => (
+              <label key={slot.id} className="radio-option">
+                <input type="radio" name={field.id} value={slot.id} />
+                <span className="text-xs">
+                  <strong>{slot.className}</strong> · {slot.teacherName} · {slot.startTime} · {slot.durationMinutes}m · {slot.maxBookings} seats
+                </span>
+              </label>
+            ))}
+            {slots.length > 3 && <div className="help-text">+{slots.length - 3} more slots</div>}
+          </div>
+        );
+      }
+
       case 'rich-text':
         return (
           <div className="border border-border rounded-md p-3 bg-background min-h-[100px]">
@@ -523,6 +573,7 @@ function CanvasField({
   onDelete,
   onDuplicate,
   insertDropActive,
+  isLocked,
 }: {
   field: FormField;
   formLayout?: string;
@@ -530,9 +581,13 @@ function CanvasField({
   onDelete: (fieldId: string) => void;
   onDuplicate: (fieldId: string) => void;
   insertDropActive: boolean;
+  isLocked?: boolean;
 }) {
   const [hovered, setHovered] = useState(false);
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: field.id,
+    disabled: !!isLocked,
+  });
 
   const colSpan = fieldColSpan(field, formLayout);
   const isLayoutField = field.type === 'section-break' || field.type === 'page-break';
@@ -557,9 +612,9 @@ function CanvasField({
       }`} style={{ padding: isLayoutField ? undefined : '16px 20px 16px 44px' }}>
         {/* Drag handle */}
         <div
-          {...listeners}
-          {...attributes}
-          className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground transition-opacity z-10"
+          {...(!isLocked ? listeners : {})}
+          {...(!isLocked ? attributes : {})}
+          className={`absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity z-10 ${isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
         >
           <GripVertical className="h-4 w-4" />
         </div>
@@ -586,17 +641,26 @@ function CanvasField({
 }
 
 // ── Drop zone (empty canvas or after all fields) ──────────────────────────────
-function DropZone({ onDrop }: { onDrop: (type: FieldType) => void }) {
+function DropZone({ onDrop, isLocked }: { onDrop: (type: FieldType) => void; isLocked?: boolean }) {
   const [over, setOver] = useState(false);
 
   return (
     <div
       className={`col-span-12 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center py-5 gap-2 cursor-default ${
-        over ? 'border-primary bg-primary/5' : 'border-border/50 bg-muted/20'
+        isLocked
+          ? 'border-border/40 bg-muted/10 opacity-70'
+          : over
+            ? 'border-primary bg-primary/5'
+            : 'border-border/50 bg-muted/20'
       }`}
-      onDragOver={e => { e.preventDefault(); setOver(true); }}
+      onDragOver={e => {
+        if (isLocked) return;
+        e.preventDefault();
+        setOver(true);
+      }}
       onDragLeave={() => setOver(false)}
       onDrop={e => {
+        if (isLocked) return;
         e.preventDefault();
         setOver(false);
         const t = e.dataTransfer.getData('palette-field-type') as FieldType;
@@ -605,7 +669,7 @@ function DropZone({ onDrop }: { onDrop: (type: FieldType) => void }) {
     >
       <Plus className={`h-5 w-5 ${over ? 'text-primary' : 'text-muted-foreground/40'}`} />
       <p className={`text-xs font-medium ${over ? 'text-primary' : 'text-muted-foreground/50'}`}>
-        {over ? 'Release to add field' : 'Drag a field here'}
+        {isLocked ? 'Unlock form to add fields' : over ? 'Release to add field' : 'Drag a field here'}
       </p>
     </div>
   );
@@ -617,7 +681,7 @@ interface FormCanvasProps {
   onEdit: (field: FormField) => void;
   onDelete: (fieldId: string) => void;
   onDuplicate: (fieldId: string) => void;
-  onAdd: (type: FieldType) => void;
+  onAdd: (type: FieldType, options?: { openEditor?: boolean; source?: 'drop' | 'click' }) => void;
   onReorder: (orderedIds: string[]) => void;
   isLocked?: boolean;
 }
@@ -632,10 +696,23 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   );
 
   const sortedFields = [...form.fields].sort((a, b) => a.order - b.order);
+  const isSplitLayout = form.layout === 'split-left' || form.layout === 'split-right';
+  const imagePanelWidth = Math.max(20, Math.min(80, form.layoutImagePanelWidth ?? 45));
+  const splitCols =
+    form.layout === 'split-right'
+      ? `minmax(0, 1fr) ${imagePanelWidth}%`
+      : `${imagePanelWidth}% minmax(0, 1fr)`;
+  const panelHero = getHeroForPage(form, 0, { defaultHeight: 760 });
+  const panelHeroBg = resolveHeroBackgroundStyle(form.layoutImageFit, panelHero?.zoom ?? 100);
+  const splitPanelHeight = panelHero?.height ?? 760;
 
-  const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
+  const handleDragStart = (e: DragStartEvent) => {
+    if (isLocked) return;
+    setActiveId(String(e.active.id));
+  };
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    if (isLocked) return;
     const { active, over } = e;
     if (!over || active.id === over.id) return;
     const ids = sortedFields.map(f => f.id);
@@ -648,8 +725,9 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
   // Handle HTML5 drag-from-palette drop anywhere on the canvas
   const handleCanvasDrop = useCallback((type: FieldType) => {
-    onAdd(type);
-  }, [onAdd]);
+    if (isLocked) return;
+    onAdd(type, { openEditor: true, source: 'drop' });
+  }, [isLocked, onAdd]);
 
   const activeField = activeId ? sortedFields.find(f => f.id === activeId) : null;
 
@@ -682,15 +760,20 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
       --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
       --radius: ${form.theme.borderRadius};
+      --form-padding: ${form.theme.formPadding || '32px'};
     }
     .form-canvas-wrapper * { box-sizing: border-box; }
+    .form-canvas-wrapper .form-group {
+      padding: 0 !important;
+      margin: 0 !important;
+      background: transparent !important;
+      border: 0 !important;
+      line-height: ${form.theme.lineHeight || '1.6'};
+    }
     .form-canvas-wrapper .form-fields-grid {
       display: grid;
       ${form.theme.formLayout === 'two-column' ? 'grid-template-columns: repeat(2, 1fr);' : form.theme.formLayout === 'three-column' ? 'grid-template-columns: repeat(3, 1fr);' : 'grid-template-columns: 1fr;'}
       gap: ${form.theme.fieldGap || '16px'};
-    }
-    .form-canvas-wrapper .form-group {
-      line-height: ${form.theme.lineHeight || '1.6'};
     }
     .form-canvas-wrapper .form-group label {
       display: block;
@@ -728,6 +811,9 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       padding-right: 40px;
     }
     .form-canvas-wrapper textarea.form-input { resize: vertical; min-height: 100px; }
+    .form-canvas-wrapper .phone-input-group { display: flex; gap: 10px; }
+    .form-canvas-wrapper .country-code-select { width: 170px !important; font-size: 13px !important; }
+    .form-canvas-wrapper .phone-number-input { flex: 1; min-width: 0; }
     .form-canvas-wrapper .help-text { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
     .form-canvas-wrapper .radio-group, .form-canvas-wrapper .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
     .form-canvas-wrapper .radio-option, .form-canvas-wrapper .checkbox-option {
@@ -798,22 +884,51 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
           <div className="p-4">
             {/* Form card */}
             <div
-              className="w-full rounded-xl overflow-hidden bg-card shadow-xl form-canvas-wrapper"
-              style={{ maxWidth: form.theme.formMaxWidth || '100%', lineHeight: form.theme.lineHeight || '1.6' }}
-              onDragOver={e => e.preventDefault()}
-              onDrop={e => {
-                e.preventDefault();
-                const t = e.dataTransfer.getData('palette-field-type') as FieldType;
-                if (t) handleCanvasDrop(t);
-              }}
+              className={`w-full rounded-xl overflow-hidden bg-card shadow-xl ${isSplitLayout ? 'md:grid' : ''}`}
+              style={isSplitLayout ? { gridTemplateColumns: splitCols, minHeight: `${splitPanelHeight}px` } : undefined}
             >
+              {isSplitLayout && (
+                <div
+                  className="min-h-[320px] bg-slate-200"
+                  style={{
+                    minHeight: `${splitPanelHeight}px`,
+                    backgroundImage: panelHero?.url ? `url(${panelHero.url})` : undefined,
+                    backgroundSize: panelHeroBg.size,
+                    backgroundPosition: `${panelHero?.cropX ?? form.layoutImagePositionX ?? '50'}% ${panelHero?.cropY ?? form.layoutImagePositionY ?? '50'}%`,
+                    backgroundRepeat: panelHeroBg.repeat,
+                  }}
+                />
+              )}
+              <div
+                className="w-full form-canvas-wrapper"
+                style={{
+                  maxWidth: isSplitLayout ? '100%' : form.theme.formMaxWidth || '100%',
+                  lineHeight: form.theme.lineHeight || '1.6',
+                  minHeight: isSplitLayout ? `${splitPanelHeight}px` : undefined,
+                }}
+                onDragOver={e => {
+                  if (isLocked) return;
+                  e.preventDefault();
+                }}
+                onDrop={e => {
+                  if (isLocked) return;
+                  e.preventDefault();
+                  const t = e.dataTransfer.getData('palette-field-type') as FieldType;
+                  if (t) handleCanvasDrop(t);
+                }}
+              >
               {/* Top accent bar */}
               <div className="h-1" style={{ background: primaryGradient }} />
 
               {/* Header */}
               <div
-                className="px-8 pt-8 pb-6 bg-muted"
-                style={{ textAlign: (form.theme.headerAlign || 'center') as any, borderBottom: `1px solid ${form.theme.inputBorderColor}` }}
+                className="pt-8 pb-6 bg-muted"
+                style={{
+                  paddingLeft: 'var(--form-padding)',
+                  paddingRight: 'var(--form-padding)',
+                  textAlign: (form.theme.headerAlign || 'center') as any,
+                  borderBottom: `1px solid ${form.theme.inputBorderColor}`,
+                }}
               >
                 {form.theme.showLogo && form.theme.logoUrl && (
                   <img
@@ -829,7 +944,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
               </div>
 
               {/* Fields */}
-              <div className="px-8 pb-8">
+              <div style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: 'var(--form-padding)' }}>
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -846,6 +961,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                           key={field.id}
                           field={field}
                           formLayout={form.theme.formLayout}
+                          isLocked={isLocked}
                           onEdit={(field) => onEdit(field)}
                           onDelete={(fieldId) => setPendingDeleteId(fieldId)}
                           onDuplicate={(fieldId) => onDuplicate(fieldId)}
@@ -854,7 +970,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                       ))}
 
                       {/* Drop zone always visible at the bottom */}
-                      <DropZone onDrop={handleCanvasDrop} />
+                      <DropZone onDrop={handleCanvasDrop} isLocked={isLocked} />
                     </div>
                   </SortableContext>
 
@@ -870,7 +986,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
               </div>
 
               {/* Submit button */}
-              <div className="px-8 pb-8 pt-2">
+              <div style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: 'var(--form-padding)', paddingTop: '8px' }}>
                 <button
                   type="button"
                   className="w-full rounded-lg py-3 px-6 text-sm font-semibold text-white cursor-default leading-snug transition-all hover:opacity-90"
@@ -882,10 +998,11 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
               {/* Footer */}
               {form.footer && (
-                <div className="px-8 pb-6 border-t border-border/40 pt-4 text-center">
+                <div className="border-t border-border/40 pt-4 text-center" style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: '24px' }}>
                   <p className="text-xs text-muted-foreground leading-relaxed">{form.footer}</p>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </ScrollArea>

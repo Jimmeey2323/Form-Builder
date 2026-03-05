@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentSlot, EmailOtpConfig } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -52,6 +52,8 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const isAdvanced = ['lookup', 'formula', 'conditional', 'dependent'].includes(draft.type || field.type);
   const isMomenceSearch  = (draft.type || field.type) === 'member-search';
   const isMomenceSession = (draft.type || field.type) === 'momence-sessions';
+  const isAppointmentSlots = (draft.type || field.type) === 'appointment-slots';
+  const isEmailOtp = (draft.type || field.type) === 'email-otp';
 
   const updateSession = (key: keyof MomenceSessionsConfig, value: any) => {
     update('momenceSessionsConfig', {
@@ -65,6 +67,46 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
       ...(draft.momenceSearchConfig || { hostId: 33905 }),
       [key]: value,
     });
+  };
+
+  const updateAppointment = (updates: Partial<AppointmentSlotsConfig>) => {
+    const existing = draft.appointmentSlotsConfig || { slots: [] };
+    update('appointmentSlotsConfig', { ...existing, ...updates });
+  };
+
+  const updateEmailOtp = (updates: Partial<EmailOtpConfig>) => {
+    const existing = draft.emailOtpConfig || {};
+    update('emailOtpConfig', { ...existing, ...updates });
+  };
+
+  const addAppointmentSlot = () => {
+    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const nextIndex = (current.slots?.length || 0) + 1;
+    const slot: AppointmentSlot = {
+      id: `slot_${Date.now()}_${nextIndex}`,
+      className: `Session ${nextIndex}`,
+      teacherName: 'Instructor',
+      sessionType: 'group',
+      date: new Date().toISOString().slice(0, 10),
+      startTime: '09:00',
+      durationMinutes: 45,
+      maxBookings: 10,
+    };
+    updateAppointment({ slots: [...(current.slots || []), slot] });
+  };
+
+  const updateAppointmentSlot = (index: number, updates: Partial<AppointmentSlot>) => {
+    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const slots = [...(current.slots || [])];
+    slots[index] = { ...slots[index], ...updates };
+    updateAppointment({ slots });
+  };
+
+  const removeAppointmentSlot = (index: number) => {
+    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const slots = [...(current.slots || [])];
+    slots.splice(index, 1);
+    updateAppointment({ slots });
   };
 
   const addOption = () => {
@@ -191,6 +233,8 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               <TabsTrigger value="style">Style</TabsTrigger>
               {isMomenceSearch  && <TabsTrigger value="momence">Momence</TabsTrigger>}
               {isMomenceSession && <TabsTrigger value="sessions">Sessions</TabsTrigger>}
+              {isAppointmentSlots && <TabsTrigger value="appointments">Appointments</TabsTrigger>}
+              {isEmailOtp && <TabsTrigger value="verification">Verification</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
@@ -829,6 +873,182 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 <Input value={draft.cssClass || ''} onChange={e => update('cssClass', e.target.value)} placeholder="custom-class" />
               </div>
             </TabsContent>
+
+            {isAppointmentSlots && (
+              <TabsContent value="appointments" className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Configure booking windows and available appointment slots.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Booking Start Date</Label>
+                    <Input
+                      type="date"
+                      value={draft.appointmentSlotsConfig?.bookingStartDate || ''}
+                      onChange={e => updateAppointment({ bookingStartDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Booking End Date</Label>
+                    <Input
+                      type="date"
+                      value={draft.appointmentSlotsConfig?.bookingEndDate || ''}
+                      onChange={e => updateAppointment({ bookingEndDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Stop Bookings At</Label>
+                    <Input
+                      type="datetime-local"
+                      value={draft.appointmentSlotsConfig?.stopBookingsAt || ''}
+                      onChange={e => updateAppointment({ stopBookingsAt: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Timezone</Label>
+                    <Input
+                      value={draft.appointmentSlotsConfig?.timezone || 'Asia/Kolkata'}
+                      onChange={e => updateAppointment({ timezone: e.target.value })}
+                      placeholder="Asia/Kolkata"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Time Slots</Label>
+                    <Button variant="outline" size="sm" onClick={addAppointmentSlot}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Slot
+                    </Button>
+                  </div>
+                  {(draft.appointmentSlotsConfig?.slots || []).map((slot, i) => (
+                    <div key={slot.id || i} className="rounded-lg border p-3 space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          value={slot.className}
+                          onChange={e => updateAppointmentSlot(i, { className: e.target.value })}
+                          placeholder="Class Name"
+                        />
+                        <Input
+                          value={slot.teacherName}
+                          onChange={e => updateAppointmentSlot(i, { teacherName: e.target.value })}
+                          placeholder="Teacher Name"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <Input
+                          type="date"
+                          value={slot.date}
+                          onChange={e => updateAppointmentSlot(i, { date: e.target.value })}
+                        />
+                        <Input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={e => updateAppointmentSlot(i, { startTime: e.target.value })}
+                        />
+                        <Input
+                          type="number"
+                          min={5}
+                          value={slot.durationMinutes}
+                          onChange={e => updateAppointmentSlot(i, { durationMinutes: Number(e.target.value) || 0 })}
+                          placeholder="Duration"
+                        />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={slot.maxBookings}
+                          onChange={e => updateAppointmentSlot(i, { maxBookings: Number(e.target.value) || 1 })}
+                          placeholder="Max Seats"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={slot.sessionType}
+                          onValueChange={v => updateAppointmentSlot(i, { sessionType: v as 'group' | 'personal' })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="group">Group Session</SelectItem>
+                            <SelectItem value="personal">Personal Session</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeAppointmentSlot(i)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            )}
+
+            {isEmailOtp && (
+              <TabsContent value="verification" className="space-y-4 mt-4">
+                <p className="text-sm text-muted-foreground">
+                  Configure OTP email verification (Mailtrap SMTP token).
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>From Name</Label>
+                    <Input
+                      value={draft.emailOtpConfig?.fromName || ''}
+                      onChange={e => updateEmailOtp({ fromName: e.target.value })}
+                      placeholder="Physique 57 India"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>From Email</Label>
+                    <Input
+                      type="email"
+                      value={draft.emailOtpConfig?.fromEmail || ''}
+                      onChange={e => updateEmailOtp({ fromEmail: e.target.value })}
+                      placeholder="hello@physique57india.com"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Mailtrap API Token</Label>
+                  <Input
+                    type="password"
+                    value={draft.emailOtpConfig?.mailtrapToken || ''}
+                    onChange={e => updateEmailOtp({ mailtrapToken: e.target.value })}
+                    placeholder="Paste token used for SMTP authentication"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Email Subject</Label>
+                  <Input
+                    value={draft.emailOtpConfig?.subject || ''}
+                    onChange={e => updateEmailOtp({ subject: e.target.value })}
+                    placeholder="Your verification code"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>OTP Length</Label>
+                    <Input
+                      type="number"
+                      min={4}
+                      max={8}
+                      value={draft.emailOtpConfig?.otpLength ?? 6}
+                      onChange={e => updateEmailOtp({ otpLength: Number(e.target.value) || 6 })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>OTP Expiry (min)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={draft.emailOtpConfig?.otpExpiryMinutes ?? 10}
+                      onChange={e => updateEmailOtp({ otpExpiryMinutes: Number(e.target.value) || 10 })}
+                    />
+                  </div>
+                </div>
+              </TabsContent>
+            )}
 
             {isMomenceSearch && (
               <TabsContent value="momence" className="space-y-5 mt-4">

@@ -42,6 +42,7 @@ import {
   Mail,
   Minus,
   Users,
+  ShieldCheck,
 } from 'lucide-react';
 
 const iconClass = 'h-4 w-4';
@@ -49,6 +50,7 @@ const iconClass = 'h-4 w-4';
 export const FIELD_ICONS: Record<FieldType, ReactNode> = {
   text: <Heading className={iconClass} />,
   email: <Mail className={iconClass} />,
+  'email-otp': <ShieldCheck className={iconClass} />,
   tel: <Phone className={iconClass} />,
   number: <Hash className={iconClass} />,
   url: <Link2 className={iconClass} />,
@@ -100,4 +102,5 @@ export const FIELD_ICONS: Record<FieldType, ReactNode> = {
   'social-links': <Share2 className={iconClass} />,
   'member-search': <Users className={iconClass} />,
   'momence-sessions': <CalendarDays className={iconClass} />,
+  'appointment-slots': <CalendarDays className={iconClass} />,
 } as Record<FieldType, ReactNode>;

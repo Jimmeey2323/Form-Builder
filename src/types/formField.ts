@@ -1,6 +1,7 @@
 export type FieldType =
   | 'text'
   | 'email'
+  | 'email-otp'
   | 'tel'
   | 'number'
   | 'url'
@@ -52,7 +53,8 @@ export type FieldType =
   | 'pdf-viewer'
   | 'social-links'
   | 'member-search'
-  | 'momence-sessions';
+  | 'momence-sessions'
+  | 'appointment-slots';
 
 export interface FieldOption {
   label: string;
@@ -223,6 +225,36 @@ export interface MomenceSessionsConfig {
   autoFillTeacherEmail?: string;
 }
 
+export interface AppointmentSlot {
+  id: string;
+  className: string;
+  teacherName: string;
+  sessionType: 'group' | 'personal';
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  maxBookings: number;
+}
+
+export interface AppointmentSlotsConfig {
+  timezone?: string;
+  bookingStartDate?: string;
+  bookingEndDate?: string;
+  stopBookingsAt?: string;
+  slots: AppointmentSlot[];
+}
+
+export interface EmailOtpConfig {
+  fromName?: string;
+  fromEmail?: string;
+  mailtrapToken?: string;
+  otpLength?: number;
+  otpExpiryMinutes?: number;
+  subject?: string;
+  sendButtonText?: string;
+  verifyButtonText?: string;
+}
+
 export interface FormField {
   id: string;
   name: string;
@@ -256,6 +288,8 @@ export interface FormField {
   formulaConfig?: FormulaConfig;
   momenceSearchConfig?: MomenceSearchConfig;
   momenceSessionsConfig?: MomenceSessionsConfig;
+  appointmentSlotsConfig?: AppointmentSlotsConfig;
+  emailOtpConfig?: EmailOtpConfig;
   dependsOnFieldId?: string;
   /** Filters the visible options of this select/radio/checkbox based on another field's value */
   dependentOptionsConfig?: DependentOptionsConfig;
@@ -381,6 +415,21 @@ export interface FormAnimations {
   staggerDelay?: number;
 }
 
+export interface HeroImageConfig {
+  /** Image URL for this page hero slot */
+  url: string;
+  /** Horizontal focal point (0-100) */
+  cropX?: number;
+  /** Vertical focal point (0-100) */
+  cropY?: number;
+  /** Zoom percentage (100 = default) */
+  zoom?: number;
+  /** Hero/image panel height in px */
+  height?: number;
+}
+
+export type PageHeroImageValue = string | HeroImageConfig;
+
 export interface FormConfig {
   id: string;
   title: string;
@@ -416,8 +465,8 @@ export interface FormConfig {
   googleSheetsConfig: GoogleSheetsConfig;
   /** The last successfully deployed Vercel URL for this form */
   deployedUrl?: string;
-  /** Per-page hero image URLs — key = page index (0-based) */
-  pageHeroImages?: Record<number, string>;
+  /** Per-page hero image settings — key = page index (0-based) */
+  pageHeroImages?: Record<number, PageHeroImageValue>;
   /** Domain of the existing Vercel project to deploy to (e.g. mysite.vercel.app or mycustomdomain.com) */
   vercelProjectDomain?: string;
   /** Whether the form is locked to prevent edits */
@@ -426,6 +475,8 @@ export interface FormConfig {
   isTemplate?: boolean;
   /** If true, live/published forms are locked by default */
   isPublished?: boolean;
+  /** Publication lifecycle state */
+  publicationState?: 'draft' | 'published';
   createdAt: string;
   updatedAt: string;
 }
@@ -455,6 +506,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'star-rating': 'Star Rating',
   'opinion-scale': 'Opinion Scale',
   email: 'Email Input',
+  'email-otp': 'Email + OTP Verification',
   tel: 'Phone Number',
   address: 'Address',
   number: 'Number',
@@ -472,6 +524,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'social-links': 'Social Media Links',
   'member-search': 'Member Search (Momence)',
   'momence-sessions': 'Sessions Picker (Momence)',
+  'appointment-slots': 'Appointment Time Slots',
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
   divider: 'Divider',
@@ -491,9 +544,9 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Display Text': ['heading', 'paragraph', 'banner'],
   'Text': ['text', 'textarea', 'rich-text'],
   'Choices': ['select', 'picture-choice', 'multiselect', 'switch', 'multiple-choice', 'checkbox', 'checkboxes', 'choice-matrix'],
-  'Time': ['date', 'datetime-local', 'time', 'date-range'],
+  'Time': ['date', 'datetime-local', 'time', 'date-range', 'appointment-slots'],
   'Rating & Ranking': ['rating', 'ranking', 'star-rating', 'range', 'opinion-scale'],
-  'Contact Info': ['email', 'tel', 'address'],
+  'Contact Info': ['email', 'email-otp', 'tel', 'address'],
   'Number': ['number', 'currency'],
   'Miscellaneous': ['url', 'color', 'password', 'file', 'signature', 'voice-recording', 'submission-picker', 'subform'],
   'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'spacer', 'html-snippet', 'page-break', 'hidden'],
@@ -575,6 +628,48 @@ export function createDefaultField(type: FieldType, order: number): FormField {
       autoFillLateCancelled: '',
       autoFillHomeLocation: '',
       autoFillTags: '',
+    };
+  }
+
+  if (type === 'appointment-slots') {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const defaultDate = `${yyyy}-${mm}-${dd}`;
+    base.label = 'Choose an Appointment Slot';
+    base.appointmentSlotsConfig = {
+      timezone: 'Asia/Kolkata',
+      bookingStartDate: defaultDate,
+      bookingEndDate: defaultDate,
+      slots: [
+        {
+          id: `slot_${Date.now()}_1`,
+          className: 'Signature Experience',
+          teacherName: 'Lead Instructor',
+          sessionType: 'group',
+          date: defaultDate,
+          startTime: '09:00',
+          durationMinutes: 45,
+          maxBookings: 10,
+        },
+      ],
+    };
+  }
+
+  if (type === 'email-otp') {
+    base.label = 'Email Verification';
+    base.name = 'verifiedEmail';
+    base.placeholder = 'name@example.com';
+    base.emailOtpConfig = {
+      fromName: 'Physique 57 India',
+      fromEmail: 'hello@physique57india.com',
+      mailtrapToken: import.meta.env.VITE_MAILTRAP_API_TOKEN || '',
+      otpLength: 6,
+      otpExpiryMinutes: 10,
+      subject: 'Your verification code',
+      sendButtonText: 'Send OTP',
+      verifyButtonText: 'Verify OTP',
     };
   }
 

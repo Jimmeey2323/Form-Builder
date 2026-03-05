@@ -139,8 +139,8 @@ const Index = () => {
 
   // Sync persisted deploy URL when the active form changes
   useEffect(() => {
-    setDeployUrl(activeForm?.deployedUrl ?? null);
-  }, [activeForm?.id]);
+    setDeployUrl(isFormPublished(activeForm) ? (activeForm?.deployedUrl ?? null) : null);
+  }, [activeForm?.id, activeForm?.publicationState, activeForm?.deployedUrl]);
 
   // Activate a specific form when navigated from dashboard via ?formId=
   useEffect(() => {
@@ -157,6 +157,8 @@ const Index = () => {
   const [templateDescription, setTemplateDescription] = useState('');
   const [copiedFormSettings, setCopiedFormSettings] = useState<Partial<FormConfig> | null>(null);
   const [aiFormDescription, setAiFormDescription] = useState('');
+  const isFormPublished = (form?: FormConfig | null) =>
+    !!form && form.publicationState === 'published' && !!form.deployedUrl;
 
   const handleDeploy = async () => {
     if (!activeForm) return;
@@ -179,7 +181,8 @@ const Index = () => {
         updateForm(activeForm.id, { 
           deployedUrl: data.url,
           isLocked: true,
-          isPublished: true
+          isPublished: true,
+          publicationState: 'published',
         });
         toast.success(`Form deployed successfully and locked! Live at: ${data.url}`);
       }
@@ -189,6 +192,25 @@ const Index = () => {
     } finally {
       setDeploying(false);
     }
+  };
+
+  const handleSaveAsDraft = () => {
+    if (!activeForm) return;
+    const ok = updateForm(
+      activeForm.id,
+      {
+        isPublished: false,
+        isLocked: false,
+        publicationState: 'draft',
+      },
+      { force: true },
+    );
+    if (!ok) {
+      toast.error('Unable to save draft');
+      return;
+    }
+    setDeployUrl(null);
+    toast.success('Draft saved');
   };
 
   // Copy form functionality
@@ -201,6 +223,9 @@ const Index = () => {
       updatedAt: new Date().toISOString(),
       deployedUrl: undefined, // Clear deployment URL for copy
       vercelProjectDomain: undefined, // Clear Vercel project domain
+      isLocked: false,
+      isPublished: false,
+      publicationState: 'draft',
     };
     
     // Create the new form by calling createForm and then updating it
@@ -256,6 +281,7 @@ const Index = () => {
 
   const toggleAnimationsQuick = () => {
     if (!activeForm) return;
+    if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
     const animations = activeForm.animations || { enabled: false };
     updateForm(activeForm.id, {
       animations: { ...animations, enabled: !animations.enabled },
@@ -264,6 +290,7 @@ const Index = () => {
 
   const toggleWebhookQuick = () => {
     if (!activeForm) return;
+    if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
     updateForm(activeForm.id, {
       webhookConfig: { ...activeForm.webhookConfig, enabled: !activeForm.webhookConfig.enabled },
     });
@@ -271,6 +298,7 @@ const Index = () => {
 
   const toggleSheetsQuick = () => {
     if (!activeForm) return;
+    if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
     updateForm(activeForm.id, {
       googleSheetsConfig: { ...activeForm.googleSheetsConfig, enabled: !activeForm.googleSheetsConfig.enabled },
     });
@@ -399,17 +427,20 @@ const Index = () => {
     toast.success(`Generated ${fieldsToAdd.length} fields from your description!`);
   };
 
-  const handleAddField = (type: FieldType) => {
+  const handleAddField = (type: FieldType, options?: { openEditor?: boolean }) => {
     if (!activeForm) return;
     if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
-    addField(activeForm.id, type);
+    const created = addField(activeForm.id, type);
+    if (created && options?.openEditor) {
+      setEditingField(created);
+    }
     setSidebarTab('library');
   };
 
   const handleAddPresetField = (preset: FieldPreset) => {
     if (!activeForm) return;
     if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
-    addField(activeForm.id, preset.type, {
+    const created = addField(activeForm.id, preset.type, {
       label:       preset.label,
       name:        preset.name,
       placeholder: preset.placeholder ?? '',
@@ -418,7 +449,13 @@ const Index = () => {
       isReadOnly:  preset.isReadOnly ?? false,
       ...(preset.options ? { options: preset.options } : {}),
     });
+    if (created) setEditingField(created);
     setSidebarTab('library');
+  };
+
+  const handleLibraryDragStart = (e: React.DragEvent<HTMLButtonElement>, type: FieldType) => {
+    e.dataTransfer.setData('palette-field-type', type);
+    e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleAddAllPresets = (presets: FieldPreset[]) => {
@@ -627,6 +664,10 @@ const Index = () => {
                     className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
                     <Bot className="h-3.5 w-3.5 mr-1.5" />AI
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleSaveAsDraft}
+                    className="h-8 text-[12.5px] border-border/60 shadow-none hover:border-border">
+                    <Save className="h-3.5 w-3.5 mr-1.5" />Save Draft
+                  </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm"
@@ -697,9 +738,14 @@ const Index = () => {
                   <p className="text-[10px] uppercase tracking-[0.45em] text-slate-400 mb-0.5">Active Form</p>
                   <div className="flex items-center gap-2.5">
                     <h2 className="text-xl font-bold text-white tracking-tight">{activeForm.title}</h2>
-                    {activeForm.deployedUrl && (
+                    {isFormPublished(activeForm) && (
                       <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-0.5">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />Live
+                      </span>
+                    )}
+                    {activeForm.publicationState !== 'published' && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/40 bg-amber-500/20 text-amber-200 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-0.5">
+                        Draft
                       </span>
                     )}
                   </div>
@@ -741,7 +787,7 @@ const Index = () => {
                   <Switch checked={activeForm.isLocked ?? false} onCheckedChange={toggleFormLock} />
                 </div>
               </div>
-              {activeForm.deployedUrl && (
+              {isFormPublished(activeForm) && (
                 <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
                   <a href={activeForm.deployedUrl} target="_blank" rel="noopener noreferrer"
@@ -795,6 +841,8 @@ const Index = () => {
                               <button
                                 key={type}
                                 onClick={() => handleAddField(type)}
+                                draggable={!!activeForm && !activeForm.isLocked}
+                                onDragStart={e => handleLibraryDragStart(e, type)}
                                 disabled={!activeForm || activeForm.isLocked}
                                 className="flex items-center gap-2 rounded-lg border border-border/50 bg-background px-2.5 py-2 text-left text-[11px] font-medium text-foreground/80 transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary disabled:pointer-events-none disabled:opacity-40 truncate"
                               >
@@ -814,6 +862,8 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
+                              draggable={!!activeForm && !activeForm.isLocked}
+                              onDragStart={e => handleLibraryDragStart(e, preset.type)}
                               disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-violet-700/80 transition-colors hover:border-violet-400/60 hover:bg-violet-100/60 hover:text-violet-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-violet-800/40 dark:bg-violet-950/20 dark:text-violet-300"
                               title={`Add ${preset.label} dropdown (${preset.options!.length} options)`}
@@ -842,6 +892,8 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
+                              draggable={!!activeForm && !activeForm.isLocked}
+                              onDragStart={e => handleLibraryDragStart(e, preset.type)}
                               disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-teal-200/70 bg-teal-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-teal-700/80 transition-colors hover:border-teal-400/60 hover:bg-teal-100/60 hover:text-teal-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-teal-800/40 dark:bg-teal-950/20 dark:text-teal-300"
                               title={preset.helpText}
@@ -874,6 +926,8 @@ const Index = () => {
                             <button
                               key={preset.id}
                               onClick={() => handleAddPresetField(preset)}
+                              draggable={!!activeForm && !activeForm.isLocked}
+                              onDragStart={e => handleLibraryDragStart(e, preset.type)}
                               disabled={!activeForm || activeForm.isLocked}
                               className="flex items-center gap-2 rounded-lg border border-blue-200/70 bg-blue-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-blue-700/80 transition-colors hover:border-blue-400/60 hover:bg-blue-100/60 hover:text-blue-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-blue-800/40 dark:bg-blue-950/20 dark:text-blue-300"
                               title={preset.helpText}
@@ -1075,7 +1129,7 @@ const Index = () => {
                     {
                       Icon: Rocket,
                       label: 'Live',
-                      value: forms.filter(f => !!f.deployedUrl).length,
+                      value: forms.filter(f => isFormPublished(f)).length,
                       sub: 'deployed',
                       gradient: 'from-emerald-500 to-teal-500',
                       bg: 'from-emerald-500/10 to-teal-500/5',
@@ -1360,9 +1414,9 @@ const Index = () => {
                       duplicateField(activeForm.id, fieldId);
                       toast.success('Field duplicated');
                     }}
-                    onAdd={type => {
+                    onAdd={(type, options) => {
                       if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
-                      addField(activeForm.id, type);
+                      handleAddField(type, { openEditor: options?.openEditor });
                     }}
                     onReorder={orderedIds => {
                       if (!activeForm.isLocked) reorderFields(activeForm.id, orderedIds);
@@ -1387,7 +1441,12 @@ const Index = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="px-6 py-5">
+                    {activeForm.isLocked && (
+                      <div className="mx-6 mt-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+                        This form is locked. Unlock it to edit settings.
+                      </div>
+                    )}
+                    <div className={`px-6 py-5 ${activeForm.isLocked ? 'pointer-events-none opacity-60' : ''}`}>
                       <FormSettingsPanel
                         form={activeForm}
                         onUpdate={updates => updateForm(activeForm.id, updates)}

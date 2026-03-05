@@ -583,6 +583,140 @@ export const formTemplates: Template[] = [
       successMessage: 'Thanks! The engineering team received your report and will respond soon.',
       layout: 'split-left',
     }
+  },
+  {
+    id: 'influencer-signup',
+    name: 'Influencer Signup',
+    description: 'Capture creator collaboration interest with audience and channel details.',
+    category: 'Marketing',
+    icon: '🎥',
+    fields: [
+      {
+        id: 'fullName', name: 'fullName', label: 'Full Name', type: 'text',
+        placeholder: 'Creator name', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 0,
+      },
+      {
+        id: 'verifiedEmail', name: 'verifiedEmail', label: 'Email Verification', type: 'email-otp',
+        placeholder: 'creator@email.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1,
+        emailOtpConfig: {
+          fromName: 'Physique 57 India',
+          fromEmail: 'hello@physique57india.com',
+          otpLength: 6,
+          otpExpiryMinutes: 10,
+          subject: 'Verify your email for Physique 57 India',
+        },
+      },
+      {
+        id: 'phone', name: 'phone', label: 'Phone Number', type: 'tel',
+        placeholder: 'Phone number', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 2,
+      },
+      {
+        id: 'primaryChannel', name: 'primaryChannel', label: 'Primary Channel', type: 'select',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false, width: '100', order: 3,
+        options: [
+          { label: 'Instagram', value: 'instagram' },
+          { label: 'YouTube', value: 'youtube' },
+          { label: 'TikTok', value: 'tiktok' },
+          { label: 'Blog/Website', value: 'blog' },
+        ],
+      },
+      {
+        id: 'followers', name: 'followers', label: 'Follower Count', type: 'number',
+        placeholder: '25000', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 4,
+      },
+      {
+        id: 'city', name: 'city', label: 'City', type: 'text',
+        placeholder: 'Bengaluru', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '50', order: 5,
+      },
+      {
+        id: 'collabIdeas', name: 'collabIdeas', label: 'Collaboration Ideas', type: 'textarea',
+        placeholder: 'Tell us what you would like to co-create', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 6,
+      },
+    ],
+    config: {
+      title: 'Influencer Partnership Signup',
+      description: 'Share your audience profile and collaboration goals with our team.',
+      submitButtonText: 'Submit Application',
+      successMessage: 'Thanks! Our partnership team will review your profile and get in touch.',
+    }
+  },
+  {
+    id: 'appointment-advanced',
+    name: 'Appointment Scheduler',
+    description: 'Book studio appointments with slot capacity control and teacher mapping.',
+    category: 'Services',
+    icon: '📅',
+    fields: [
+      {
+        id: 'memberName', name: 'memberName', label: 'Member Name', type: 'text',
+        placeholder: 'Full name', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 0,
+      },
+      {
+        id: 'verifiedEmail', name: 'verifiedEmail', label: 'Email Verification', type: 'email-otp',
+        placeholder: 'member@email.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1,
+      },
+      {
+        id: 'appointmentSlot', name: 'appointmentSlot', label: 'Choose Appointment Slot', type: 'appointment-slots',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 2,
+        appointmentSlotsConfig: {
+          timezone: 'Asia/Kolkata',
+          bookingStartDate: new Date().toISOString().slice(0, 10),
+          bookingEndDate: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+          slots: [
+            { id: 'slot_1', className: 'Signature Experience', teacherName: 'Ananya', sessionType: 'group', date: new Date().toISOString().slice(0, 10), startTime: '08:00', durationMinutes: 45, maxBookings: 12 },
+            { id: 'slot_2', className: 'Personal Session', teacherName: 'Rahul', sessionType: 'personal', date: new Date().toISOString().slice(0, 10), startTime: '10:00', durationMinutes: 60, maxBookings: 1 },
+          ],
+        },
+      },
+      {
+        id: 'notes', name: 'notes', label: 'Notes', type: 'textarea',
+        placeholder: 'Injuries, preferences, or goals', isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 3,
+      },
+    ],
+    config: {
+      title: 'Book an Appointment',
+      description: 'Select an available slot and confirm your booking details.',
+      submitButtonText: 'Confirm Booking',
+      successMessage: 'Your appointment request has been recorded successfully.',
+    }
+  },
+  {
+    id: 'connected-subform',
+    name: 'Connected Sub-Form Intake',
+    description: 'Parent intake with submission picker and nested follow-up section.',
+    category: 'Support',
+    icon: '🔗',
+    fields: [
+      {
+        id: 'submissionRef', name: 'submissionRef', label: 'Select Existing Submission', type: 'submission-picker',
+        isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false, width: '100', order: 0,
+      },
+      {
+        id: 'caseSummary', name: 'caseSummary', label: 'Case Summary', type: 'textarea',
+        placeholder: 'Summarize the connected submission context', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
+        width: '100', order: 1,
+      },
+      {
+        id: 'followupSection', name: 'followupSection', label: 'Follow-up Sub Form', type: 'subform',
+        isRequired: false, isHidden: false, isReadOnly: false, isDisabled: false, width: '100', order: 2,
+      },
+    ],
+    config: {
+      title: 'Connected Form Workflow',
+      description: 'Reference previous submissions and collect structured follow-up details.',
+      submitButtonText: 'Save Connected Entry',
+      successMessage: 'Connected form details saved.',
+    }
   }
 ];
 

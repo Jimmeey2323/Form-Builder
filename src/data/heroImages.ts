@@ -43,6 +43,22 @@ export const heroImages: HeroImage[] = [
   { id: 'hero-36', url: 'https://i.postimg.cc/bw8XKy22/hp-Img-1771961170.png', category: 'abstract' },
   { id: 'hero-37', url: 'https://i.postimg.cc/NjYhWsrX/hp-Img-1771961278.png', category: 'photography' },
   { id: 'hero-38', url: 'https://i.postimg.cc/jSKVGxJP/hp-Img-1771961287.png', category: 'gradient' },
+  { id: 'hero-39', url: 'https://i.postimg.cc/8k9M7m5c/IMG-6314.png', category: 'lifestyle' },
+  { id: 'hero-40', url: 'https://i.postimg.cc/nVgBXGzz/IMG-6315.png', category: 'lifestyle' },
+  { id: 'hero-41', url: 'https://i.postimg.cc/v8kf4tBZ/IMG-6316.png', category: 'lifestyle' },
+  { id: 'hero-42', url: 'https://i.postimg.cc/tRwWsNTC/IMG-6317.png', category: 'lifestyle' },
+  { id: 'hero-43', url: 'https://i.postimg.cc/8k9M7m5T/IMG-6318.png', category: 'lifestyle' },
+  { id: 'hero-44', url: 'https://i.postimg.cc/VspnJW61/IMG-6319.png', category: 'lifestyle' },
+  { id: 'hero-45', url: 'https://i.postimg.cc/7Pd05n6x/IMG-6320.png', category: 'lifestyle' },
+  { id: 'hero-46', url: 'https://i.postimg.cc/G3VG4x2d/IMG-6321.png', category: 'lifestyle' },
+  { id: 'hero-47', url: 'https://i.postimg.cc/XNmdrkJS/IMG-6322.png', category: 'lifestyle' },
+  { id: 'hero-48', url: 'https://i.postimg.cc/wxZL1QBC/IMG-6324.png', category: 'lifestyle' },
+  { id: 'hero-49', url: 'https://i.postimg.cc/tJKx8pfv/IMG-6326.png', category: 'lifestyle' },
+  { id: 'hero-50', url: 'https://i.postimg.cc/1R2w8rtx/IMG-6327.png', category: 'lifestyle' },
+  { id: 'hero-51', url: 'https://i.postimg.cc/0jTwhP3J/IMG-6329.png', category: 'lifestyle' },
+  { id: 'hero-52', url: 'https://i.postimg.cc/gjCZ1m5R/IMG-6330.png', category: 'lifestyle' },
+  { id: 'hero-53', url: 'https://i.postimg.cc/9067sCSw/IMG-6331.png', category: 'lifestyle' },
+  { id: 'hero-54', url: 'https://i.postimg.cc/yxMZ2s5R/IMG-6332.png', category: 'lifestyle' },
 ];
 
 export function getRandomHeroImage(): HeroImage {

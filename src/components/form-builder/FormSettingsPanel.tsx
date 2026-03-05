@@ -12,6 +12,7 @@ import { HeroImagePickerDialog } from '@/components/form-builder/HeroImagePicker
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye } from 'lucide-react';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
+import { getHeroImageUrl, hasHeroImage, normalizeHeroImageValue } from '@/utils/heroImageConfig';
 import { useState } from 'react';
 
 // Preset Webhook URLs
@@ -37,14 +38,18 @@ interface FormSettingsPanelProps {
 
 // ── Section wrapper for clean groups ──
 function SettingsSection({ title, icon: Icon, children, badge, defaultOpen = true }: {
-  title: string; icon: any; children: React.ReactNode; badge?: React.ReactNode; defaultOpen?: boolean;
+  title: React.ReactNode; // Updated to accept JSX
+  icon: any;
+  children: React.ReactNode;
+  badge?: React.ReactNode;
+  defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-2xl border border-border/40 bg-card overflow-hidden transition-all">
       <button
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/30 transition-colors"
       >
         <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary/8 text-primary shrink-0">
@@ -52,9 +57,13 @@ function SettingsSection({ title, icon: Icon, children, badge, defaultOpen = tru
         </div>
         <span className="flex-1 text-[13px] font-semibold text-foreground">{title}</span>
         {badge}
-        <ChevronRight className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
+        <ChevronRight
+          className={`h-4 w-4 text-muted-foreground/50 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
+        />
       </button>
-      {open && <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/30">{children}</div>}
+      {open && (
+        <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/30">{children}</div>
+      )}
     </div>
   );
 }
@@ -82,6 +91,8 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const openHeroPicker = (page = 0) => { setHeroPickerInitialPage(page); setShowHeroPicker(true); };
 
   const pageCount = form.fields.filter(f => f.type === 'page-break').length + 1;
+  const heroEntries = Object.entries(form.pageHeroImages ?? {}).filter(([, value]) => hasHeroImage(value));
+  const heroCount = heroEntries.length;
   const currentUrlPreset = WEBHOOK_URL_PRESETS.find(p => p.value === form.webhookConfig.url)?.value ?? '__custom__';
   const currentTokenPreset = TOKEN_PRESETS.find(p => p.value === form.webhookConfig.token)?.value ?? '__custom__';
 
@@ -179,30 +190,46 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </SettingsSection>
 
         <SettingsSection title="Hero Images" icon={Image} badge={
-          Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length > 0 ? (
-            <Badge variant="secondary" className="text-[10px] h-5 rounded-full">{Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length} set</Badge>
+          heroCount > 0 ? (
+            <Badge variant="secondary" className="text-[10px] h-5 rounded-full">{heroCount} set</Badge>
           ) : undefined
         }>
           <p className="text-[11px] text-muted-foreground leading-relaxed">Full-width banner images at the top of form pages.</p>
-          {Object.entries(form.pageHeroImages ?? {}).filter(([, v]) => v).length > 0 && (
+          {heroEntries.length > 0 && (
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(form.pageHeroImages ?? {}).filter(([, v]) => v).map(([pageIdx, url]) => (
-                <div key={pageIdx} className="relative rounded-xl overflow-hidden h-16 border border-border/40 group bg-muted/20">
-                  <img src={url} alt={`Page ${+pageIdx + 1}`} className="w-full h-full object-contain" />
+              {heroEntries.map(([pageIdx, value]) => {
+                const hero = normalizeHeroImageValue(value);
+                const url = getHeroImageUrl(value);
+                if (!url) return null;
+                return (
+                <div key={pageIdx} className="relative rounded-xl overflow-hidden h-28 border border-border/40 group bg-muted/20">
+                  <img
+                    src={url}
+                    alt={`Page ${+pageIdx + 1}`}
+                    className="w-full h-full"
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: `${hero?.cropX ?? 50}% ${hero?.cropY ?? 50}%`,
+                    }}
+                  />
                   <div className="absolute inset-0 bg-foreground/20 flex items-end px-2 py-1">
-                    <span className="text-[10px] font-semibold text-card">Page {+pageIdx + 1}</span>
+                    <span className="text-[10px] font-semibold text-card">
+                      Page {+pageIdx + 1}
+                      {hero ? ` · ${Math.round(hero.height)}px` : ''}
+                    </span>
                   </div>
                   <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => openHeroPicker(+pageIdx)} className="p-1 rounded bg-foreground/40 hover:bg-primary text-card"><Image className="h-2.5 w-2.5" /></button>
                     <button onClick={() => { const next = { ...(form.pageHeroImages ?? {}) }; delete next[+pageIdx]; onUpdate({ pageHeroImages: next }); }} className="p-1 rounded bg-foreground/40 hover:bg-destructive text-card"><Trash2 className="h-2.5 w-2.5" /></button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
           <Button variant="outline" size="sm" className="w-full gap-2 rounded-xl" onClick={() => openHeroPicker(0)}>
             <Image className="h-3.5 w-3.5" />
-            {Object.keys(form.pageHeroImages ?? {}).filter(k => (form.pageHeroImages ?? {})[+k]).length > 0 ? 'Manage Hero Images' : 'Choose Hero Images'}
+            {heroCount > 0 ? 'Manage Hero Images' : 'Choose Hero Images'}
           </Button>
         </SettingsSection>
       </div>
@@ -211,64 +238,200 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
     {/* ══════════════════ INTEGRATIONS TAB ══════════════════ */}
     {settingsTab === 'integrations' && (
       <div className="space-y-3">
-        <SettingsSection title="Webhook" icon={Webhook} badge={
-        <AccordionTrigger className="settings-trigger">
-          <span className="flex items-center gap-2.5">
-            <span className="settings-icon-wrap"><Webhook className="h-3.5 w-3.5" /></span>
-            Webhook Configuration
-          </span>
-          <Badge variant={form.webhookConfig.enabled ? 'default' : 'secondary'} className="text-[10px] h-5 rounded-full">{form.webhookConfig.enabled ? 'Active' : 'Off'}</Badge>
-        }>
-          <SettingsRow label="Enable Webhook"><Switch checked={form.webhookConfig.enabled} onCheckedChange={v => updateWebhook({ enabled: v })} /></SettingsRow>
+        <SettingsSection
+          title={
+            <span className="flex items-center gap-2.5">
+              <span className="settings-icon-wrap">
+                <Webhook className="h-3.5 w-3.5" />
+              </span>
+              Webhook Configuration
+            </span>
+          }
+          icon={Webhook}
+          badge={
+            <Badge
+              variant={form.webhookConfig.enabled ? 'default' : 'secondary'}
+              className="text-[10px] h-5 rounded-full"
+            >
+              {form.webhookConfig.enabled ? 'Active' : 'Off'}
+            </Badge>
+          }
+        >
+          <SettingsRow label="Enable Webhook">
+            <Switch
+              checked={form.webhookConfig.enabled}
+              onCheckedChange={(v) => updateWebhook({ enabled: v })}
+            />
+          </SettingsRow>
           {form.webhookConfig.enabled && (
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <FieldLabel>Endpoint</FieldLabel>
-                <Select value={currentUrlPreset} onValueChange={v => { if (v !== '__custom__') updateWebhook({ url: v }); else updateWebhook({ url: '' }); }}>
-                  <SelectTrigger className="rounded-xl border-border/50 bg-muted/20"><SelectValue placeholder="Select endpoint…" /></SelectTrigger>
-                  <SelectContent>{WEBHOOK_URL_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                <Select
+                  value={currentUrlPreset}
+                  onValueChange={(v) => {
+                    if (v !== '__custom__') updateWebhook({ url: v });
+                    else updateWebhook({ url: '' });
+                  }}
+                >
+                  <SelectTrigger className="rounded-xl border-border/50 bg-muted/20">
+                    <SelectValue placeholder="Select endpoint…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WEBHOOK_URL_PRESETS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-                {currentUrlPreset === '__custom__' && <Input value={form.webhookConfig.url} onChange={e => updateWebhook({ url: e.target.value })} placeholder="https://…" className="mt-2 rounded-xl border-border/50 bg-muted/20" />}
-                {currentUrlPreset !== '__custom__' && <p className="text-[10px] text-muted-foreground font-mono truncate px-1">{form.webhookConfig.url}</p>}
+                {currentUrlPreset === '__custom__' && (
+                  <Input
+                    value={form.webhookConfig.url}
+                    onChange={(e) => updateWebhook({ url: e.target.value })}
+                    placeholder="https://…"
+                    className="mt-2 rounded-xl border-border/50 bg-muted/20"
+                  />
+                )}
+                {currentUrlPreset !== '__custom__' && (
+                  <p className="text-[10px] text-muted-foreground font-mono truncate px-1">
+                    {form.webhookConfig.url}
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <FieldLabel>Method</FieldLabel>
-                  <Select value={form.webhookConfig.method} onValueChange={v => updateWebhook({ method: v as any })}>
-                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="POST">POST</SelectItem><SelectItem value="PUT">PUT</SelectItem><SelectItem value="PATCH">PATCH</SelectItem></SelectContent>
+                  <Select
+                    value={form.webhookConfig.method}
+                    onValueChange={(v) => updateWebhook({ method: v as any })}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="POST">POST</SelectItem>
+                      <SelectItem value="PUT">PUT</SelectItem>
+                      <SelectItem value="PATCH">PATCH</SelectItem>
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1 col-span-2">
                   <FieldLabel>Auth Token</FieldLabel>
-                  <Select value={currentTokenPreset} onValueChange={v => {
-                    if (v !== '__custom__') { updateWebhook({ token: v, headers: { ...form.webhookConfig.headers, Authorization: `Bearer ${v}` } }); }
-                    else { updateWebhook({ token: '' }); }
-                  }}>
-                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue placeholder="Select token…" /></SelectTrigger>
-                    <SelectContent>{TOKEN_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
+                  <Select
+                    value={currentTokenPreset}
+                    onValueChange={(v) => {
+                      if (v !== '__custom__') {
+                        updateWebhook({
+                          token: v,
+                          headers: {
+                            ...form.webhookConfig.headers,
+                            Authorization: `Bearer ${v}`,
+                          },
+                        });
+                      } else {
+                        updateWebhook({ token: '' });
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue placeholder="Select token…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TOKEN_PRESETS.map((p) => (
+                        <SelectItem key={p.value} value={p.value}>
+                          {p.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
-                  {currentTokenPreset === '__custom__' && <Input value={form.webhookConfig.token || ''} onChange={e => updateWebhook({ token: e.target.value, headers: { ...form.webhookConfig.headers, Authorization: `Bearer ${e.target.value}` } })} placeholder="Enter auth token" className="mt-2 rounded-xl border-border/50 bg-muted/20" />}
+                  {currentTokenPreset === '__custom__' && (
+                    <Input
+                      value={form.webhookConfig.token || ''}
+                      onChange={(e) =>
+                        updateWebhook({
+                          token: e.target.value,
+                          headers: {
+                            ...form.webhookConfig.headers,
+                            Authorization: `Bearer ${e.target.value}`,
+                          },
+                        })
+                      }
+                      placeholder="Enter auth token"
+                      className="mt-2 rounded-xl border-border/50 bg-muted/20"
+                    />
+                  )}
                 </div>
               </div>
-              <div className="space-y-1"><FieldLabel>Source ID</FieldLabel><Input value={form.webhookConfig.sourceId || ''} onChange={e => updateWebhook({ sourceId: e.target.value })} className="rounded-xl border-border/50 bg-muted/20" /></div>
-              <div className="space-y-1"><FieldLabel>Redirect URL</FieldLabel><Input value={form.webhookConfig.redirectUrl || ''} onChange={e => updateWebhook({ redirectUrl: e.target.value })} placeholder="https://…" className="rounded-xl border-border/50 bg-muted/20" /></div>
-              <SettingsRow label="Capture UTM Params"><Switch checked={form.webhookConfig.includeUtmParams} onCheckedChange={v => updateWebhook({ includeUtmParams: v })} /></SettingsRow>
+              <div className="space-y-1.5">
+                <FieldLabel>Source ID</FieldLabel>
+                <Input
+                  value={form.webhookConfig.sourceId || ''}
+                  onChange={(e) => updateWebhook({ sourceId: e.target.value })}
+                  className="rounded-xl border-border/50 bg-muted/20"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Redirect URL</FieldLabel>
+                <Input
+                  value={form.webhookConfig.redirectUrl || ''}
+                  onChange={(e) => updateWebhook({ redirectUrl: e.target.value })}
+                  placeholder="https://…"
+                  className="rounded-xl border-border/50 bg-muted/20"
+                />
+              </div>
+              <SettingsRow label="Capture UTM Params">
+                <Switch
+                  checked={form.webhookConfig.includeUtmParams}
+                  onCheckedChange={(v) => updateWebhook({ includeUtmParams: v })}
+                />
+              </SettingsRow>
               <div className="space-y-2">
                 <FieldLabel>Custom Headers</FieldLabel>
                 <div className="space-y-1.5">
                   {Object.entries(form.webhookConfig.headers).map(([key, val]) => (
-                    <div key={key} className="flex items-center gap-2 text-sm rounded-lg border border-border/40 bg-muted/20 px-3 py-2">
-                      <code className="text-xs font-semibold text-primary flex-1 truncate">{key}</code>
-                      <code className="text-xs text-muted-foreground flex-1 truncate">{val}</code>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive shrink-0" onClick={() => removeHeader(key)}><Trash2 className="h-3 w-3" /></Button>
+                    <div
+                      key={key}
+                      className="flex items-center gap-2 text-sm rounded-lg border border-border/40 bg-muted/20 px-3 py-2"
+                    >
+                      <code className="text-xs font-semibold text-primary flex-1 truncate">
+                        {key}
+                      </code>
+                      <code className="text-xs text-muted-foreground flex-1 truncate">
+                        {val}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive shrink-0"
+                        onClick={() => removeHeader(key)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Input value={newHeaderKey} onChange={e => setNewHeaderKey(e.target.value)} placeholder="Header name" className="flex-1 text-sm rounded-lg border-border/40 bg-muted/20" />
-                  <Input value={newHeaderVal} onChange={e => setNewHeaderVal(e.target.value)} placeholder="Value" className="flex-1 text-sm rounded-lg border-border/40 bg-muted/20" />
-                  <Button variant="outline" size="icon" className="shrink-0 h-9 w-9" onClick={addHeader}><Plus className="h-3.5 w-3.5" /></Button>
+                  <Input
+                    value={newHeaderKey}
+                    onChange={(e) => setNewHeaderKey(e.target.value)}
+                    placeholder="Key"
+                    className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]"
+                  />
+                  <Input
+                    value={newHeaderVal}
+                    onChange={(e) => setNewHeaderVal(e.target.value)}
+                    placeholder="Value"
+                    className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-lg"
+                    onClick={addHeader}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -276,70 +439,47 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </SettingsSection>
 
         <SettingsSection title="UTM Parameters" icon={MapPin} defaultOpen={false}>
-          <p className="text-xs text-muted-foreground leading-relaxed">Set static/default UTM values. Dynamic values from the URL are appended when "Capture UTM Params" is enabled.</p>
-          {[
-            { key: 'utm_source', label: 'UTM Source', placeholder: 'e.g. instagram' },
-            { key: 'utm_medium', label: 'UTM Medium', placeholder: 'e.g. paid_social' },
-            { key: 'utm_campaign', label: 'UTM Campaign', placeholder: 'e.g. trial_offer_may' },
-            { key: 'utm_term', label: 'UTM Term', placeholder: 'e.g. pilates+studio' },
-            { key: 'utm_content', label: 'UTM Content', placeholder: 'e.g. hero_cta' },
-          ].map(({ key, label, placeholder }) => (
+          <p className="text-[11px] text-muted-foreground leading-relaxed">Default UTM values sent with every submission.</p>
+          {['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].map(key => (
             <div key={key} className="space-y-1">
-              <FieldLabel>{label}</FieldLabel>
-              <Input value={(form.webhookConfig.utmParamDefaults as any)?.[key] || ''} onChange={e => updateUtmDefaults(key, e.target.value)} placeholder={placeholder} className="rounded-xl border-border/50 bg-muted/20 font-mono text-sm" />
+              <FieldLabel>{key}</FieldLabel>
+              <Input value={(form.webhookConfig.utmParamDefaults as any)?.[key] || ''} onChange={e => updateUtmDefaults(key, e.target.value)} className="font-mono rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]" />
             </div>
           ))}
         </SettingsSection>
 
         <SettingsSection title="Tracking Pixels" icon={BarChart3} defaultOpen={false}>
           {[
-            { label: 'Snap Pixel ID', key: 'snapPixelId' as const, placeholder: 'e.g. 5217a3a7-…' },
-            { label: 'Meta (Facebook) Pixel ID', key: 'metaPixelId' as const, placeholder: 'e.g. 527819981439695' },
-            { label: 'Google Ads ID', key: 'googleAdsId' as const, placeholder: 'e.g. AW-809104648' },
-            { label: 'Google Ads Conversion Label', key: 'googleAdsConversionLabel' as const, placeholder: '' },
-          ].map(({ label, key, placeholder }) => (
-            <div key={key} className="space-y-1"><FieldLabel>{label}</FieldLabel><Input value={form.pixelConfig[key] || ''} onChange={e => updatePixels({ [key]: e.target.value })} placeholder={placeholder} className="rounded-xl border-border/50 bg-muted/20" /></div>
+            { label: 'Snap Pixel ID', key: 'snapPixelId' as const },
+            { label: 'Meta Pixel ID', key: 'metaPixelId' as const },
+            { label: 'Google Ads ID', key: 'googleAdsId' as const },
+            { label: 'Conversion Label', key: 'googleAdsConversionLabel' as const },
+          ].map(({ label, key }) => (
+            <div key={key} className="space-y-1"><FieldLabel>{label}</FieldLabel><Input value={form.pixelConfig[key] || ''} onChange={e => updatePixels({ [key]: e.target.value })} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]" /></div>
           ))}
-          <div className="space-y-1">
-            <FieldLabel>Custom Tracking Scripts</FieldLabel>
-            <Textarea value={form.pixelConfig.customScripts || ''} onChange={e => updatePixels({ customScripts: e.target.value })} rows={4} placeholder="Paste any custom tracking scripts here…" className="rounded-xl border-border/50 bg-muted/20 font-mono text-xs" />
-          </div>
+          <div className="space-y-1"><FieldLabel>Custom Scripts</FieldLabel><Textarea value={form.pixelConfig.customScripts || ''} onChange={e => updatePixels({ customScripts: e.target.value })} rows={3} className="font-mono text-[11px] rounded-xl border-border/40 bg-muted/20" /></div>
         </SettingsSection>
 
         <SettingsSection title="Google Sheets" icon={Sheet} badge={
           <Badge variant={form.googleSheetsConfig.enabled ? 'default' : 'secondary'} className="text-[10px] h-5 rounded-full">{form.googleSheetsConfig.spreadsheetId ? 'Connected' : form.googleSheetsConfig.enabled ? 'Pending' : 'Off'}</Badge>
         }>
-          <SettingsRow label="Record Submissions to Sheets"><Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} /></SettingsRow>
+          <SettingsRow label="Record to Sheets"><Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} /></SettingsRow>
           {form.googleSheetsConfig.enabled && (
-            <>
-              {sheetUrl ? (
-                <div className="rounded-xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50 to-teal-50/60 p-4 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-300/50"><Sheet className="h-4 w-4 text-emerald-600" /></div>
-                    <div>
-                      <p className="text-[12px] font-bold text-emerald-800">Spreadsheet connected</p>
-                      <p className="text-[10px] text-emerald-600/70">Submissions auto-recorded</p>
-                    </div>
-                    <span className="ml-auto flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.2em] text-emerald-600 bg-emerald-100 border border-emerald-200/70 rounded-full px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />Live
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-semibold underline underline-offset-2">
-                      Open Sheet <ExternalLink className="h-3 w-3" />
-                    </a>
-                    {onUpdateSheetStructure && (
-                      <Button size="sm" variant="outline" onClick={onUpdateSheetStructure} className="border-emerald-300 text-emerald-700 hover:bg-emerald-50">Update Structure</Button>
-                    )}
-                  </div>
+            sheetUrl ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Sheet className="h-4 w-4 text-primary" />
+                  <span className="text-[12px] font-semibold text-foreground">Connected</span>
+                  <span className="ml-auto text-[9px] font-bold uppercase tracking-widest text-primary">● Live</span>
                 </div>
-              ) : (
-                <Button onClick={onCreateSheet} disabled={isCreatingSheet} className="w-full gap-2">
-                  {isCreatingSheet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sheet className="h-4 w-4" />}
-                  {isCreatingSheet ? 'Creating Spreadsheet…' : 'Create Spreadsheet & Connect'}
-                </Button>
-              )}
-            </>
+                <a href={sheetUrl} target="_blank" rel="noopener noreferrer" className="text-[12px] text-primary hover:underline flex items-center gap-1">Open Sheet <ExternalLink className="h-3 w-3" /></a>
+              </div>
+            ) : (
+              <Button onClick={onCreateSheet} disabled={isCreatingSheet} className="w-full rounded-xl gap-2">
+                {isCreatingSheet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sheet className="h-4 w-4" />}
+                {isCreatingSheet ? 'Creating…' : 'Create Spreadsheet & Connect'}
+              </Button>
+            )
           )}
         </SettingsSection>
       </div>
@@ -506,9 +646,16 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </SettingsSection>
 
         {/* Form Layout */}
-        <SettingsSection title="Page Layout" icon={Monitor} badge={<Badge variant="secondary" className="text-[10px] h-5 rounded-full capitalize">{form.layout ?? 'classic'}</Badge>}>
+        <SettingsSection title="Page Layout" icon={Monitor} badge={
+          <Badge
+            variant="secondary"
+            className="text-[10px] h-5 rounded-full capitalize"
+          >
+            {form.layout ?? 'classic'}
+          </Badge>
+        }>
           <div className="grid grid-cols-4 gap-2">
-            {([
+            {[
               { value: 'classic', label: 'Classic' },
               { value: 'card', label: 'Card' },
               { value: 'split-left', label: 'Split L' },
@@ -516,76 +663,174 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               { value: 'banner-top', label: 'Banner' },
               { value: 'floating', label: 'Float' },
               { value: 'fullscreen', label: 'Full' },
-            ] as const).map(opt => (
-              <button key={opt.value} onClick={() => handleLayoutChange(opt.value as FormConfig['layout'])}
-                className={`py-2 rounded-xl border-2 text-[10px] font-semibold transition-all ${(form.layout ?? 'classic') === opt.value ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}
-              >{opt.label}</button>
+            ].map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() =>
+                  handleLayoutChange(opt.value as FormConfig['layout'])
+                }
+                className={`py-2 rounded-xl border-2 text-[10px] font-semibold transition-all ${
+                  (form.layout ?? 'classic') === opt.value
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/40 text-muted-foreground hover:border-primary/30'
+                }`}
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
 
-          {['split-left','split-right','banner-top','floating'].includes(form.layout ?? '') && (
+          {['split-left', 'split-right', 'banner-top', 'floating'].includes(
+            form.layout ?? ''
+          ) && (
             <>
               <div className="space-y-2">
                 <FieldLabel>Panel Split</FieldLabel>
-                <Slider value={[form.layoutImagePanelWidth ?? 45]} min={15} max={80} step={1} onValueChange={([v]) => onUpdate({ layoutImagePanelWidth: v })} />
-                <div className="flex justify-between text-[10px] text-muted-foreground"><span>Form {100 - (form.layoutImagePanelWidth ?? 45)}%</span><span>Image {form.layoutImagePanelWidth ?? 45}%</span></div>
+                <Slider
+                  value={[form.layoutImagePanelWidth ?? 45]}
+                  min={15}
+                  max={80}
+                  step={1}
+                  onValueChange={([v]) =>
+                    onUpdate({ layoutImagePanelWidth: v })
+                  }
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Form {100 - (form.layoutImagePanelWidth ?? 45)}%</span>
+                  <span>Image {form.layoutImagePanelWidth ?? 45}%</span>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <FieldLabel>Image URL</FieldLabel>
-                <Input value={form.layoutImageUrl || ''} onChange={e => onUpdate({ layoutImageUrl: e.target.value })} placeholder="https://images.unsplash.com/…" className="rounded-xl border-border/50 bg-muted/20 text-[12px]" />
+                <Input
+                  value={form.layoutImageUrl || ''}
+                  onChange={(e) =>
+                    onUpdate({ layoutImageUrl: e.target.value })
+                  }
+                  placeholder="https://images.unsplash.com/…"
+                  className="rounded-xl border-border/50 bg-muted/20 text-[12px]"
+                />
               </div>
               <div className="space-y-1.5">
                 <FieldLabel>Image Fit</FieldLabel>
-                <Select value={form.layoutImageFit || 'cover'} onValueChange={v => onUpdate({ layoutImageFit: v as any })}>
-                  <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.layoutImageFit || 'cover'}
+                  onValueChange={(v) =>
+                    onUpdate({ layoutImageFit: v as any })
+                  }
+                >
+                  <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {['cover','contain','fill','natural','zoom-in','zoom-out','tile'].map(f => <SelectItem key={f} value={f} className="text-[12px]">{f}</SelectItem>)}
+                    {[
+                      'cover',
+                      'contain',
+                      'fill',
+                      'natural',
+                      'zoom-in',
+                      'zoom-out',
+                      'tile',
+                    ].map((f) => (
+                      <SelectItem
+                        key={f}
+                        value={f}
+                        className="text-[12px]"
+                      >
+                        {f}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
                 <FieldLabel>Image Position</FieldLabel>
-                <p className="text-[11px] text-muted-foreground">Click the preview to set focus point</p>
-                <div 
-                  className="relative w-full h-36 rounded-lg border-2 border-border/60 overflow-hidden cursor-crosshair"
+                <p className="text-[11px] text-muted-foreground">
+                  Click the preview to set focus point
+                </p>
+                <div
+                  className="relative w-full h-64 rounded-lg border-2 border-border/60 overflow-hidden cursor-crosshair"
                   style={{
-                    backgroundImage: form.layoutImageUrl ? `url(${form.layoutImageUrl})` : undefined,
-                    backgroundSize: (form.layoutImageFit === 'cover' ? 'cover' : form.layoutImageFit === 'contain' ? 'contain' : 'cover'),
-                    backgroundPosition: `${form.layoutImagePositionX ?? '50'}% ${form.layoutImagePositionY ?? '50'}%`,
+                    backgroundImage: form.layoutImageUrl
+                      ? `url(${form.layoutImageUrl})`
+                      : undefined,
+                    backgroundSize:
+                      form.layoutImageFit === 'cover'
+                        ? 'cover'
+                        : form.layoutImageFit === 'contain'
+                        ? 'contain'
+                        : 'cover',
+                    backgroundPosition: `${
+                      form.layoutImagePositionX ?? '50'
+                    }% ${form.layoutImagePositionY ?? '50'}%`,
                     backgroundRepeat: 'no-repeat',
-                    backgroundColor: form.layoutImageUrl ? undefined : 'var(--muted)',
+                    backgroundColor: form.layoutImageUrl
+                      ? undefined
+                      : 'var(--muted)',
                   }}
                   onClick={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
                     const x = ((e.clientX - rect.left) / rect.width) * 100;
                     const y = ((e.clientY - rect.top) / rect.height) * 100;
                     onUpdate({
-                      layoutImagePositionX: Math.round(Math.max(0, Math.min(100, x))).toString(),
-                      layoutImagePositionY: Math.round(Math.max(0, Math.min(100, y))).toString()
+                      layoutImagePositionX: Math.round(
+                        Math.max(0, Math.min(100, x))
+                      ).toString(),
+                      layoutImagePositionY: Math.round(
+                        Math.max(0, Math.min(100, y))
+                      ).toString(),
                     });
                   }}
                 >
                   <div
                     className="absolute w-5 h-5 border-2 border-white rounded-full shadow-lg pointer-events-none -translate-x-1/2 -translate-y-1/2"
-                    style={{ left: `${form.layoutImagePositionX ?? '50'}%`, top: `${form.layoutImagePositionY ?? '50'}%`, boxShadow: '0 0 0 2px #000' }}
+                    style={{
+                      left: `${form.layoutImagePositionX ?? '50'}%`,
+                      top: `${form.layoutImagePositionY ?? '50'}%`,
+                      boxShadow: '0 0 0 2px #000',
+                    }}
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground text-center font-mono">{form.layoutImagePositionX ?? '50'}% H · {form.layoutImagePositionY ?? '50'}% V</p>
+                <p className="text-[10px] text-muted-foreground text-center font-mono">
+                  {form.layoutImagePositionX ?? '50'}% H ·{' '}
+                  {form.layoutImagePositionY ?? '50'}% V
+                </p>
                 <div className="grid grid-cols-3 gap-1">
-                  {([
-                    { x:'0',y:'0',t:'↖' },{ x:'50',y:'0',t:'↑' },{ x:'100',y:'0',t:'↗' },
-                    { x:'0',y:'50',t:'←' },{ x:'50',y:'50',t:'•' },{ x:'100',y:'50',t:'→' },
-                    { x:'0',y:'100',t:'↙' },{ x:'50',y:'100',t:'↓' },{ x:'100',y:'100',t:'↘' },
-                  ]).map(pos => {
-                    const active = (form.layoutImagePositionX ?? '50') === pos.x && (form.layoutImagePositionY ?? '50') === pos.y;
-                    return <button key={`${pos.x}-${pos.y}`} type="button" onClick={() => onUpdate({ layoutImagePositionX: pos.x, layoutImagePositionY: pos.y })}
-                      className={`h-7 rounded-md text-[12px] transition-all ${active ? 'bg-primary text-primary-foreground' : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'}`}
-                    >{pos.t}</button>;
+                  {[
+                    { x: '0', y: '0', t: '↖' },
+                    { x: '50', y: '0', t: '↑' },
+                    { x: '100', y: '0', t: '↗' },
+                    { x: '0', y: '50', t: '←' },
+                    { x: '50', y: '50', t: '•' },
+                    { x: '100', y: '50', t: '→' },
+                    { x: '0', y: '100', t: '↙' },
+                    { x: '50', y: '100', t: '↓' },
+                    { x: '100', y: '100', t: '↘' },
+                  ].map((pos) => {
+                    const active =
+                      (form.layoutImagePositionX ?? '50') === pos.x &&
+                      (form.layoutImagePositionY ?? '50') === pos.y;
+                    return (
+                      <button
+                        key={`${pos.x}-${pos.y}`}
+                        type="button"
+                        onClick={() =>
+                          onUpdate({
+                            layoutImagePositionX: pos.x,
+                            layoutImagePositionY: pos.y,
+                          })
+                        }
+                        className={`h-7 rounded-md text-[12px] transition-all ${
+                          active
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                        }`}
+                      >
+                        {pos.t}
+                      </button>
+                    );
                   })}
-                </div>
-              </div>
-            </>
                 </div>
               </div>
             </>
@@ -663,8 +908,10 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                 </div>
                 <div className="space-y-1 col-span-2">
                   <FieldLabel>Auth Token</FieldLabel>
-                  <Select value={currentTokenPreset} onValueChange={v => { if (v !== '__custom__') updateWebhook({ token: v, headers: { ...form.webhookConfig.headers, Authorization: `Bearer ${v}` } }); else updateWebhook({ token: '' }); }}>
-                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                  <Select value={currentTokenPreset} onValueChange={v => { if (v !== '__custom__') { updateWebhook({ token: v, headers: { ...form.webhookConfig.headers, Authorization: `Bearer ${v}` } }); }
+                    else { updateWebhook({ token: '' }); }
+                  }}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue placeholder="Select token…" /></SelectTrigger>
                     <SelectContent>{TOKEN_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}</SelectContent>
                   </Select>
                   {currentTokenPreset === '__custom__' && <Input value={form.webhookConfig.token || ''} onChange={e => updateWebhook({ token: e.target.value, headers: { ...form.webhookConfig.headers, Authorization: `Bearer ${e.target.value}` } })} placeholder="Token" className="mt-1 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]" />}
@@ -681,17 +928,50 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               <SettingsRow label="Capture UTM Params"><Switch checked={form.webhookConfig.includeUtmParams} onCheckedChange={v => updateWebhook({ includeUtmParams: v })} /></SettingsRow>
               <div className="space-y-2">
                 <FieldLabel>Custom Headers</FieldLabel>
-                {Object.entries(form.webhookConfig.headers).map(([key, val]) => (
-                  <div key={key} className="flex items-center gap-2 text-[11px] rounded-lg border border-border/40 bg-muted/10 px-3 py-1.5">
-                    <code className="font-semibold text-primary flex-1 truncate">{key}</code>
-                    <code className="text-muted-foreground flex-1 truncate">{val}</code>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive shrink-0" onClick={() => removeHeader(key)}><Trash2 className="h-2.5 w-2.5" /></Button>
-                  </div>
-                ))}
-                <div className="flex gap-1.5">
-                  <Input value={newHeaderKey} onChange={e => setNewHeaderKey(e.target.value)} placeholder="Key" className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]" />
-                  <Input value={newHeaderVal} onChange={e => setNewHeaderVal(e.target.value)} placeholder="Value" className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]" />
-                  <Button variant="outline" size="icon" className="h-7 w-7 shrink-0 rounded-lg" onClick={addHeader}><Plus className="h-3 w-3" /></Button>
+                <div className="space-y-1.5">
+                  {Object.entries(form.webhookConfig.headers).map(([key, val]) => (
+                    <div
+                      key={key}
+                      className="flex items-center gap-2 text-sm rounded-lg border border-border/40 bg-muted/20 px-3 py-2"
+                    >
+                      <code className="text-xs font-semibold text-primary flex-1 truncate">
+                        {key}
+                      </code>
+                      <code className="text-xs text-muted-foreground flex-1 truncate">
+                        {val}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-destructive shrink-0"
+                        onClick={() => removeHeader(key)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    value={newHeaderKey}
+                    onChange={(e) => setNewHeaderKey(e.target.value)}
+                    placeholder="Key"
+                    className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]"
+                  />
+                  <Input
+                    value={newHeaderVal}
+                    onChange={(e) => setNewHeaderVal(e.target.value)}
+                    placeholder="Value"
+                    className="flex-1 rounded-lg border-border/40 bg-muted/20 h-7 text-[11px]"
+                  />
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-7 w-7 shrink-0 rounded-lg"
+                    onClick={addHeader}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             </div>
@@ -754,7 +1034,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             <p className="text-[10px] text-muted-foreground">Enter existing domain to deploy there instead of creating new.</p>
             <Input value={form.vercelProjectDomain || ''} onChange={e => onUpdate({ vercelProjectDomain: e.target.value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '') })} placeholder="mysite.vercel.app" className="font-mono rounded-xl border-border/50 bg-muted/20 text-[12px]" />
           </div>
-          {form.deployedUrl && (
+          {form.publicationState === 'published' && form.deployedUrl && (
             <div className="space-y-1.5">
               <FieldLabel>Live URL</FieldLabel>
               <a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-[12px] text-primary underline underline-offset-2 break-all"><ExternalLink className="h-3 w-3 shrink-0" />{form.deployedUrl}</a>

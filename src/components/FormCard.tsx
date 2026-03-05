@@ -63,6 +63,7 @@ export function FormCard({
 }: FormCardProps) {
   const idx = hashIndex(form.id, CARD_GRADIENTS.length);
   const [gradient, lightBg, lightText, lightBorder] = CARD_GRADIENTS[idx];
+  const isPublished = form.publicationState === 'published' && !!form.deployedUrl;
 
   const handleCardClick = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onSelect(); };
   const handleCheckboxClick = (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); onToggleSelect(); };
@@ -95,7 +96,7 @@ export function FormCard({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44 rounded-xl shadow-xl border-border/60">
-        {form.deployedUrl && (
+        {isPublished && (
           <>
             <DropdownMenuItem asChild>
               <a href={form.deployedUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
@@ -152,10 +153,15 @@ export function FormCard({
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {form.deployedUrl && (
+          {isPublished && (
             <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Live
+            </span>
+          )}
+          {!isPublished && (
+            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/70 rounded-full px-2 py-0.5">
+              Draft
             </span>
           )}
           <ActionsMenu />
@@ -204,9 +210,14 @@ export function FormCard({
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
-          {form.deployedUrl && (
+          {isPublished && (
             <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
               <Rocket className="h-2.5 w-2.5" /> Live
+            </span>
+          )}
+          {!isPublished && (
+            <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-amber-700 bg-amber-50 border border-amber-200/70 rounded-full px-2 py-0.5">
+              Draft
             </span>
           )}
           {integrations.map(it => (

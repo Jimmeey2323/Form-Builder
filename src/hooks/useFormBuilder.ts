@@ -1,6 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
-import { FormConfig, FormField, FormTheme, WebhookConfig, PixelConfig, GoogleSheetsConfig, createDefaultField, FieldType } from '@/types/formField';
-import { supabase } from '@/integrations/supabase/client';
+import {
+  FormConfig,
+  FormField,
+  FormTheme,
+  WebhookConfig,
+  PixelConfig,
+  GoogleSheetsConfig,
+  createDefaultField,
+  FieldType,
+} from '@/types/formField';
 
 const defaultTheme: FormTheme = {
   primaryColor: '#667eea',
@@ -41,7 +49,7 @@ const defaultWebhook: WebhookConfig = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer qy71rOk8en',
+    Authorization: 'Bearer qy71rOk8en',
   },
   includeUtmParams: true,
   token: 'qy71rOk8en',
@@ -61,48 +69,102 @@ const defaultGoogleSheets: GoogleSheetsConfig = {
   sheetName: 'Form Submissions',
 };
 
-// Default fields matching the original Bengaluru form
 function getDefaultFields(): FormField[] {
   return [
     {
-      id: 'firstName', name: 'firstName', label: 'First Name', type: 'text',
-      placeholder: 'John', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 0, autocomplete: 'given-name',
+      id: 'firstName',
+      name: 'firstName',
+      label: 'First Name',
+      type: 'text',
+      placeholder: 'John',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 0,
+      autocomplete: 'given-name',
     },
     {
-      id: 'lastName', name: 'lastName', label: 'Last Name', type: 'text',
-      placeholder: 'Doe', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 1, autocomplete: 'family-name',
+      id: 'lastName',
+      name: 'lastName',
+      label: 'Last Name',
+      type: 'text',
+      placeholder: 'Doe',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 1,
+      autocomplete: 'family-name',
     },
     {
-      id: 'email', name: 'email', label: 'Email', type: 'email',
-      placeholder: 'john.doe@example.com', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 2, autocomplete: 'email',
+      id: 'email',
+      name: 'email',
+      label: 'Email',
+      type: 'email',
+      placeholder: 'john.doe@example.com',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 2,
+      autocomplete: 'email',
     },
     {
-      id: 'phoneNumber', name: 'phoneNumber', label: 'Phone Number', type: 'tel',
-      placeholder: '+91-XXXXXXXXXX', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 3, autocomplete: 'tel',
+      id: 'phoneNumber',
+      name: 'phoneNumber',
+      label: 'Phone Number',
+      type: 'tel',
+      placeholder: '+91-XXXXXXXXXX',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 3,
+      autocomplete: 'tel',
     },
     {
-      id: 'zipCode', name: 'zipCode', label: 'Pincode', type: 'text',
-      placeholder: '56XXXX', isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 4, autocomplete: 'postal-code',
+      id: 'zipCode',
+      name: 'zipCode',
+      label: 'Pincode',
+      type: 'text',
+      placeholder: '56XXXX',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 4,
+      autocomplete: 'postal-code',
     },
     {
-      id: 'center', name: 'center', label: 'Select a Studio Location', type: 'select',
-      isRequired: true, isHidden: false, isReadOnly: false, isDisabled: false,
-      width: '100', order: 5, placeholder: 'Select Preferred Studio Location',
+      id: 'center',
+      name: 'center',
+      label: 'Select a Studio Location',
+      type: 'select',
+      isRequired: true,
+      isHidden: false,
+      isReadOnly: false,
+      isDisabled: false,
+      width: '100',
+      order: 5,
+      placeholder: 'Select Preferred Studio Location',
       options: [
         {
           label: 'Kenkere House, Vittal Mallya Road',
           value: 'Kenkere House, Vittal Mallya Road',
-          address: '1st Floor, Kenkere House, Vittal Mallya Rd, above Raymonds, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560001',
+          address:
+            '1st Floor, Kenkere House, Vittal Mallya Rd, above Raymonds, Shanthala Nagar, Ashok Nagar, Bengaluru, Karnataka 560001',
         },
         {
           label: 'the Studio by Copper + Cloves, Indiranagar',
           value: 'the Studio by Copper + Cloves, Indiranagar',
-          address: '167, Ground Floor Back Portion, 2nd Stage, Shankarnag Rd, Domlur, Bengaluru 560071',
+          address:
+            '167, Ground Floor Back Portion, 2nd Stage, Shankarnag Rd, Domlur, Bengaluru 560071',
         },
       ],
     },
@@ -128,92 +190,117 @@ function createDefaultForm(): FormConfig {
     isLocked: false,
     isTemplate: false,
     isPublished: false,
+    publicationState: 'draft',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 }
 
+function inferPublicationState(form: Partial<FormConfig>): 'draft' | 'published' {
+  if (form.publicationState === 'published' || form.publicationState === 'draft') {
+    return form.publicationState;
+  }
+  if (form.isPublished || !!form.deployedUrl) return 'published';
+  return 'draft';
+}
+
 export function useFormBuilder() {
   const [forms, setForms] = useState<FormConfig[]>(() => {
     const saved = localStorage.getItem('formcraft_forms');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      return parsed.map((f: any) => ({
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    return parsed.map((f: any) => {
+      const publicationState = inferPublicationState(f);
+      return {
         ...f,
+        publicationState,
+        isPublished: f.isPublished ?? publicationState === 'published',
         theme: { ...defaultTheme, ...(f.theme || {}) },
-        webhookConfig: f.webhookConfig || { enabled: false, url: '', method: 'POST', headers: {}, includeUtmParams: true },
+        webhookConfig:
+          f.webhookConfig || {
+            enabled: false,
+            url: '',
+            method: 'POST',
+            headers: {},
+            includeUtmParams: true,
+          },
         pixelConfig: f.pixelConfig || {},
         googleSheetsConfig: f.googleSheetsConfig || { enabled: false },
-      }));
-    }
-    return [];
+      };
+    });
   });
 
-  const [activeFormId, setActiveFormId] = useState<string | null>(() => {
-    const saved = localStorage.getItem('formcraft_forms');
-    const parsed = saved ? JSON.parse(saved) : [];
-    return parsed.length > 0 ? parsed[0].id : null;
-  });
+  // Keep empty by default so opening /builder does not auto-open a form.
+  const [activeFormId, setActiveFormId] = useState<string | null>(null);
 
-  // Load from Supabase on mount — Supabase is source of truth
   useEffect(() => {
     const loadFromSupabase = async () => {
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         const response = await fetch(`${supabaseUrl}/functions/v1/forms-api`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${publishableKey}`,
+            apikey: publishableKey,
+            'Content-Type': 'application/json',
+          },
         });
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            const loaded: FormConfig[] = data.map((row: any) => ({
-              ...(row.config as FormConfig),
-              id: row.id,
-            }));
-            setForms(loaded);
-            setActiveFormId(prev => prev || (loaded.length > 0 ? loaded[0].id : null));
-            localStorage.setItem('formcraft_forms', JSON.stringify(loaded));
-          }
-        }
+
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (!data || data.length === 0) return;
+
+        const loaded: FormConfig[] = data.map((row: any) => {
+          const config = row.config as FormConfig;
+          const publicationState = inferPublicationState(config);
+          return {
+            ...config,
+            id: row.id,
+            publicationState,
+            isPublished: config.isPublished ?? publicationState === 'published',
+          };
+        });
+
+        setForms(loaded);
+        localStorage.setItem('formcraft_forms', JSON.stringify(loaded));
       } catch {
-        // Supabase unavailable — localStorage remains the fallback
+        // local storage remains fallback
       }
     };
+
     loadFromSupabase();
   }, []);
 
   const save = useCallback((updatedForms: FormConfig[]) => {
     setForms(updatedForms);
     localStorage.setItem('formcraft_forms', JSON.stringify(updatedForms));
-    // Persist to Supabase via server endpoint (fire and forget)
+
     const upsertToSupabase = async () => {
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
         const formsData = updatedForms.map(f => ({
           id: f.id,
           title: f.title,
           config: f as any,
         }));
-        
+
         await fetch(`${supabaseUrl}/functions/v1/forms-api`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${publishableKey}`,
+            apikey: publishableKey,
+            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ forms: formsData })
+          body: JSON.stringify({ forms: formsData }),
         });
       } catch {
-        // Supabase unavailable — localStorage is the fallback
+        // local storage remains fallback
       }
     };
+
     upsertToSupabase();
   }, []);
 
@@ -227,98 +314,132 @@ export function useFormBuilder() {
     return newForm;
   }, [forms, save]);
 
-  const deleteForm = useCallback((formId: string) => {
-    const updated = forms.filter(f => f.id !== formId);
-    save(updated);
-    if (activeFormId === formId) {
-      setActiveFormId(updated.length > 0 ? updated[0].id : null);
-    }
-    // Remove from Supabase via server endpoint
-    const deleteFromSupabase = async () => {
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        await fetch(`${supabaseUrl}/functions/v1/forms-api?id=${encodeURIComponent(formId)}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            'Content-Type': 'application/json'
-          }
-        });
-      } catch {
-        // Supabase unavailable — form already removed from local state
+  const deleteForm = useCallback(
+    (formId: string) => {
+      const updated = forms.filter(f => f.id !== formId);
+      save(updated);
+
+      if (activeFormId === formId) {
+        setActiveFormId(null);
       }
-    };
-    deleteFromSupabase();
-  }, [forms, activeFormId, save]);
 
-  const updateForm = useCallback((formId: string, updates: Partial<FormConfig>) => {
-    const updated = forms.map(f =>
-      f.id === formId ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f
-    );
-    save(updated);
-  }, [forms, save]);
+      const deleteFromSupabase = async () => {
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+          await fetch(`${supabaseUrl}/functions/v1/forms-api?id=${encodeURIComponent(formId)}`, {
+            method: 'DELETE',
+            headers: {
+              Authorization: `Bearer ${publishableKey}`,
+              apikey: publishableKey,
+              'Content-Type': 'application/json',
+            },
+          });
+        } catch {
+          // form already removed locally
+        }
+      };
 
-  const addField = useCallback((formId: string, fieldType: FieldType, overrides?: Partial<FormField>) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const newField = { ...createDefaultField(fieldType, form.fields.length), ...overrides };
-    updateForm(formId, { fields: [...form.fields, newField] });
-  }, [forms, updateForm]);
+      deleteFromSupabase();
+    },
+    [forms, activeFormId, save],
+  );
 
-  const updateField = useCallback((formId: string, fieldId: string, updates: Partial<FormField>) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const updatedFields = form.fields.map(f =>
-      f.id === fieldId ? { ...f, ...updates } : f
-    );
-    updateForm(formId, { fields: updatedFields });
-  }, [forms, updateForm]);
+  const updateForm = useCallback(
+    (formId: string, updates: Partial<FormConfig>, opts?: { force?: boolean }) => {
+      const target = forms.find(f => f.id === formId);
+      if (!target) return false;
 
-  const deleteField = useCallback((formId: string, fieldId: string) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const updatedFields = form.fields
-      .filter(f => f.id !== fieldId)
-      .map((f, i) => ({ ...f, order: i }));
-    updateForm(formId, { fields: updatedFields });
-  }, [forms, updateForm]);
+      const allowedWhileLocked = new Set(['isLocked', 'isPublished', 'deployedUrl', 'publicationState', 'updatedAt']);
+      const updateKeys = Object.keys(updates);
+      const lockBypass = opts?.force || updateKeys.every(k => allowedWhileLocked.has(k));
+      if (target.isLocked && !lockBypass) return false;
 
-  const moveField = useCallback((formId: string, fieldId: string, direction: 'up' | 'down') => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const fields = [...form.fields].sort((a, b) => a.order - b.order);
-    const idx = fields.findIndex(f => f.id === fieldId);
-    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === fields.length - 1)) return;
-    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-    [fields[idx].order, fields[swapIdx].order] = [fields[swapIdx].order, fields[idx].order];
-    updateForm(formId, { fields });
-  }, [forms, updateForm]);
+      const updated = forms.map(f =>
+        f.id === formId ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f,
+      );
+      save(updated);
+      return true;
+    },
+    [forms, save],
+  );
 
-  const reorderFields = useCallback((formId: string, orderedIds: string[]) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const fieldMap = new Map(form.fields.map(f => [f.id, f]));
-    const reordered = orderedIds
-      .filter(id => fieldMap.has(id))
-      .map((id, index) => ({ ...fieldMap.get(id)!, order: index }));
-    updateForm(formId, { fields: reordered });
-  }, [forms, updateForm]);
+  const addField = useCallback(
+    (formId: string, fieldType: FieldType, overrides?: Partial<FormField>) => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return null;
+      const newField = { ...createDefaultField(fieldType, form.fields.length), ...overrides };
+      updateForm(formId, { fields: [...form.fields, newField] });
+      return newField;
+    },
+    [forms, updateForm],
+  );
 
-  const duplicateField = useCallback((formId: string, fieldId: string) => {
-    const form = forms.find(f => f.id === formId);
-    if (!form) return;
-    const field = form.fields.find(f => f.id === fieldId);
-    if (!field) return;
-    const newField: FormField = {
-      ...field,
-      id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      name: `${field.name}_copy`,
-      label: `${field.label} (Copy)`,
-      order: form.fields.length,
-    };
-    updateForm(formId, { fields: [...form.fields, newField] });
-  }, [forms, updateForm]);
+  const updateField = useCallback(
+    (formId: string, fieldId: string, updates: Partial<FormField>) => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return false;
+      const updatedFields = form.fields.map(f => (f.id === fieldId ? { ...f, ...updates } : f));
+      return updateForm(formId, { fields: updatedFields });
+    },
+    [forms, updateForm],
+  );
+
+  const deleteField = useCallback(
+    (formId: string, fieldId: string) => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return false;
+      const updatedFields = form.fields.filter(f => f.id !== fieldId).map((f, i) => ({ ...f, order: i }));
+      return updateForm(formId, { fields: updatedFields });
+    },
+    [forms, updateForm],
+  );
+
+  const moveField = useCallback(
+    (formId: string, fieldId: string, direction: 'up' | 'down') => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return false;
+      const fields = [...form.fields].sort((a, b) => a.order - b.order);
+      const idx = fields.findIndex(f => f.id === fieldId);
+      if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === fields.length - 1)) return false;
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      [fields[idx].order, fields[swapIdx].order] = [fields[swapIdx].order, fields[idx].order];
+      return updateForm(formId, { fields });
+    },
+    [forms, updateForm],
+  );
+
+  const reorderFields = useCallback(
+    (formId: string, orderedIds: string[]) => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return false;
+      const fieldMap = new Map(form.fields.map(f => [f.id, f]));
+      const reordered = orderedIds
+        .filter(id => fieldMap.has(id))
+        .map((id, index) => ({ ...fieldMap.get(id)!, order: index }));
+      return updateForm(formId, { fields: reordered });
+    },
+    [forms, updateForm],
+  );
+
+  const duplicateField = useCallback(
+    (formId: string, fieldId: string) => {
+      const form = forms.find(f => f.id === formId);
+      if (!form || form.isLocked) return null;
+      const field = form.fields.find(f => f.id === fieldId);
+      if (!field) return null;
+      const newField: FormField = {
+        ...field,
+        id: `field_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: `${field.name}_copy`,
+        label: `${field.label} (Copy)`,
+        order: form.fields.length,
+      };
+      updateForm(formId, { fields: [...form.fields, newField] });
+      return newField;
+    },
+    [forms, updateForm],
+  );
 
   return {
     forms,
