@@ -351,20 +351,58 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     </div>`;
     }
     case 'appointment-slots': {
-      const cfg = field.appointmentSlotsConfig || { slots: [] };
-      const slotsJson = escapeHtml(JSON.stringify(cfg.slots || []));
-      const bookingStartDate = cfg.bookingStartDate ? ` data-booking-start="${escapeHtml(cfg.bookingStartDate)}"` : '';
-      const bookingEndDate = cfg.bookingEndDate ? ` data-booking-end="${escapeHtml(cfg.bookingEndDate)}"` : '';
-      const stopBookingsAt = cfg.stopBookingsAt ? ` data-stop-bookings-at="${escapeHtml(cfg.stopBookingsAt)}"` : '';
-      const timezone = cfg.timezone ? ` data-timezone="${escapeHtml(cfg.timezone)}"` : '';
-      inputHtml = `<div class="appointment-slots-group${cssClass}"${condAttrs}
-          data-appointment-slots="true"
+      const cfg = field.appointmentSlotsConfig || {};
+      const cfgJson = escapeHtml(JSON.stringify(cfg));
+      const tz = cfg.defaultTimezone || cfg.timezone || 'America/New_York';
+      const tzDisplay = escapeHtml(tz);
+      inputHtml = `<div class="appt-booking${cssClass}"${condAttrs}
+          data-appt="true"
           data-field-name="${escapeHtml(field.name)}"
-          data-slots='${slotsJson}'${bookingStartDate}${bookingEndDate}${stopBookingsAt}${timezone}>
-          <div class="appointment-slots-list"></div>
-          <div class="appointment-slots-empty" style="display:none;">No slots available for the selected booking window.</div>
-          <div class="appointment-slots-status" aria-live="polite"></div>
-          <input type="hidden" id="${field.id}" name="${field.name}"${required}>
+          data-field-id="${escapeHtml(field.id)}"
+          data-appt-config="${cfgJson}">
+        <div class="appt-date-row">
+          <input type="text" class="appt-date-input form-input" readonly placeholder="${escapeHtml(cfg.dateFormat || 'MM/DD/YYYY')}">
+          <button type="button" class="appt-cal-toggle" aria-label="Open calendar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </button>
+        </div>
+        <div class="appt-main-panel">
+          <div class="appt-cal-panel">
+            <div class="appt-month-year-nav">
+              <div class="appt-nav-ctrl">
+                <select class="appt-month-sel appt-sel"></select>
+                <div class="appt-arrows">
+                  <button type="button" class="appt-arrow-btn appt-month-prev">&#8743;</button>
+                  <button type="button" class="appt-arrow-btn appt-month-next">&#8744;</button>
+                </div>
+              </div>
+              <div class="appt-nav-ctrl">
+                <select class="appt-year-sel appt-sel"></select>
+                <div class="appt-arrows">
+                  <button type="button" class="appt-arrow-btn appt-year-prev">&#8743;</button>
+                  <button type="button" class="appt-arrow-btn appt-year-next">&#8744;</button>
+                </div>
+              </div>
+            </div>
+            <div class="appt-day-headers"></div>
+            <div class="appt-days-grid"></div>
+          </div>
+          <div class="appt-slots-panel">
+            <div class="appt-slots-header">
+              <button type="button" class="appt-day-nav appt-prev-day">&#8249;</button>
+              <span class="appt-selected-day-label">Select a date</span>
+              <button type="button" class="appt-day-nav appt-next-day">&#8250;</button>
+            </div>
+            <div class="appt-time-slots-grid"></div>
+            <div class="appt-tz-row">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <span class="appt-tz-label">${tzDisplay}</span>
+              <span class="appt-tz-offset"></span>
+              ${!cfg.lockTimezone ? `<button type="button" class="appt-tz-toggle">&#9660;</button>` : ''}
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="${field.id}" name="${field.name}"${required}>
       </div>`;
       break;
     }
@@ -1485,133 +1523,404 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
   const hasAppointmentSlots = config.fields.some(f => f.type === 'appointment-slots');
   if (!hasAppointmentSlots) return '';
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
-  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-
   return `
+        // ── Appointment Booking Calendar ──────────────────────────────────────
         (function () {
-          function parseJson(v, fallback) {
-            try { return JSON.parse(v); } catch(e) { return fallback; }
+          var MONTHS = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+          var DAYS_SHORT_SUN = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+          var DAYS_SHORT_MON = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+
+          function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+          function toDateStr(d) {
+            return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
           }
 
-          function fmtDateTime(slot) {
-            return [slot.date, slot.startTime].filter(Boolean).join(' · ');
+          function timeToMins(t) {
+            var parts = (t || '00:00').split(':');
+            return parseInt(parts[0], 10) * 60 + parseInt(parts[1] || '0', 10);
           }
 
-          function isWithinWindow(wrap, slot) {
-            var start = wrap.dataset.bookingStart;
-            var end = wrap.dataset.bookingEnd;
-            if (!slot.date) return true;
-            if (start && slot.date < start) return false;
-            if (end && slot.date > end) return false;
-            return true;
+          function minsToStr(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+
+          function formatDisplayDate(d, fmt) {
+            var y = d.getFullYear();
+            var mo = pad(d.getMonth() + 1);
+            var dy = pad(d.getDate());
+            if (fmt === 'DD/MM/YYYY') return dy + '/' + mo + '/' + y;
+            if (fmt === 'YYYY/MM/DD') return y + '/' + mo + '/' + dy;
+            return mo + '/' + dy + '/' + y;
           }
 
-          function hasStopped(wrap) {
-            var stop = wrap.dataset.stopBookingsAt;
-            if (!stop) return false;
-            var dt = new Date(stop);
-            return Date.now() > dt.getTime();
+          function formatTime(minsTotal, use12h) {
+            var h = Math.floor(minsTotal / 60);
+            var m = minsTotal % 60;
+            if (use12h) {
+              var ampm = h >= 12 ? 'PM' : 'AM';
+              var h12 = h % 12 || 12;
+              return h12 + ':' + pad(m) + ' ' + ampm;
+            }
+            return pad(h) + ':' + pad(m);
           }
 
-          function loadSubmissionCounts(fieldName) {
-            return fetch('${supabaseUrl}/rest/v1/form_submissions?select=data&form_id=eq.${escapeHtml(config.id)}', {
-              headers: {
-                'apikey': '${supabaseAnonKey}',
-                'Authorization': 'Bearer ${supabaseAnonKey}'
-              }
-            })
-              .then(function (res) { return res.ok ? res.json() : []; })
-              .then(function (rows) {
-                var counts = {};
-                (rows || []).forEach(function (row) {
-                  var data = row && row.data ? row.data : {};
-                  var val = data[fieldName];
-                  if (!val) return;
-                  counts[val] = (counts[val] || 0) + 1;
-                });
-                return counts;
-              })
-              .catch(function () { return {}; });
+          function dayMatchesInterval(days, dow) {
+            // dow: 0=Sun...6=Sat (JS default)
+            var map = {
+              'Every Day': [0,1,2,3,4,5,6],
+              'Weekdays':  [1,2,3,4,5],
+              'Weekends':  [0,6],
+              'Mon': [1], 'Monday':    [1],
+              'Tue': [2], 'Tuesday':   [2],
+              'Wed': [3], 'Wednesday': [3],
+              'Thu': [4], 'Thursday':  [4],
+              'Fri': [5], 'Friday':    [5],
+              'Sat': [6], 'Saturday':  [6],
+              'Sun': [0], 'Sunday':    [0],
+            };
+            return (map[days] || []).indexOf(dow) !== -1;
           }
 
-          function bindAppointmentField(wrap) {
-            var fieldName = wrap.dataset.fieldName || '';
-            var slots = parseJson(wrap.dataset.slots || '[]', []);
-            var list = wrap.querySelector('.appointment-slots-list');
-            var empty = wrap.querySelector('.appointment-slots-empty');
-            var status = wrap.querySelector('.appointment-slots-status');
-            var hidden = wrap.querySelector('input[type=\"hidden\"]');
+          function isDateAvailable(d, cfg) {
+            var today = new Date();
+            var todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            if (d < todayMid) return false;
 
-            if (!fieldName || !list || !hidden) return;
-
-            if (hasStopped(wrap)) {
-              list.innerHTML = '';
-              empty.style.display = '';
-              status.textContent = 'Bookings are closed for this form.';
-              return;
+            // Minimum scheduling notice
+            if (cfg.minSchedulingNoticeHours || cfg.minSchedulingNoticeMinutes) {
+              var noticeMs = ((cfg.minSchedulingNoticeHours || 0) * 60 + (cfg.minSchedulingNoticeMinutes || 0)) * 60000;
+              var earliest = new Date(Date.now() + noticeMs);
+              var dEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+              if (dEnd < earliest) return false;
             }
 
-            loadSubmissionCounts(fieldName).then(function (counts) {
-              list.innerHTML = '';
-              var visible = 0;
+            if (cfg.rollingDays) {
+              var maxD = new Date(todayMid);
+              maxD.setDate(todayMid.getDate() + cfg.rollingDays);
+              if (d > maxD) return false;
+            }
+            if (cfg.bookingStartDate) {
+              var sd = new Date(cfg.bookingStartDate + 'T00:00:00');
+              if (d < sd) return false;
+            }
+            if (cfg.bookingEndDate) {
+              var ed = new Date(cfg.bookingEndDate + 'T23:59:59');
+              if (d > ed) return false;
+            }
 
-              slots.forEach(function (slot) {
-                if (!isWithinWindow(wrap, slot)) return;
-                visible++;
-                var booked = counts[slot.id] || 0;
-                var remaining = Math.max(0, Number(slot.maxBookings || 0) - booked);
-                var soldOut = remaining <= 0;
+            var ds = toDateStr(d);
+            var vacs = cfg.vacations || [];
+            for (var vi = 0; vi < vacs.length; vi++) {
+              if (ds >= vacs[vi].startDate && ds <= (vacs[vi].endDate || vacs[vi].startDate)) return false;
+            }
 
-                var row = document.createElement('label');
-                row.className = 'appointment-slot-option' + (soldOut ? ' soldout' : '');
+            var intervals = cfg.intervals || [];
+            var dow = d.getDay();
+            for (var ii = 0; ii < intervals.length; ii++) {
+              if (dayMatchesInterval(intervals[ii].days, dow)) return true;
+            }
+            return false;
+          }
 
-                var input = document.createElement('input');
-                input.type = 'radio';
-                input.name = fieldName + '_picker';
-                input.value = slot.id;
-                input.disabled = soldOut;
-                input.addEventListener('change', function () {
-                  hidden.value = slot.id;
-                  status.textContent = soldOut ? 'This slot is sold out.' : '';
+          function getSlotsForDate(d, cfg) {
+            var dow = d.getDay();
+            var duration = cfg.slotDuration === 'custom'
+              ? (cfg.customSlotDuration || 30)
+              : (cfg.slotDuration || 60);
+            var lunchFrom = cfg.lunchtimeEnabled ? timeToMins(cfg.lunchtimeFrom || '12:00') : -1;
+            var lunchTo   = cfg.lunchtimeEnabled ? timeToMins(cfg.lunchtimeTo   || '13:00') : -1;
+
+            // Minimum notice cutoff (minutes from midnight today)
+            var noticeMins = 0;
+            var today = new Date();
+            var todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            var isToday = toDateStr(d) === toDateStr(today);
+            if (isToday && (cfg.minSchedulingNoticeHours || cfg.minSchedulingNoticeMinutes)) {
+              var now = new Date();
+              noticeMins = (now.getHours() * 60 + now.getMinutes()) +
+                ((cfg.minSchedulingNoticeHours || 0) * 60 + (cfg.minSchedulingNoticeMinutes || 0));
+            }
+
+            var slots = [];
+            var intervals = cfg.intervals || [];
+            for (var ii = 0; ii < intervals.length; ii++) {
+              var interval = intervals[ii];
+              if (!dayMatchesInterval(interval.days, dow)) continue;
+              var startMins = timeToMins(interval.from);
+              var endMins   = timeToMins(interval.to);
+              while (startMins + duration <= endMins) {
+                // Skip past notice cutoff
+                if (isToday && startMins < noticeMins) { startMins += duration; continue; }
+                // Skip lunchtime overlap
+                if (lunchFrom >= 0) {
+                  var slotEnd = startMins + duration;
+                  if (startMins < lunchTo && slotEnd > lunchFrom) {
+                    startMins = lunchTo;
+                    continue;
+                  }
+                }
+                slots.push(startMins);
+                startMins += duration;
+              }
+            }
+            // Deduplicate & sort
+            var seen = {};
+            var result = [];
+            for (var si = 0; si < slots.length; si++) {
+              if (!seen[slots[si]]) { seen[slots[si]] = true; result.push(slots[si]); }
+            }
+            result.sort(function(a, b) { return a - b; });
+            return result;
+          }
+
+          function getTzOffset(tz) {
+            try {
+              var now = new Date();
+              var fmt = new Intl.DateTimeFormat('en-US', {
+                timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
+              });
+              var parts = fmt.formatToParts(now);
+              var h = 0, m = 0;
+              parts.forEach(function(p) {
+                if (p.type === 'hour')   h = parseInt(p.value, 10);
+                if (p.type === 'minute') m = parseInt(p.value, 10);
+              });
+              return h < 10 ? '0' + h + ':' + (m < 10 ? '0' + m : m) : h + ':' + (m < 10 ? '0' + m : m);
+            } catch (e) { return ''; }
+          }
+
+          function bindApptWidget(wrap) {
+            var cfg = {};
+            try { cfg = JSON.parse(wrap.dataset.apptConfig || '{}'); } catch(e) {}
+            var hidden = wrap.querySelector('input[type="hidden"]');
+            if (!hidden) return;
+
+            var dateInput  = wrap.querySelector('.appt-date-input');
+            var dayLabel   = wrap.querySelector('.appt-selected-day-label');
+            var slotsGrid  = wrap.querySelector('.appt-time-slots-grid');
+            var dayHdrs    = wrap.querySelector('.appt-day-headers');
+            var daysGrid   = wrap.querySelector('.appt-days-grid');
+            var monthSel   = wrap.querySelector('.appt-month-sel');
+            var yearSel    = wrap.querySelector('.appt-year-sel');
+            var monthPrev  = wrap.querySelector('.appt-month-prev');
+            var monthNext  = wrap.querySelector('.appt-month-next');
+            var yearPrev   = wrap.querySelector('.appt-year-prev');
+            var yearNext   = wrap.querySelector('.appt-year-next');
+            var prevDayBtn = wrap.querySelector('.appt-prev-day');
+            var nextDayBtn = wrap.querySelector('.appt-next-day');
+            var tzLabel    = wrap.querySelector('.appt-tz-label');
+            var tzOffset   = wrap.querySelector('.appt-tz-offset');
+
+            var today = new Date();
+            var viewYear  = today.getFullYear();
+            var viewMonth = today.getMonth(); // 0-based
+            var selectedDate = null;
+
+            var fmt      = cfg.dateFormat || 'MM/DD/YYYY';
+            var use12h   = (cfg.timeFormat || '12h') === '12h';
+            var startMon = cfg.startWeekOn === 'monday';
+            var tz       = cfg.defaultTimezone || cfg.timezone || '';
+
+            // Populate month select
+            if (monthSel) {
+              MONTHS.forEach(function(mn, idx) {
+                var opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = mn;
+                monthSel.appendChild(opt);
+              });
+              monthSel.value = viewMonth;
+              monthSel.addEventListener('change', function() {
+                viewMonth = parseInt(this.value, 10);
+                renderCalendar();
+              });
+            }
+
+            // Populate year select
+            if (yearSel) {
+              var minY = today.getFullYear();
+              var maxY = today.getFullYear() + 3;
+              for (var y = minY; y <= maxY; y++) {
+                var yOpt = document.createElement('option');
+                yOpt.value = y;
+                yOpt.textContent = y;
+                yearSel.appendChild(yOpt);
+              }
+              yearSel.value = viewYear;
+              yearSel.addEventListener('change', function() {
+                viewYear = parseInt(this.value, 10);
+                renderCalendar();
+              });
+            }
+
+            function changeMonth(delta) {
+              viewMonth += delta;
+              if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+              if (viewMonth > 11) { viewMonth = 0;  viewYear++; }
+              if (monthSel) monthSel.value = viewMonth;
+              if (yearSel)  yearSel.value  = viewYear;
+              renderCalendar();
+            }
+
+            if (monthPrev) monthPrev.addEventListener('click', function() { changeMonth(-1); });
+            if (monthNext) monthNext.addEventListener('click', function() { changeMonth(1); });
+            if (yearPrev)  yearPrev.addEventListener('click', function() { viewYear--; if (yearSel) yearSel.value = viewYear; renderCalendar(); });
+            if (yearNext)  yearNext.addEventListener('click', function() { viewYear++; if (yearSel) yearSel.value = viewYear; renderCalendar(); });
+
+            // Day headers
+            if (dayHdrs) {
+              var hdrs = startMon ? DAYS_SHORT_MON : DAYS_SHORT_SUN;
+              hdrs.forEach(function(h) {
+                var span = document.createElement('div');
+                span.className = 'appt-day-hdr';
+                span.textContent = h;
+                dayHdrs.appendChild(span);
+              });
+            }
+
+            function renderCalendar() {
+              if (!daysGrid) return;
+              daysGrid.innerHTML = '';
+
+              var firstDay = new Date(viewYear, viewMonth, 1).getDay(); // 0=Sun
+              // Adjust for Monday start
+              var offset = startMon ? ((firstDay + 6) % 7) : firstDay;
+
+              var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+              var prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
+
+              // Leading empty cells from prev month
+              for (var p = offset - 1; p >= 0; p--) {
+                var cell = document.createElement('div');
+                cell.className = 'appt-day-cell appt-day-other-month';
+                cell.textContent = prevMonthDays - p;
+                daysGrid.appendChild(cell);
+              }
+
+              var todayStr = toDateStr(today);
+              var selStr   = selectedDate ? toDateStr(selectedDate) : '';
+
+              for (var day = 1; day <= daysInMonth; day++) {
+                var d = new Date(viewYear, viewMonth, day);
+                var dStr = toDateStr(d);
+                var isAvail = isDateAvailable(d, cfg);
+
+                var cell = document.createElement('div');
+                cell.textContent = day;
+                var classes = 'appt-day-cell';
+                if (!isAvail)      classes += ' appt-day-disabled';
+                if (dStr === todayStr && dStr === selStr) classes += ' appt-day-today-sel';
+                else if (dStr === todayStr)  classes += ' appt-day-today';
+                else if (dStr === selStr)    classes += ' appt-day-selected';
+                cell.className = classes;
+
+                if (isAvail) {
+                  (function(date) {
+                    cell.addEventListener('click', function() { selectDate(date); });
+                  })(d);
+                }
+                daysGrid.appendChild(cell);
+              }
+            }
+
+            function selectDate(d) {
+              selectedDate = d;
+              renderCalendar();
+              renderSlots();
+              if (dateInput) dateInput.value = formatDisplayDate(d, fmt);
+
+              // Navigate to selected date's month if needed
+              if (d.getFullYear() !== viewYear || d.getMonth() !== viewMonth) {
+                viewYear  = d.getFullYear();
+                viewMonth = d.getMonth();
+                if (monthSel) monthSel.value = viewMonth;
+                if (yearSel)  yearSel.value  = viewYear;
+                renderCalendar();
+              }
+            }
+
+            function renderSlots() {
+              if (!slotsGrid || !selectedDate) return;
+              slotsGrid.innerHTML = '';
+
+              var dateStr = formatDisplayDate(selectedDate, fmt === 'DD/MM/YYYY' ? fmt : (fmt === 'YYYY/MM/DD' ? fmt : 'MM/DD/YYYY'));
+              var fullLabel = selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long', month: 'long', day: '2-digit'
+              });
+              if (dayLabel) dayLabel.textContent = fullLabel;
+
+              var slots = getSlotsForDate(selectedDate, cfg);
+              if (!slots.length) {
+                var msg = document.createElement('div');
+                msg.className = 'appt-no-slots';
+                msg.textContent = 'No available slots for this day.';
+                slotsGrid.appendChild(msg);
+                if (prevDayBtn) prevDayBtn.disabled = false;
+                if (nextDayBtn) nextDayBtn.disabled = false;
+                return;
+              }
+
+              slots.forEach(function(mins) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'appt-time-btn';
+                btn.textContent = formatTime(mins, use12h);
+                btn.addEventListener('click', function() {
+                  slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
+                  btn.classList.add('selected');
+                  hidden.value = toDateStr(selectedDate) + 'T' + minsToStr(mins);
+                  hidden.dispatchEvent(new Event('change', { bubbles: true }));
                 });
-
-                var main = document.createElement('div');
-                main.className = 'appointment-slot-main';
-                main.innerHTML = '<div class=\"appointment-slot-title\">' + (slot.className || 'Session') + ' · ' + (slot.teacherName || 'Instructor') + '</div>' +
-                  '<div class=\"appointment-slot-meta\">' + fmtDateTime(slot) + ' · ' + (slot.durationMinutes || 0) + ' mins · ' + ((slot.sessionType || 'group') === 'group' ? 'Group' : 'Personal') + '</div>';
-
-                var cap = document.createElement('div');
-                cap.className = 'appointment-slot-capacity';
-                cap.textContent = soldOut ? 'Sold out' : (remaining + ' slots left');
-
-                row.appendChild(input);
-                row.appendChild(main);
-                row.appendChild(cap);
-                list.appendChild(row);
+                slotsGrid.appendChild(btn);
               });
 
-              if (!visible) {
-                empty.style.display = '';
+              if (prevDayBtn) prevDayBtn.disabled = false;
+              if (nextDayBtn) nextDayBtn.disabled = false;
+            }
+
+            // Prev/Next day navigation
+            function navDay(delta) {
+              if (!selectedDate) {
+                selectedDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
               } else {
-                empty.style.display = 'none';
+                selectedDate = new Date(selectedDate.getTime() + delta * 86400000);
               }
-            });
+              // Sync calendar to the selected date's month
+              viewYear  = selectedDate.getFullYear();
+              viewMonth = selectedDate.getMonth();
+              if (monthSel) monthSel.value = viewMonth;
+              if (yearSel)  yearSel.value  = viewYear;
+              renderCalendar();
+              renderSlots();
+              if (dateInput) dateInput.value = formatDisplayDate(selectedDate, fmt);
+            }
+            if (prevDayBtn) prevDayBtn.addEventListener('click', function() { navDay(-1); });
+            if (nextDayBtn) nextDayBtn.addEventListener('click', function() { navDay(1); });
+
+            // Timezone display
+            if (tz && tzLabel) {
+              tzLabel.textContent = tz;
+              if (tzOffset) tzOffset.textContent = '(' + getTzOffset(tz) + ')';
+            }
+
+            // Initial render
+            renderCalendar();
           }
 
           document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('[data-appointment-slots=\"true\"]').forEach(bindAppointmentField);
+            document.querySelectorAll('[data-appt="true"]').forEach(bindApptWidget);
+
             var form = document.getElementById('generated-form');
             if (!form) return;
             form.addEventListener('submit', function (e) {
-              var groups = document.querySelectorAll('[data-appointment-slots=\"true\"]');
+              var groups = document.querySelectorAll('[data-appt="true"]');
               for (var i = 0; i < groups.length; i++) {
                 var g = groups[i];
-                var hidden = g.querySelector('input[type=\"hidden\"]');
-                var status = g.querySelector('.appointment-slots-status');
-                if (hidden && !hidden.value) {
+                var hidden = g.querySelector('input[type="hidden"]');
+                if (hidden && hidden.required && !hidden.value) {
                   e.preventDefault();
-                  if (status) status.textContent = 'Please choose an available appointment slot.';
+                  var label = g.querySelector('.appt-selected-day-label');
+                  if (label) label.textContent = 'Please select a date and time.';
                   return;
                 }
               }
@@ -2356,28 +2665,212 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         }
         .email-otp-send-btn:disabled, .email-otp-verify-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         .email-otp-status { min-height: 18px; font-size: 12px; color: var(--text-secondary); }
-        .appointment-slots-group { display: flex; flex-direction: column; gap: 8px; }
-        .appointment-slots-list { display: flex; flex-direction: column; gap: 8px; }
-        .appointment-slot-option {
+
+        /* ── Appointment Booking Widget ─────────────────────────────── */
+        .appt-booking {
+            border: 1px solid var(--border-focus, #4f80f7);
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+        .appt-date-row {
             display: flex;
             align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 6px;
+        }
+        .appt-date-input {
+            flex: 1;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+            padding: 4px 8px !important;
+            font-size: 14px;
+            cursor: default;
+        }
+        .appt-cal-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+        }
+        .appt-cal-toggle:hover { background: var(--bg-secondary); }
+        .appt-main-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            min-height: 320px;
+        }
+        @media (max-width: 560px) {
+            .appt-main-panel { grid-template-columns: 1fr; }
+        }
+        .appt-cal-panel {
+            border-right: 1px solid var(--border-color);
+            padding: 14px 12px 10px;
+        }
+        .appt-month-year-nav {
+            display: flex;
             gap: 10px;
+            margin-bottom: 10px;
+        }
+        .appt-nav-ctrl {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex: 1;
+        }
+        .appt-sel {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            outline: none;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .appt-arrows {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+        .appt-arrow-btn {
+            background: none;
+            border: none;
+            padding: 1px 3px;
+            line-height: 1;
+            font-size: 10px;
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+        .appt-arrow-btn:hover { color: var(--text-primary); }
+        .appt-day-headers {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            margin-bottom: 4px;
+        }
+        .appt-day-hdr {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            padding: 2px 0;
+        }
+        .appt-days-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+        }
+        .appt-day-cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: background 0.12s, color 0.12s;
+            color: var(--text-primary);
+            user-select: none;
+        }
+        .appt-day-cell:hover:not(.appt-day-disabled):not(.appt-day-today-sel) { background: var(--bg-secondary); }
+        .appt-day-cell.appt-day-other-month { color: var(--text-secondary); opacity: 0.4; pointer-events: none; }
+        .appt-day-cell.appt-day-disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+        .appt-day-cell.appt-day-today { font-weight: 700; color: var(--primary-color, #4f80f7); }
+        .appt-day-cell.appt-day-selected { background: var(--primary-color, #4f80f7); color: #fff; font-weight: 600; }
+        .appt-day-cell.appt-day-today-sel { background: var(--primary-color, #4f80f7); color: #fff; font-weight: 700; }
+        .appt-slots-panel {
+            padding: 14px 12px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .appt-slots-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .appt-selected-day-label {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .appt-day-nav {
+            background: var(--bg-secondary);
             border: 1px solid var(--border-color);
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+        .appt-day-nav:hover:not(:disabled) { background: var(--bg-primary); border-color: var(--border-focus); }
+        .appt-day-nav:disabled { opacity: 0.3; cursor: default; }
+        .appt-time-slots-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            flex: 1;
+            align-content: start;
+        }
+        .appt-time-btn {
+            border: 1px solid var(--border-color, #c6d0e8);
             background: var(--bg-primary);
             border-radius: 8px;
-            padding: 10px 12px;
+            padding: 10px 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--primary-color, #4f80f7);
             cursor: pointer;
+            text-align: center;
+            transition: all 0.12s;
         }
-        .appointment-slot-option:hover { border-color: var(--border-focus); background: var(--bg-secondary); }
-        .appointment-slot-option input { width: 16px; height: 16px; accent-color: var(--primary-color); }
-        .appointment-slot-main { flex: 1; min-width: 0; }
-        .appointment-slot-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-        .appointment-slot-meta { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
-        .appointment-slot-capacity { font-size: 11px; font-weight: 600; color: var(--primary-color); white-space: nowrap; }
-        .appointment-slot-option.soldout { opacity: 0.55; cursor: not-allowed; }
-        .appointment-slot-option.soldout .appointment-slot-capacity { color: #ef4444; }
-        .appointment-slots-status { min-height: 18px; font-size: 12px; color: var(--text-secondary); }
-        .appointment-slots-empty { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+        .appt-time-btn:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); }
+        .appt-time-btn.selected { background: var(--primary-color, #4f80f7); color: #fff; border-color: var(--primary-color, #4f80f7); }
+        .appt-time-btn:disabled { opacity: 0.35; cursor: default; }
+        .appt-no-slots {
+            grid-column: 1 / -1;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 20px 0;
+        }
+        .appt-tz-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            padding-top: 8px;
+            margin-top: auto;
+        }
+        .appt-tz-label { font-weight: 500; }
+        .appt-tz-offset { opacity: 0.75; }
+        .appt-tz-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 10px;
+            padding: 0 2px;
+        }
+        .appt-tz-toggle:hover { color: var(--text-primary); }
+
 
         /* Advanced Signature */
         .signature-pad {

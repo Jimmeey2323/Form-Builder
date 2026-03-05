@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentSlot, EmailOtpConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, EmailOtpConfig } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -37,6 +37,11 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const [draft, setDraft] = useState<Partial<FormField>>({});
   const [expandedOptionIndex, setExpandedOptionIndex] = useState<number | null>(null);
   const [newCustomSrcVal, setNewCustomSrcVal] = useState('');
+  const [newIntervalFrom, setNewIntervalFrom] = useState('09:00');
+  const [newIntervalTo, setNewIntervalTo] = useState('17:00');
+  const [newIntervalDays, setNewIntervalDays] = useState('Weekdays');
+  const [newVacStart, setNewVacStart] = useState('');
+  const [newVacEnd, setNewVacEnd] = useState('');
 
   useEffect(() => {
     if (field) setDraft({ ...field });
@@ -70,8 +75,49 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   };
 
   const updateAppointment = (updates: Partial<AppointmentSlotsConfig>) => {
-    const existing = draft.appointmentSlotsConfig || { slots: [] };
+    const existing = draft.appointmentSlotsConfig || {};
     update('appointmentSlotsConfig', { ...existing, ...updates });
+  };
+
+  const addAppointmentInterval = () => {
+    const current = draft.appointmentSlotsConfig || {};
+    const intervals: AppointmentInterval[] = [...(current.intervals || []), {
+      id: `int_${Date.now()}`,
+      from: newIntervalFrom,
+      to: newIntervalTo,
+      days: newIntervalDays,
+    }];
+    updateAppointment({ intervals });
+  };
+
+  const removeAppointmentInterval = (id: string) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ intervals: (current.intervals || []).filter(i => i.id !== id) });
+  };
+
+  const updateAppointmentInterval = (id: string, changes: Partial<AppointmentInterval>) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({
+      intervals: (current.intervals || []).map(i => i.id === id ? { ...i, ...changes } : i),
+    });
+  };
+
+  const addAppointmentVacation = () => {
+    if (!newVacStart) return;
+    const current = draft.appointmentSlotsConfig || {};
+    const vacations: AppointmentVacation[] = [...(current.vacations || []), {
+      id: `vac_${Date.now()}`,
+      startDate: newVacStart,
+      endDate: newVacEnd || newVacStart,
+    }];
+    updateAppointment({ vacations });
+    setNewVacStart('');
+    setNewVacEnd('');
+  };
+
+  const removeAppointmentVacation = (id: string) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ vacations: (current.vacations || []).filter(v => v.id !== id) });
   };
 
   const updateEmailOtp = (updates: Partial<EmailOtpConfig>) => {
@@ -80,7 +126,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   };
 
   const addAppointmentSlot = () => {
-    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const current = draft.appointmentSlotsConfig || {};
     const nextIndex = (current.slots?.length || 0) + 1;
     const slot: AppointmentSlot = {
       id: `slot_${Date.now()}_${nextIndex}`,
@@ -96,14 +142,14 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   };
 
   const updateAppointmentSlot = (index: number, updates: Partial<AppointmentSlot>) => {
-    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const current = draft.appointmentSlotsConfig || {};
     const slots = [...(current.slots || [])];
     slots[index] = { ...slots[index], ...updates };
     updateAppointment({ slots });
   };
 
   const removeAppointmentSlot = (index: number) => {
-    const current = draft.appointmentSlotsConfig || { slots: [] };
+    const current = draft.appointmentSlotsConfig || {};
     const slots = [...(current.slots || [])];
     slots.splice(index, 1);
     updateAppointment({ slots });
@@ -233,7 +279,12 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               <TabsTrigger value="style">Style</TabsTrigger>
               {isMomenceSearch  && <TabsTrigger value="momence">Momence</TabsTrigger>}
               {isMomenceSession && <TabsTrigger value="sessions">Sessions</TabsTrigger>}
-              {isAppointmentSlots && <TabsTrigger value="appointments">Appointments</TabsTrigger>}
+              {isAppointmentSlots && <>
+                <TabsTrigger value="appt-setup">Setup</TabsTrigger>
+                <TabsTrigger value="appt-avail">Availability</TabsTrigger>
+                <TabsTrigger value="appt-limits">Limits</TabsTrigger>
+                <TabsTrigger value="appt-adv">Advanced</TabsTrigger>
+              </>}
               {isEmailOtp && <TabsTrigger value="verification">Verification</TabsTrigger>}
             </TabsList>
 
@@ -875,113 +926,373 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
             </TabsContent>
 
             {isAppointmentSlots && (
-              <TabsContent value="appointments" className="space-y-4 mt-4">
-                <p className="text-sm text-muted-foreground">
-                  Configure booking windows and available appointment slots.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Booking Start Date</Label>
-                    <Input
-                      type="date"
-                      value={draft.appointmentSlotsConfig?.bookingStartDate || ''}
-                      onChange={e => updateAppointment({ bookingStartDate: e.target.value })}
-                    />
+              <>
+                {/* ── Setup Tab ─────────────────────────────────────────────── */}
+                <TabsContent value="appt-setup" className="space-y-5 mt-4">
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Date Format</Label>
+                    <div className="flex gap-2">
+                      {(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY/MM/DD'] as const).map(fmt => (
+                        <Button key={fmt} size="sm" variant={
+                          (draft.appointmentSlotsConfig?.dateFormat || 'MM/DD/YYYY') === fmt ? 'default' : 'outline'
+                        } onClick={() => updateAppointment({ dateFormat: fmt })}>{fmt}</Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Select a date format. D = day, M = month, Y = year.</p>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Booking End Date</Label>
-                    <Input
-                      type="date"
-                      value={draft.appointmentSlotsConfig?.bookingEndDate || ''}
-                      onChange={e => updateAppointment({ bookingEndDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Stop Bookings At</Label>
-                    <Input
-                      type="datetime-local"
-                      value={draft.appointmentSlotsConfig?.stopBookingsAt || ''}
-                      onChange={e => updateAppointment({ stopBookingsAt: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Timezone</Label>
-                    <Input
-                      value={draft.appointmentSlotsConfig?.timezone || 'Asia/Kolkata'}
-                      onChange={e => updateAppointment({ timezone: e.target.value })}
-                      placeholder="Asia/Kolkata"
-                    />
-                  </div>
-                </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label>Time Slots</Label>
-                    <Button variant="outline" size="sm" onClick={addAppointmentSlot}>
-                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Slot
-                    </Button>
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Start Week on</Label>
+                    <div className="flex gap-2">
+                      {(['monday', 'sunday'] as const).map(d => (
+                        <Button key={d} size="sm" variant={
+                          (draft.appointmentSlotsConfig?.startWeekOn || 'sunday') === d ? 'default' : 'outline'
+                        } className="uppercase" onClick={() => updateAppointment({ startWeekOn: d })}>{d}</Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Select when the week starts in your calendar.</p>
                   </div>
-                  {(draft.appointmentSlotsConfig?.slots || []).map((slot, i) => (
-                    <div key={slot.id || i} className="rounded-lg border p-3 space-y-3">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          value={slot.className}
-                          onChange={e => updateAppointmentSlot(i, { className: e.target.value })}
-                          placeholder="Class Name"
-                        />
-                        <Input
-                          value={slot.teacherName}
-                          onChange={e => updateAppointmentSlot(i, { teacherName: e.target.value })}
-                          placeholder="Teacher Name"
-                        />
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Time Format</Label>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '24h' ? 'default' : 'outline'}
+                        onClick={() => updateAppointment({ timeFormat: '24h' })}>24 HOUR</Button>
+                      <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '12h' ? 'default' : 'outline'}
+                        onClick={() => updateAppointment({ timeFormat: '12h' })}>AM/PM</Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Select a time format.</p>
+                  </div>
+                </TabsContent>
+
+                {/* ── Availability Tab ──────────────────────────────────────── */}
+                <TabsContent value="appt-avail" className="space-y-5 mt-4">
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Calendar Integrations</Label>
+                    <div className="flex gap-2">
+                      {([
+                        { key: 'google', label: 'Google Calendar' },
+                        { key: 'outlook', label: 'Outlook Calendar' },
+                        { key: 'calendly', label: 'Calendly' },
+                      ] as { key: 'google' | 'outlook' | 'calendly'; label: string }[]).map(({ key, label }) => (
+                        <Button key={key} size="sm" variant={
+                          draft.appointmentSlotsConfig?.calIntegrations?.[key] ? 'default' : 'outline'
+                        } onClick={() => updateAppointment({
+                          calIntegrations: {
+                            ...(draft.appointmentSlotsConfig?.calIntegrations || {}),
+                            [key]: !draft.appointmentSlotsConfig?.calIntegrations?.[key],
+                          },
+                        })}>{label}</Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Check your calendar's availability.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Appointment Slot Duration</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {([15, 30, 45, 60, 'custom'] as const).map(d => (
+                        <Button key={d} size="sm" variant={
+                          (draft.appointmentSlotsConfig?.slotDuration ?? 60) === d ? 'default' : 'outline'
+                        } onClick={() => updateAppointment({ slotDuration: d })}>
+                          {d === 'custom' ? 'Custom' : `${d} min`}
+                        </Button>
+                      ))}
+                    </div>
+                    {draft.appointmentSlotsConfig?.slotDuration === 'custom' && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <Input type="number" min={1} className="w-24"
+                          value={draft.appointmentSlotsConfig?.customSlotDuration ?? 30}
+                          onChange={e => updateAppointment({ customSlotDuration: Number(e.target.value) || 30 })} />
+                        <span className="text-sm text-muted-foreground">minutes</span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2">
-                        <Input
-                          type="date"
-                          value={slot.date}
-                          onChange={e => updateAppointmentSlot(i, { date: e.target.value })}
-                        />
-                        <Input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={e => updateAppointmentSlot(i, { startTime: e.target.value })}
-                        />
-                        <Input
-                          type="number"
-                          min={5}
-                          value={slot.durationMinutes}
-                          onChange={e => updateAppointmentSlot(i, { durationMinutes: Number(e.target.value) || 0 })}
-                          placeholder="Duration"
-                        />
-                        <Input
-                          type="number"
-                          min={1}
-                          value={slot.maxBookings}
-                          onChange={e => updateAppointmentSlot(i, { maxBookings: Number(e.target.value) || 1 })}
-                          placeholder="Max Seats"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={slot.sessionType}
-                          onValueChange={v => updateAppointmentSlot(i, { sessionType: v as 'group' | 'personal' })}
-                        >
+                    )}
+                    <p className="text-xs text-muted-foreground">Select the length of each appointment slot.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="font-semibold">Intervals</Label>
+                    {(draft.appointmentSlotsConfig?.intervals || []).map(interval => (
+                      <div key={interval.id} className="rounded-lg border p-3 space-y-2">
+                        <div className="grid grid-cols-3 gap-2 items-end">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">From</Label>
+                            <Input type="time" value={interval.from}
+                              onChange={e => updateAppointmentInterval(interval.id, { from: e.target.value })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">To</Label>
+                            <Input type="time" value={interval.to}
+                              onChange={e => updateAppointmentInterval(interval.id, { to: e.target.value })} />
+                          </div>
+                          <Button variant="ghost" size="icon" className="text-destructive"
+                            onClick={() => removeAppointmentInterval(interval.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                        <Select value={interval.days}
+                          onValueChange={v => updateAppointmentInterval(interval.id, { days: v })}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="group">Group Session</SelectItem>
-                            <SelectItem value="personal">Personal Session</SelectItem>
+                            <SelectItem value="Every Day">Every Day</SelectItem>
+                            <SelectItem value="Weekdays">Weekdays</SelectItem>
+                            <SelectItem value="Weekends">Weekends</SelectItem>
+                            <SelectItem value="Mon">Monday</SelectItem>
+                            <SelectItem value="Tue">Tuesday</SelectItem>
+                            <SelectItem value="Wed">Wednesday</SelectItem>
+                            <SelectItem value="Thu">Thursday</SelectItem>
+                            <SelectItem value="Fri">Friday</SelectItem>
+                            <SelectItem value="Sat">Saturday</SelectItem>
+                            <SelectItem value="Sun">Sunday</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => removeAppointmentSlot(i)}>
+                      </div>
+                    ))}
+                    <div className="rounded-lg border border-dashed p-3 space-y-2">
+                      <p className="text-xs text-muted-foreground font-medium">Add New Interval</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">From</Label>
+                          <Input type="time" value={newIntervalFrom} onChange={e => setNewIntervalFrom(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">To</Label>
+                          <Input type="time" value={newIntervalTo} onChange={e => setNewIntervalTo(e.target.value)} />
+                        </div>
+                      </div>
+                      <Select value={newIntervalDays} onValueChange={setNewIntervalDays}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Every Day">Every Day</SelectItem>
+                          <SelectItem value="Weekdays">Weekdays</SelectItem>
+                          <SelectItem value="Weekends">Weekends</SelectItem>
+                          <SelectItem value="Mon">Monday</SelectItem>
+                          <SelectItem value="Tue">Tuesday</SelectItem>
+                          <SelectItem value="Wed">Wednesday</SelectItem>
+                          <SelectItem value="Thu">Thursday</SelectItem>
+                          <SelectItem value="Fri">Friday</SelectItem>
+                          <SelectItem value="Sat">Saturday</SelectItem>
+                          <SelectItem value="Sun">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="sm" className="w-full" onClick={addAppointmentInterval}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add New Interval
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Select the days and times you will accept appointments. These intervals repeat each week.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                      <div>
+                        <Label className="text-sm font-medium">Lunchtime</Label>
+                        <p className="text-xs text-muted-foreground">Appointments can't be scheduled during this time.</p>
+                      </div>
+                      <Switch
+                        checked={draft.appointmentSlotsConfig?.lunchtimeEnabled ?? false}
+                        onCheckedChange={v => updateAppointment({ lunchtimeEnabled: v })} />
+                    </div>
+                    {draft.appointmentSlotsConfig?.lunchtimeEnabled && (
+                      <div className="grid grid-cols-2 gap-2 pl-1">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Lunch From</Label>
+                          <Input type="time" value={draft.appointmentSlotsConfig?.lunchtimeFrom || '12:00'}
+                            onChange={e => updateAppointment({ lunchtimeFrom: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Lunch To</Label>
+                          <Input type="time" value={draft.appointmentSlotsConfig?.lunchtimeTo || '13:00'}
+                            onChange={e => updateAppointment({ lunchtimeTo: e.target.value })} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* ── Limits Tab ────────────────────────────────────────────── */}
+                <TabsContent value="appt-limits" className="space-y-5 mt-4">
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Start &amp; End Date</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Start Date</Label>
+                        <Input type="date" value={draft.appointmentSlotsConfig?.bookingStartDate || ''}
+                          onChange={e => updateAppointment({ bookingStartDate: e.target.value })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">End Date</Label>
+                        <Input type="date" value={draft.appointmentSlotsConfig?.bookingEndDate || ''}
+                          onChange={e => updateAppointment({ bookingEndDate: e.target.value })} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Allow selection only between these dates.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Rolling Days</Label>
+                    <div className="flex items-center gap-2">
+                      <Input type="number" min={1} className="flex-1"
+                        value={draft.appointmentSlotsConfig?.rollingDays ?? ''}
+                        placeholder="e.g. 60"
+                        onChange={e => updateAppointment({ rollingDays: e.target.value ? Number(e.target.value) : undefined })} />
+                      <span className="text-sm font-semibold text-muted-foreground uppercase">Days</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Offer appointment availability for a certain number of days into the future.</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label className="font-semibold">Vacation and Holidays</Label>
+                    {(draft.appointmentSlotsConfig?.vacations || []).map(vac => (
+                      <div key={vac.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Start Date</Label>
+                          <Input type="date" value={vac.startDate} onChange={e => {
+                            const current = draft.appointmentSlotsConfig || {};
+                            updateAppointment({ vacations: (current.vacations || []).map(v => v.id === vac.id ? { ...v, startDate: e.target.value } : v) });
+                          }} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">End Date</Label>
+                          <Input type="date" value={vac.endDate} onChange={e => {
+                            const current = draft.appointmentSlotsConfig || {};
+                            updateAppointment({ vacations: (current.vacations || []).map(v => v.id === vac.id ? { ...v, endDate: e.target.value } : v) });
+                          }} />
+                        </div>
+                        <Button variant="outline" size="icon" onClick={() => removeAppointmentVacation(vac.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
+                    ))}
+                    <div className="rounded-lg border border-dashed p-3 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Start Date</Label>
+                          <Input type="date" value={newVacStart} onChange={e => setNewVacStart(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">End Date</Label>
+                          <Input type="date" value={newVacEnd} onChange={e => setNewVacEnd(e.target.value)} />
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" onClick={addAppointmentVacation}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add New Vacation Date
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </TabsContent>
+                    <p className="text-xs text-muted-foreground">Block out dates on your calendar so that appointments can't be scheduled on those dates.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Maximum Appointments Per Day</Label>
+                    <Input type="number" min={1}
+                      value={draft.appointmentSlotsConfig?.maxAppointmentsPerDay ?? ''}
+                      placeholder="Unlimited"
+                      onChange={e => updateAppointment({ maxAppointmentsPerDay: e.target.value ? Number(e.target.value) : undefined })} />
+                    <p className="text-xs text-muted-foreground">Limit the number of appointments for each day.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Minimum Scheduling Notice</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Hours</Label>
+                        <Input type="number" min={0}
+                          value={draft.appointmentSlotsConfig?.minSchedulingNoticeHours ?? ''}
+                          placeholder="0"
+                          onChange={e => updateAppointment({ minSchedulingNoticeHours: e.target.value ? Number(e.target.value) : undefined })} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Minutes</Label>
+                        <Input type="number" min={0} max={59}
+                          value={draft.appointmentSlotsConfig?.minSchedulingNoticeMinutes ?? ''}
+                          placeholder="0"
+                          onChange={e => updateAppointment({ minSchedulingNoticeMinutes: e.target.value ? Number(e.target.value) : undefined })} />
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* ── Advanced Tab ──────────────────────────────────────────── */}
+                <TabsContent value="appt-adv" className="space-y-5 mt-4">
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Appointment Type</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([
+                        { value: 'one-on-one', label: 'One-on-one', icon: '👤' },
+                        { value: 'group', label: 'Group', icon: '👥' },
+                      ] as const).map(({ value, label, icon }) => (
+                        <button key={value} type="button" onClick={() => updateAppointment({ appointmentType: value })}
+                          className={`flex flex-col items-center justify-center gap-2 rounded-lg border p-4 text-sm font-medium transition-colors ${
+                            (draft.appointmentSlotsConfig?.appointmentType ?? 'one-on-one') === value
+                              ? 'border-primary bg-primary/10 text-primary'
+                              : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                          }`}>
+                          <span className="text-2xl">{icon}</span>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    {draft.appointmentSlotsConfig?.appointmentType === 'group' && (
+                      <div className="space-y-1 mt-2">
+                        <Label className="text-xs text-muted-foreground">Max Attendees per Slot</Label>
+                        <Input type="number" min={2}
+                          value={draft.appointmentSlotsConfig?.groupMaxAttendees ?? ''}
+                          placeholder="Unlimited"
+                          onChange={e => updateAppointment({ groupMaxAttendees: e.target.value ? Number(e.target.value) : undefined })} />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">Make each appointment slot available to one person or multiple people.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label className="text-sm font-medium">Send Reminder Emails</Label>
+                      <p className="text-xs text-muted-foreground">Send a reminder email to all attendees before the appointment time.</p>
+                    </div>
+                    <Switch
+                      checked={draft.appointmentSlotsConfig?.sendReminderEmails ?? false}
+                      onCheckedChange={v => updateAppointment({ sendReminderEmails: v })} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Default Time Zone</Label>
+                    <Select
+                      value={draft.appointmentSlotsConfig?.defaultTimezone || 'America/New_York'}
+                      onValueChange={v => updateAppointment({ defaultTimezone: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[
+                          'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
+                          'America/Sao_Paulo','Europe/London','Europe/Paris','Europe/Berlin',
+                          'Europe/Moscow','Asia/Dubai','Asia/Kolkata','Asia/Singapore',
+                          'Asia/Tokyo','Asia/Shanghai','Australia/Sydney','Pacific/Auckland',
+                        ].map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">Select the time zone for your appointments. Attendees will see your availability in their local time zone.</p>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <Label className="text-sm font-medium">Lock the Time Zone</Label>
+                      <p className="text-xs text-muted-foreground">Users will only see appointments in your time zone.</p>
+                    </div>
+                    <Switch
+                      checked={draft.appointmentSlotsConfig?.lockTimezone ?? false}
+                      onCheckedChange={v => updateAppointment({ lockTimezone: v })} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Date Format</Label>
+                    <div className="flex gap-2 flex-wrap">
+                      {(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY/MM/DD'] as const).map(fmt => (
+                        <Button key={fmt} size="sm" variant={
+                          (draft.appointmentSlotsConfig?.dateFormat || 'MM/DD/YYYY') === fmt ? 'default' : 'outline'
+                        } onClick={() => updateAppointment({ dateFormat: fmt })}>{fmt}</Button>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+              </>
             )}
 
             {isEmailOtp && (

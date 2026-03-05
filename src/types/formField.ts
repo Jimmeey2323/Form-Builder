@@ -236,12 +236,68 @@ export interface AppointmentSlot {
   maxBookings: number;
 }
 
+/** One repeating weekly interval for appointment availability */
+export interface AppointmentInterval {
+  id: string;
+  /** Start time, e.g. "09:00" */
+  from: string;
+  /** End time, e.g. "17:00" */
+  to: string;
+  /**
+   * Applies to which days: "Every Day" | "Weekdays" | "Weekends" |
+   * "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+   */
+  days: string;
+}
+
+/** A blocked-out vacation/holiday date range */
+export interface AppointmentVacation {
+  id: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface AppointmentSlotsConfig {
-  timezone?: string;
+  // ── General display ───────────────────────────────────────────────────
+  dateFormat?: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY/MM/DD';
+  startWeekOn?: 'sunday' | 'monday';
+  timeFormat?: '12h' | '24h';
+
+  // ── Availability ──────────────────────────────────────────────────────
+  /** Third-party calendar integrations to check for conflicts */
+  calIntegrations?: { google?: boolean; outlook?: boolean; calendly?: boolean };
+  /** Duration of each appointment slot in minutes */
+  slotDuration?: 15 | 30 | 45 | 60 | 'custom';
+  customSlotDuration?: number;
+  /** Weekly repeating availability windows */
+  intervals?: AppointmentInterval[];
+  lunchtimeEnabled?: boolean;
+  lunchtimeFrom?: string;
+  lunchtimeTo?: string;
+
+  // ── Limits ────────────────────────────────────────────────────────────
   bookingStartDate?: string;
   bookingEndDate?: string;
+  /** Allow booking only this many days into the future */
+  rollingDays?: number;
+  vacations?: AppointmentVacation[];
+  /** Maximum number of appointments allowed per day (null = unlimited) */
+  maxAppointmentsPerDay?: number;
+  /** Minimum advance notice required (hours + minutes) */
+  minSchedulingNoticeHours?: number;
+  minSchedulingNoticeMinutes?: number;
+
+  // ── Advanced ──────────────────────────────────────────────────────────
+  appointmentType?: 'one-on-one' | 'group';
+  groupMaxAttendees?: number;
+  sendReminderEmails?: boolean;
+  defaultTimezone?: string;
+  lockTimezone?: boolean;
+
+  // ── Legacy (backward-compat — manually defined slots) ─────────────────
+  timezone?: string;
   stopBookingsAt?: string;
-  slots: AppointmentSlot[];
+  slots?: AppointmentSlot[];
 }
 
 export interface EmailOtpConfig {
@@ -632,28 +688,24 @@ export function createDefaultField(type: FieldType, order: number): FormField {
   }
 
   if (type === 'appointment-slots') {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const defaultDate = `${yyyy}-${mm}-${dd}`;
-    base.label = 'Choose an Appointment Slot';
+    base.label = 'Appointment';
     base.appointmentSlotsConfig = {
-      timezone: 'Asia/Kolkata',
-      bookingStartDate: defaultDate,
-      bookingEndDate: defaultDate,
-      slots: [
-        {
-          id: `slot_${Date.now()}_1`,
-          className: 'Signature Experience',
-          teacherName: 'Lead Instructor',
-          sessionType: 'group',
-          date: defaultDate,
-          startTime: '09:00',
-          durationMinutes: 45,
-          maxBookings: 10,
-        },
+      dateFormat: 'MM/DD/YYYY',
+      startWeekOn: 'sunday',
+      timeFormat: '12h',
+      slotDuration: 60,
+      intervals: [
+        { id: `int_${Date.now()}`, from: '09:00', to: '17:00', days: 'Weekdays' },
       ],
+      lunchtimeEnabled: false,
+      lunchtimeFrom: '12:00',
+      lunchtimeTo: '13:00',
+      rollingDays: 60,
+      vacations: [],
+      appointmentType: 'one-on-one',
+      sendReminderEmails: false,
+      defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',
+      lockTimezone: false,
     };
   }
 
