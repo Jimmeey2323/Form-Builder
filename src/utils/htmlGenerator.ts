@@ -1544,6 +1544,39 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
           function minsToStr(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
 
+          function slotKey(slot) {
+            if (slot && slot.id) return String(slot.id);
+            if (!slot) return '';
+            return String(slot.date || '') + 'T' + String(slot.startTime || '');
+          }
+
+          function slotCapacity(slot, cfg) {
+            var cap = Number(slot && slot.maxBookings);
+            if (isFinite(cap) && cap > 0) return cap;
+            if ((slot && slot.sessionType) === 'group') {
+              var groupCap = Number(cfg && cfg.groupMaxAttendees);
+              return (isFinite(groupCap) && groupCap > 0) ? groupCap : 1;
+            }
+            return 1;
+          }
+
+          function readBookingMap(storageKey) {
+            try {
+              var raw = localStorage.getItem(storageKey);
+              if (!raw) return {};
+              var parsed = JSON.parse(raw);
+              return (parsed && typeof parsed === 'object') ? parsed : {};
+            } catch (e) {
+              return {};
+            }
+          }
+
+          function writeBookingMap(storageKey, map) {
+            try {
+              localStorage.setItem(storageKey, JSON.stringify(map || {}));
+            } catch (e) {}
+          }
+
           function formatDisplayDate(d, fmt) {
             var y = d.getFullYear();
             var mo = pad(d.getMonth() + 1);
@@ -1619,6 +1652,12 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             for (var ii = 0; ii < intervals.length; ii++) {
               if (dayMatchesInterval(intervals[ii].days, dow)) return true;
             }
+
+            // If explicit slot list is configured, availability can come from slots too.
+            var slots = cfg.slots || [];
+            for (var si = 0; si < slots.length; si++) {
+              if (slots[si].date === ds) return true;
+            }
             return false;
           }
 
@@ -1673,6 +1712,30 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             return result;
           }
 
+          function getManualSlotsForDate(d, cfg) {
+            var ds = toDateStr(d);
+            var all = cfg.slots || [];
+            var noticeMins = 0;
+            var today = new Date();
+            var isToday = ds === toDateStr(today);
+            if (isToday && (cfg.minSchedulingNoticeHours || cfg.minSchedulingNoticeMinutes)) {
+              noticeMins = (today.getHours() * 60 + today.getMinutes()) +
+                ((cfg.minSchedulingNoticeHours || 0) * 60 + (cfg.minSchedulingNoticeMinutes || 0));
+            }
+            var result = all.filter(function(slot) {
+              if (!slot || slot.date !== ds) return false;
+              if (isToday) {
+                var mins = timeToMins(slot.startTime || '00:00');
+                if (mins < noticeMins) return false;
+              }
+              return true;
+            });
+            result.sort(function(a, b) {
+              return timeToMins(a.startTime || '00:00') - timeToMins(b.startTime || '00:00');
+            });
+            return result;
+          }
+
           function getTzOffset(tz) {
             try {
               var now = new Date();
@@ -1720,6 +1783,8 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             var use12h   = (cfg.timeFormat || '12h') === '12h';
             var startMon = cfg.startWeekOn === 'monday';
             var tz       = cfg.defaultTimezone || cfg.timezone || '';
+            var fieldId = wrap.dataset.fieldId || wrap.dataset.fieldName || 'appointment';
+            var bookingStoreKey = 'jforms_appt_bookings_' + fieldId;
 
             // Populate month select
             if (monthSel) {
@@ -1825,6 +1890,8 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
             function selectDate(d) {
               selectedDate = d;
+              wrap.dataset.selectedSlotKey = '';
+              hidden.value = '';
               renderCalendar();
               renderSlots();
               if (dateInput) dateInput.value = formatDisplayDate(d, fmt);
@@ -1843,14 +1910,15 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
               if (!slotsGrid || !selectedDate) return;
               slotsGrid.innerHTML = '';
 
-              var dateStr = formatDisplayDate(selectedDate, fmt === 'DD/MM/YYYY' ? fmt : (fmt === 'YYYY/MM/DD' ? fmt : 'MM/DD/YYYY'));
               var fullLabel = selectedDate.toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: '2-digit'
               });
               if (dayLabel) dayLabel.textContent = fullLabel;
 
-              var slots = getSlotsForDate(selectedDate, cfg);
-              if (!slots.length) {
+              var manualSlots = getManualSlotsForDate(selectedDate, cfg);
+              var hasManual = manualSlots.length > 0;
+              var intervalSlots = hasManual ? [] : getSlotsForDate(selectedDate, cfg);
+              if (!hasManual && !intervalSlots.length) {
                 var msg = document.createElement('div');
                 msg.className = 'appt-no-slots';
                 msg.textContent = 'No available slots for this day.';
@@ -1860,19 +1928,55 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
                 return;
               }
 
-              slots.forEach(function(mins) {
-                var btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'appt-time-btn';
-                btn.textContent = formatTime(mins, use12h);
-                btn.addEventListener('click', function() {
-                  slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
-                  btn.classList.add('selected');
-                  hidden.value = toDateStr(selectedDate) + 'T' + minsToStr(mins);
-                  hidden.dispatchEvent(new Event('change', { bubbles: true }));
+              if (hasManual) {
+                var bookingMap = readBookingMap(bookingStoreKey);
+                manualSlots.forEach(function(slot) {
+                  var key = slotKey(slot);
+                  var cap = slotCapacity(slot, cfg);
+                  var booked = Number(bookingMap[key] || 0);
+                  var remaining = Math.max(0, cap - booked);
+
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'appt-time-btn';
+                  btn.dataset.slotKey = key;
+                  btn.dataset.slotCap = String(cap);
+                  btn.textContent = formatTime(timeToMins(slot.startTime || '00:00'), use12h) +
+                    ' · ' + (slot.className || 'Session') +
+                    ' · ' + (slot.teacherName || 'Instructor') +
+                    ' · ' + remaining + '/' + cap + ' left';
+
+                  if (remaining <= 0) {
+                    btn.disabled = true;
+                    btn.classList.add('appt-time-btn-full');
+                  }
+
+                  btn.addEventListener('click', function() {
+                    if (btn.disabled) return;
+                    slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
+                    btn.classList.add('selected');
+                    hidden.value = toDateStr(selectedDate) + 'T' + (slot.startTime || '00:00');
+                    wrap.dataset.selectedSlotKey = key;
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                  });
+                  slotsGrid.appendChild(btn);
                 });
-                slotsGrid.appendChild(btn);
-              });
+              } else {
+                intervalSlots.forEach(function(mins) {
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'appt-time-btn';
+                  btn.textContent = formatTime(mins, use12h);
+                  btn.addEventListener('click', function() {
+                    slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
+                    btn.classList.add('selected');
+                    hidden.value = toDateStr(selectedDate) + 'T' + minsToStr(mins);
+                    wrap.dataset.selectedSlotKey = toDateStr(selectedDate) + 'T' + minsToStr(mins);
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                  });
+                  slotsGrid.appendChild(btn);
+                });
+              }
 
               if (prevDayBtn) prevDayBtn.disabled = false;
               if (nextDayBtn) nextDayBtn.disabled = false;
@@ -1885,6 +1989,8 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
               } else {
                 selectedDate = new Date(selectedDate.getTime() + delta * 86400000);
               }
+              wrap.dataset.selectedSlotKey = '';
+              hidden.value = '';
               // Sync calendar to the selected date's month
               viewYear  = selectedDate.getFullYear();
               viewMonth = selectedDate.getMonth();
@@ -1919,12 +2025,62 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
                 var hidden = g.querySelector('input[type="hidden"]');
                 if (hidden && hidden.required && !hidden.value) {
                   e.preventDefault();
+                  e.stopImmediatePropagation();
                   var label = g.querySelector('.appt-selected-day-label');
                   if (label) label.textContent = 'Please select a date and time.';
                   return;
                 }
+
+                var selectedKey = g.dataset.selectedSlotKey || '';
+                if (!selectedKey) continue;
+                var apptCfg = {};
+                try { apptCfg = JSON.parse(g.dataset.apptConfig || '{}'); } catch(err) {}
+                if (!apptCfg.slots || !apptCfg.slots.length) continue;
+                var selectedSlot = null;
+                for (var si = 0; si < apptCfg.slots.length; si++) {
+                  if (slotKey(apptCfg.slots[si]) === selectedKey) {
+                    selectedSlot = apptCfg.slots[si];
+                    break;
+                  }
+                }
+                if (!selectedSlot) continue;
+                var fieldId = g.dataset.fieldId || g.dataset.fieldName || 'appointment';
+                var storeKey = 'jforms_appt_bookings_' + fieldId;
+                var map = readBookingMap(storeKey);
+                var booked = Number(map[selectedKey] || 0);
+                var cap = slotCapacity(selectedSlot, apptCfg);
+                if (booked >= cap) {
+                  e.preventDefault();
+                  e.stopImmediatePropagation();
+                  var fullLabel = g.querySelector('.appt-selected-day-label');
+                  if (fullLabel) fullLabel.textContent = 'Selected slot is fully booked. Pick another slot.';
+                  return;
+                }
               }
-            });
+
+              // Reserve selected manual slots locally to avoid overbooking on the same browser.
+              for (var gi = 0; gi < groups.length; gi++) {
+                var group = groups[gi];
+                var key = group.dataset.selectedSlotKey || '';
+                if (!key) continue;
+                var cfg = {};
+                try { cfg = JSON.parse(group.dataset.apptConfig || '{}'); } catch(err) {}
+                if (!cfg.slots || !cfg.slots.length) continue;
+                var slot = null;
+                for (var sj = 0; sj < cfg.slots.length; sj++) {
+                  if (slotKey(cfg.slots[sj]) === key) {
+                    slot = cfg.slots[sj];
+                    break;
+                  }
+                }
+                if (!slot) continue;
+                var fId = group.dataset.fieldId || group.dataset.fieldName || 'appointment';
+                var sKey = 'jforms_appt_bookings_' + fId;
+                var bookings = readBookingMap(sKey);
+                bookings[key] = Number(bookings[key] || 0) + 1;
+                writeBookingMap(sKey, bookings);
+              }
+            }, true);
           });
         })();`;
 }
@@ -2842,6 +2998,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .appt-time-btn:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); }
         .appt-time-btn.selected { background: var(--primary-color, #4f80f7); color: #fff; border-color: var(--primary-color, #4f80f7); }
         .appt-time-btn:disabled { opacity: 0.35; cursor: default; }
+        .appt-time-btn.appt-time-btn-full { text-decoration: line-through; }
         .appt-no-slots {
             grid-column: 1 / -1;
             text-align: center;

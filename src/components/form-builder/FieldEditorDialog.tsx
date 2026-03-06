@@ -1243,6 +1243,76 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                     <p className="text-xs text-muted-foreground">Make each appointment slot available to one person or multiple people.</p>
                   </div>
 
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold">Specific Slots (Class & Teacher)</Label>
+                      <Button variant="outline" size="sm" onClick={addAppointmentSlot}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Slot
+                      </Button>
+                    </div>
+                    {(draft.appointmentSlotsConfig?.slots || []).length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        No custom slots added. Add slots to configure class name, teacher, type, and per-slot capacity.
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(draft.appointmentSlotsConfig?.slots || []).map((slot, index) => (
+                          <div key={slot.id} className="rounded-lg border p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold text-muted-foreground">Slot {index + 1}</p>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAppointmentSlot(index)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Class Name</Label>
+                                <Input value={slot.className} onChange={e => updateAppointmentSlot(index, { className: e.target.value })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Teacher Name</Label>
+                                <Input value={slot.teacherName} onChange={e => updateAppointmentSlot(index, { teacherName: e.target.value })} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Date</Label>
+                                <Input type="date" value={slot.date} onChange={e => updateAppointmentSlot(index, { date: e.target.value })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Start Time</Label>
+                                <Input type="time" value={slot.startTime} onChange={e => updateAppointmentSlot(index, { startTime: e.target.value })} />
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Duration (min)</Label>
+                                <Input type="number" min={1} value={slot.durationMinutes} onChange={e => updateAppointmentSlot(index, { durationMinutes: Number(e.target.value) || 30 })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Max Bookings</Label>
+                                <Input type="number" min={1} value={slot.maxBookings} onChange={e => updateAppointmentSlot(index, { maxBookings: Number(e.target.value) || 1 })} />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-xs text-muted-foreground">Type</Label>
+                                <Select value={slot.sessionType} onValueChange={v => updateAppointmentSlot(index, { sessionType: v as AppointmentSlot['sessionType'] })}>
+                                  <SelectTrigger><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="group">Group</SelectItem>
+                                    <SelectItem value="personal">Personal</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      When custom slots are present, users can book only these slots and each slot respects its max booking capacity.
+                    </p>
+                  </div>
+
                   <div className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <Label className="text-sm font-medium">Send Reminder Emails</Label>
