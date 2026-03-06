@@ -1,4 +1,4 @@
-project_id = "pwgdytetevxwuujdevis"
+project_id = "oleiodivubhtcagrlfug"
 
 [functions.google-sheets]
 verify_jwt = false
@@ -7,4 +7,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-email-otp]
+verify_jwt = false
+
+[functions.appointment-bookings]
 verify_jwt = false

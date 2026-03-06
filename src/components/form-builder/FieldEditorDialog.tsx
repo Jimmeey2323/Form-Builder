@@ -21,9 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, EmailOtpConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface FieldEditorDialogProps {
   field: FormField | null;
@@ -40,8 +39,13 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const [newIntervalFrom, setNewIntervalFrom] = useState('09:00');
   const [newIntervalTo, setNewIntervalTo] = useState('17:00');
   const [newIntervalDays, setNewIntervalDays] = useState('Weekdays');
+  const [newIntervalSpecificDate, setNewIntervalSpecificDate] = useState('');
+  const [newIntervalUseSpecificDate, setNewIntervalUseSpecificDate] = useState(false);
   const [newVacStart, setNewVacStart] = useState('');
   const [newVacEnd, setNewVacEnd] = useState('');
+  const [excludedSlotDate, setExcludedSlotDate] = useState(new Date().toISOString().slice(0, 10));
+  const [excludedSlotTime, setExcludedSlotTime] = useState('12:00');
+  const [slotPreviewDate, setSlotPreviewDate] = useState(new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     if (field) setDraft({ ...field });
@@ -79,15 +83,93 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
     update('appointmentSlotsConfig', { ...existing, ...updates });
   };
 
+  const timeToMinutes = (value: string) => {
+    const [hours, minutes = '0'] = (value || '00:00').split(':');
+    return Number(hours) * 60 + Number(minutes);
+  };
+
+  const minutesToTime = (mins: number) => {
+    const hours = Math.floor(mins / 60);
+    const minutes = mins % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  };
+
+  const dayMatchesInterval = (dayRule: string, dayOfWeek: number) => {
+    if (dayRule === 'Every Day') return true;
+    if (dayRule === 'Weekdays') return dayOfWeek >= 1 && dayOfWeek <= 5;
+    if (dayRule === 'Weekends') return dayOfWeek === 0 || dayOfWeek === 6;
+    const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return dayMap[dayRule] === dayOfWeek;
+  };
+
+  const isExcludedIntervalSlot = (date: string, startTime: string) => {
+    return (draft.appointmentSlotsConfig?.excludedSlots || []).some(slot => slot.date === date && slot.startTime === startTime);
+  };
+
+  const getGeneratedSlotsForDate = (date: string) => {
+    if (!date) return [];
+    const cfg = draft.appointmentSlotsConfig || {};
+    const candidate = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(candidate.getTime())) return [];
+
+    const vacations = cfg.vacations || [];
+    if (vacations.some(vac => date >= vac.startDate && date <= (vac.endDate || vac.startDate))) {
+      return [];
+    }
+
+    const duration = cfg.slotDuration === 'custom'
+      ? (cfg.customSlotDuration || 30)
+      : (cfg.slotDuration || 60);
+    const buffer = Number(cfg.bufferMinutes) || 0;
+    const step = duration + buffer;
+    const lunchFrom = cfg.lunchtimeEnabled ? timeToMinutes(cfg.lunchtimeFrom || '12:00') : -1;
+    const lunchTo = cfg.lunchtimeEnabled ? timeToMinutes(cfg.lunchtimeTo || '13:00') : -1;
+    const dayOfWeek = candidate.getDay();
+    const results: string[] = [];
+    const seen = new Set<string>();
+
+    (cfg.intervals || []).forEach(interval => {
+      const matches = interval.specificDate ? interval.specificDate === date : dayMatchesInterval(interval.days, dayOfWeek);
+      if (!matches) return;
+
+      let start = timeToMinutes(interval.from);
+      const end = timeToMinutes(interval.to);
+      while (start + duration <= end) {
+        if (lunchFrom >= 0) {
+          const slotEnd = start + duration;
+          if (start < lunchTo && slotEnd > lunchFrom) {
+            start = lunchTo;
+            continue;
+          }
+        }
+        const time = minutesToTime(start);
+        if (!seen.has(time)) {
+          seen.add(time);
+          results.push(time);
+        }
+        start += step;
+      }
+    });
+
+    return results.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+  };
+
   const addAppointmentInterval = () => {
     const current = draft.appointmentSlotsConfig || {};
-    const intervals: AppointmentInterval[] = [...(current.intervals || []), {
+    const newInterval: AppointmentInterval = {
       id: `int_${Date.now()}`,
       from: newIntervalFrom,
       to: newIntervalTo,
-      days: newIntervalDays,
-    }];
+      days: newIntervalUseSpecificDate ? 'Every Day' : newIntervalDays,
+      ...(newIntervalUseSpecificDate && newIntervalSpecificDate ? { specificDate: newIntervalSpecificDate } : {}),
+    };
+    const intervals: AppointmentInterval[] = [...(current.intervals || []), newInterval];
     updateAppointment({ intervals });
+    setNewIntervalFrom('09:00');
+    setNewIntervalTo('17:00');
+    setNewIntervalDays('Weekdays');
+    setNewIntervalSpecificDate('');
+    setNewIntervalUseSpecificDate(false);
   };
 
   const removeAppointmentInterval = (id: string) => {
@@ -118,6 +200,24 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const removeAppointmentVacation = (id: string) => {
     const current = draft.appointmentSlotsConfig || {};
     updateAppointment({ vacations: (current.vacations || []).filter(v => v.id !== id) });
+  };
+
+  const addExcludedAppointmentSlot = (date = excludedSlotDate, startTime = excludedSlotTime) => {
+    if (!date || !startTime) return;
+    const current = draft.appointmentSlotsConfig || {};
+    const existing = current.excludedSlots || [];
+    if (existing.some(slot => slot.date === date && slot.startTime === startTime)) return;
+    const exclusion: AppointmentSlotExclusion = {
+      id: `excluded_${date}_${startTime.replace(':', '')}`,
+      date,
+      startTime,
+    };
+    updateAppointment({ excludedSlots: [...existing, exclusion] });
+  };
+
+  const removeExcludedAppointmentSlot = (id: string) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ excludedSlots: (current.excludedSlots || []).filter(slot => slot.id !== id) });
   };
 
   const updateEmailOtp = (updates: Partial<EmailOtpConfig>) => {
@@ -256,37 +356,38 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
   return (
     <Dialog open={open} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-2xl h-[90vh] overflow-hidden flex flex-col gap-0 p-0">
-        <div className="px-6 pt-6 pb-4 border-b border-border/50 shrink-0">
+      <DialogContent className="flex h-[92vh] w-[min(96vw,1120px)] max-w-none flex-col gap-0 overflow-hidden rounded-[28px] border border-border/70 bg-background p-0 shadow-2xl">
+        <div className="shrink-0 border-b border-border/60 bg-gradient-to-br from-background via-background to-muted/40 px-6 pb-5 pt-6">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-xl font-semibold tracking-tight">
               Edit Field
-              <Badge variant="secondary">{FIELD_TYPE_LABELS[draft.type as FieldType || field.type]}</Badge>
+              <Badge variant="secondary" className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                {FIELD_TYPE_LABELS[draft.type as FieldType || field.type]}
+              </Badge>
             </DialogTitle>
-            <DialogDescription>Configure all properties for this form field.</DialogDescription>
+            <DialogDescription className="max-w-2xl text-sm text-muted-foreground/90">
+              Configure the field behavior, appearance, validation, and advanced automation settings in one place.
+            </DialogDescription>
           </DialogHeader>
         </div>
 
-        <ScrollArea className="flex-1 min-h-0">
-          <div className="px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-auto bg-muted/20">
+          <div className="min-w-[960px] px-6 py-5">
           <Tabs defaultValue="basic" className="w-full">
-            <TabsList className="w-full justify-start">
-              <TabsTrigger value="basic">Basic</TabsTrigger>
-              <TabsTrigger value="validation">Validation</TabsTrigger>
-              {hasOptions && <TabsTrigger value="options">Options</TabsTrigger>}
-              <TabsTrigger value="advanced">Advanced</TabsTrigger>
-              <TabsTrigger value="conditions">Conditions</TabsTrigger>
-              <TabsTrigger value="style">Style</TabsTrigger>
-              {isMomenceSearch  && <TabsTrigger value="momence">Momence</TabsTrigger>}
-              {isMomenceSession && <TabsTrigger value="sessions">Sessions</TabsTrigger>}
-              {isAppointmentSlots && <>
-                <TabsTrigger value="appt-setup">Setup</TabsTrigger>
-                <TabsTrigger value="appt-avail">Availability</TabsTrigger>
-                <TabsTrigger value="appt-limits">Limits</TabsTrigger>
-                <TabsTrigger value="appt-adv">Advanced</TabsTrigger>
-              </>}
-              {isEmailOtp && <TabsTrigger value="verification">Verification</TabsTrigger>}
+            <div className="overflow-x-auto pb-2">
+            <TabsList className="flex h-auto min-w-max items-center justify-start gap-1.5 rounded-2xl border border-border/60 bg-background/90 p-1 shadow-sm">
+              <TabsTrigger value="basic" className="shrink-0 rounded-xl px-4 py-2">Basic</TabsTrigger>
+              <TabsTrigger value="validation" className="shrink-0 rounded-xl px-4 py-2">Validation</TabsTrigger>
+              {hasOptions && <TabsTrigger value="options" className="shrink-0 rounded-xl px-4 py-2">Options</TabsTrigger>}
+              <TabsTrigger value="advanced" className="shrink-0 rounded-xl px-4 py-2">Advanced</TabsTrigger>
+              <TabsTrigger value="conditions" className="shrink-0 rounded-xl px-4 py-2">Conditions</TabsTrigger>
+              <TabsTrigger value="style" className="shrink-0 rounded-xl px-4 py-2">Style</TabsTrigger>
+              {isMomenceSearch  && <TabsTrigger value="momence" className="shrink-0 rounded-xl px-4 py-2">Momence</TabsTrigger>}
+              {isMomenceSession && <TabsTrigger value="sessions" className="shrink-0 rounded-xl px-4 py-2">Sessions</TabsTrigger>}
+              {isAppointmentSlots && <TabsTrigger value="appt-setup" className="shrink-0 rounded-xl px-4 py-2">Setup</TabsTrigger>}
+              {isEmailOtp && <TabsTrigger value="verification" className="shrink-0 rounded-xl px-4 py-2">Verification</TabsTrigger>}
             </TabsList>
+            </div>
 
             <TabsContent value="basic" className="space-y-4 mt-4">
               <div className="grid grid-cols-2 gap-4">
@@ -929,6 +1030,11 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               <>
                 {/* ── Setup Tab ─────────────────────────────────────────────── */}
                 <TabsContent value="appt-setup" className="space-y-5 mt-4">
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Appointment Setup</p>
+                      <p className="text-xs text-muted-foreground">All appointment rules live here: schedule windows, capacity, blackout times, and session metadata.</p>
+                    </div>
                   <div className="space-y-2">
                     <Label className="font-semibold">Date Format</Label>
                     <div className="flex gap-2">
@@ -963,10 +1069,16 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                     </div>
                     <p className="text-xs text-muted-foreground">Select a time format.</p>
                   </div>
+                  </div>
                 </TabsContent>
 
                 {/* ── Availability Tab ──────────────────────────────────────── */}
-                <TabsContent value="appt-avail" className="space-y-5 mt-4">
+                <TabsContent value="appt-setup" className="space-y-5 mt-4">
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Availability</p>
+                      <p className="text-xs text-muted-foreground">Define recurring windows, one-off dates, slot duration, rest buffers, and breaks.</p>
+                    </div>
                   <div className="space-y-2">
                     <Label className="font-semibold">Calendar Integrations</Label>
                     <div className="flex gap-2">
@@ -1013,7 +1125,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   <div className="space-y-3">
                     <Label className="font-semibold">Intervals</Label>
                     {(draft.appointmentSlotsConfig?.intervals || []).map(interval => (
-                      <div key={interval.id} className="rounded-lg border p-3 space-y-2">
+                      <div key={interval.id} className="rounded-lg border p-3 space-y-3">
                         <div className="grid grid-cols-3 gap-2 items-end">
                           <div className="space-y-1">
                             <Label className="text-xs text-muted-foreground">From</Label>
@@ -1030,22 +1142,38 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                        <Select value={interval.days}
-                          onValueChange={v => updateAppointmentInterval(interval.id, { days: v })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Every Day">Every Day</SelectItem>
-                            <SelectItem value="Weekdays">Weekdays</SelectItem>
-                            <SelectItem value="Weekends">Weekends</SelectItem>
-                            <SelectItem value="Mon">Monday</SelectItem>
-                            <SelectItem value="Tue">Tuesday</SelectItem>
-                            <SelectItem value="Wed">Wednesday</SelectItem>
-                            <SelectItem value="Thu">Thursday</SelectItem>
-                            <SelectItem value="Fri">Friday</SelectItem>
-                            <SelectItem value="Sat">Saturday</SelectItem>
-                            <SelectItem value="Sun">Sunday</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-medium">Specific Date Only</Label>
+                          <Switch
+                            checked={!!interval.specificDate}
+                            onCheckedChange={v => updateAppointmentInterval(interval.id, {
+                              specificDate: v ? (interval.specificDate || new Date().toISOString().slice(0, 10)) : undefined,
+                            })} />
+                        </div>
+                        {interval.specificDate ? (
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Date</Label>
+                            <Input type="date" value={interval.specificDate}
+                              onChange={e => updateAppointmentInterval(interval.id, { specificDate: e.target.value })} />
+                          </div>
+                        ) : (
+                          <Select value={interval.days}
+                            onValueChange={v => updateAppointmentInterval(interval.id, { days: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Every Day">Every Day</SelectItem>
+                              <SelectItem value="Weekdays">Weekdays</SelectItem>
+                              <SelectItem value="Weekends">Weekends</SelectItem>
+                              <SelectItem value="Mon">Monday</SelectItem>
+                              <SelectItem value="Tue">Tuesday</SelectItem>
+                              <SelectItem value="Wed">Wednesday</SelectItem>
+                              <SelectItem value="Thu">Thursday</SelectItem>
+                              <SelectItem value="Fri">Friday</SelectItem>
+                              <SelectItem value="Sat">Saturday</SelectItem>
+                              <SelectItem value="Sun">Sunday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                     ))}
                     <div className="rounded-lg border border-dashed p-3 space-y-2">
@@ -1060,9 +1188,19 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                           <Input type="time" value={newIntervalTo} onChange={e => setNewIntervalTo(e.target.value)} />
                         </div>
                       </div>
-                      <Select value={newIntervalDays} onValueChange={setNewIntervalDays}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Specific Date Only</Label>
+                        <Switch checked={newIntervalUseSpecificDate} onCheckedChange={setNewIntervalUseSpecificDate} />
+                      </div>
+                      {newIntervalUseSpecificDate ? (
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Date</Label>
+                          <Input type="date" value={newIntervalSpecificDate} onChange={e => setNewIntervalSpecificDate(e.target.value)} />
+                        </div>
+                      ) : (
+                        <Select value={newIntervalDays} onValueChange={setNewIntervalDays}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
                           <SelectItem value="Every Day">Every Day</SelectItem>
                           <SelectItem value="Weekdays">Weekdays</SelectItem>
                           <SelectItem value="Weekends">Weekends</SelectItem>
@@ -1075,11 +1213,24 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                           <SelectItem value="Sun">Sunday</SelectItem>
                         </SelectContent>
                       </Select>
+                      )}
                       <Button variant="outline" size="sm" className="w-full" onClick={addAppointmentInterval}>
                         <Plus className="h-3.5 w-3.5 mr-1" /> Add New Interval
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">Select the days and times you will accept appointments. These intervals repeat each week.</p>
+                    <p className="text-xs text-muted-foreground">Intervals define when slots are available. Toggle "Specific Date Only" to create a one-off availability window for a particular date instead of a recurring weekly pattern.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="font-semibold">Buffer / Rest Period Between Slots</Label>
+                    <div className="flex items-center gap-2">
+                      <Input type="number" min={0} className="w-24"
+                        value={draft.appointmentSlotsConfig?.bufferMinutes ?? ''}
+                        placeholder="0"
+                        onChange={e => updateAppointment({ bufferMinutes: e.target.value ? Number(e.target.value) : undefined })} />
+                      <span className="text-sm text-muted-foreground">minutes</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Add a gap after each slot before the next one is shown (e.g. 5 mins for cleanup/travel). For 15-min slots with a 5-min buffer: 12:00, 12:20, 12:40…</p>
                   </div>
 
                   <div className="space-y-2">
@@ -1107,10 +1258,16 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                       </div>
                     )}
                   </div>
+                  </div>
                 </TabsContent>
 
                 {/* ── Limits Tab ────────────────────────────────────────────── */}
-                <TabsContent value="appt-limits" className="space-y-5 mt-4">
+                <TabsContent value="appt-setup" className="space-y-5 mt-4">
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Limits & Blackouts</p>
+                      <p className="text-xs text-muted-foreground">Set booking windows, day limits, notice periods, vacations, and manually removed slots.</p>
+                    </div>
                   <div className="space-y-2">
                     <Label className="font-semibold">Start &amp; End Date</Label>
                     <div className="grid grid-cols-2 gap-3">
@@ -1182,6 +1339,15 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   </div>
 
                   <div className="space-y-2">
+                    <Label className="font-semibold">Max Bookings Per Slot</Label>
+                    <Input type="number" min={1}
+                      value={draft.appointmentSlotsConfig?.maxBookingsPerSlot ?? ''}
+                      placeholder="1 (default)"
+                      onChange={e => updateAppointment({ maxBookingsPerSlot: e.target.value ? Number(e.target.value) : undefined })} />
+                    <p className="text-xs text-muted-foreground">How many people can book each auto-generated time slot. Slots are disabled once full.</p>
+                  </div>
+
+                  <div className="space-y-2">
                     <Label className="font-semibold">Maximum Appointments Per Day</Label>
                     <Input type="number" min={1}
                       value={draft.appointmentSlotsConfig?.maxAppointmentsPerDay ?? ''}
@@ -1209,10 +1375,96 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                       </div>
                     </div>
                   </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="font-semibold">Remove Individual Time Slots</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          className="w-[160px]"
+                          value={slotPreviewDate}
+                          onChange={e => {
+                            setSlotPreviewDate(e.target.value);
+                            setExcludedSlotDate(e.target.value);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Keep interval-based generation active, but remove specific generated slots for a particular date.
+                    </p>
+
+                    <div className="rounded-lg border bg-card/70 p-3 space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {getGeneratedSlotsForDate(slotPreviewDate).length === 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            No interval-generated slots exist for this date yet. Add an interval or choose another date.
+                          </p>
+                        ) : (
+                          getGeneratedSlotsForDate(slotPreviewDate).map(time => {
+                            const excluded = isExcludedIntervalSlot(slotPreviewDate, time);
+                            return (
+                              <button
+                                key={`${slotPreviewDate}-${time}`}
+                                type="button"
+                                onClick={() => {
+                                  if (excluded) {
+                                    const existing = (draft.appointmentSlotsConfig?.excludedSlots || []).find(slot => slot.date === slotPreviewDate && slot.startTime === time);
+                                    if (existing) removeExcludedAppointmentSlot(existing.id);
+                                  } else {
+                                    addExcludedAppointmentSlot(slotPreviewDate, time);
+                                  }
+                                }}
+                                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                                  excluded
+                                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                                    : 'border-border bg-background text-foreground hover:border-destructive/40 hover:text-destructive'
+                                }`}
+                              >
+                                {excluded ? `Restore ${time}` : `Remove ${time}`}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                        <Input type="date" value={excludedSlotDate} onChange={e => setExcludedSlotDate(e.target.value)} />
+                        <Input type="time" value={excludedSlotTime} onChange={e => setExcludedSlotTime(e.target.value)} />
+                        <Button variant="outline" onClick={() => addExcludedAppointmentSlot()}>
+                          Remove Slot
+                        </Button>
+                      </div>
+                    </div>
+
+                    {(draft.appointmentSlotsConfig?.excludedSlots || []).length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-xs font-medium text-muted-foreground">Removed Time Slots</Label>
+                        <div className="space-y-2">
+                          {[...(draft.appointmentSlotsConfig?.excludedSlots || [])]
+                            .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
+                            .map(slot => (
+                              <div key={slot.id} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm">
+                                <span>{slot.date} at {slot.startTime}</span>
+                                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeExcludedAppointmentSlot(slot.id)}>
+                                  Restore
+                                </Button>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  </div>
                 </TabsContent>
 
                 {/* ── Advanced Tab ──────────────────────────────────────────── */}
-                <TabsContent value="appt-adv" className="space-y-5 mt-4">
+                <TabsContent value="appt-setup" className="space-y-5 mt-4">
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
+                    <div className="mb-3">
+                      <p className="text-sm font-semibold text-foreground">Session Details</p>
+                      <p className="text-xs text-muted-foreground">Choose session type, define custom slots, and control timezone behavior.</p>
+                    </div>
                   <div className="space-y-2">
                     <Label className="font-semibold">Appointment Type</Label>
                     <div className="grid grid-cols-2 gap-3">
@@ -1350,16 +1602,6 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                       checked={draft.appointmentSlotsConfig?.lockTimezone ?? false}
                       onCheckedChange={v => updateAppointment({ lockTimezone: v })} />
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Date Format</Label>
-                    <div className="flex gap-2 flex-wrap">
-                      {(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY/MM/DD'] as const).map(fmt => (
-                        <Button key={fmt} size="sm" variant={
-                          (draft.appointmentSlotsConfig?.dateFormat || 'MM/DD/YYYY') === fmt ? 'default' : 'outline'
-                        } onClick={() => updateAppointment({ dateFormat: fmt })}>{fmt}</Button>
-                      ))}
-                    </div>
                   </div>
                 </TabsContent>
               </>
@@ -1632,9 +1874,9 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
             )}
           </Tabs>
           </div>
-        </ScrollArea>
+        </div>
 
-        <div className="px-6 py-4 border-t border-border/50 shrink-0">
+        <div className="shrink-0 border-t border-border/60 bg-background/95 px-6 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur">
           <DialogFooter>
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={() => { onSave(draft); onClose(); }}>Save Changes</Button>

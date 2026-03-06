@@ -246,8 +246,11 @@ export interface AppointmentInterval {
   /**
    * Applies to which days: "Every Day" | "Weekdays" | "Weekends" |
    * "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun"
+   * Ignored when `specificDate` is set.
    */
   days: string;
+  /** When set, this interval only applies on this exact date (YYYY-MM-DD). Overrides `days`. */
+  specificDate?: string;
 }
 
 /** A blocked-out vacation/holiday date range */
@@ -255,6 +258,12 @@ export interface AppointmentVacation {
   id: string;
   startDate: string;
   endDate: string;
+}
+
+export interface AppointmentSlotExclusion {
+  id: string;
+  date: string;
+  startTime: string;
 }
 
 export interface AppointmentSlotsConfig {
@@ -271,6 +280,8 @@ export interface AppointmentSlotsConfig {
   customSlotDuration?: number;
   /** Weekly repeating availability windows */
   intervals?: AppointmentInterval[];
+  /** Rest/buffer period (minutes) added after each slot before the next one starts */
+  bufferMinutes?: number;
   lunchtimeEnabled?: boolean;
   lunchtimeFrom?: string;
   lunchtimeTo?: string;
@@ -281,6 +292,10 @@ export interface AppointmentSlotsConfig {
   /** Allow booking only this many days into the future */
   rollingDays?: number;
   vacations?: AppointmentVacation[];
+  /** Exclude individual auto-generated interval slots on specific dates */
+  excludedSlots?: AppointmentSlotExclusion[];
+  /** Maximum number of bookings allowed per auto-generated interval slot */
+  maxBookingsPerSlot?: number;
   /** Maximum number of appointments allowed per day (null = unlimited) */
   maxAppointmentsPerDay?: number;
   /** Minimum advance notice required (hours + minutes) */
@@ -505,7 +520,7 @@ export interface FormConfig {
   theme: FormTheme;
   animations?: FormAnimations;
   /** Page layout mode — controls split panels, banner, floating, etc. */
-  layout?: 'classic' | 'card' | 'split-left' | 'split-right' | 'banner-top' | 'floating' | 'fullscreen';
+  layout?: 'classic' | 'card' | 'split-left' | 'split-right' | 'banner-top' | 'floating' | 'fullscreen' | 'editorial-left' | 'editorial-right' | 'showcase-banner';
   /** Background / panel image URL used by split, banner-top, and floating layouts */
   layoutImageUrl?: string;
   /** How the layout background image is sized */
@@ -694,6 +709,7 @@ export function createDefaultField(type: FieldType, order: number): FormField {
       startWeekOn: 'sunday',
       timeFormat: '12h',
       slotDuration: 60,
+      bufferMinutes: 0,
       intervals: [
         { id: `int_${Date.now()}`, from: '09:00', to: '17:00', days: 'Weekdays' },
       ],
@@ -702,6 +718,8 @@ export function createDefaultField(type: FieldType, order: number): FormField {
       lunchtimeTo: '13:00',
       rollingDays: 60,
       vacations: [],
+      excludedSlots: [],
+      maxBookingsPerSlot: 1,
       appointmentType: 'one-on-one',
       sendReminderEmails: false,
       defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/New_York',

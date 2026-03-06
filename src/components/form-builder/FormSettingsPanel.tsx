@@ -248,7 +248,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               <Select value={form.layout ?? 'classic'} onValueChange={value => handleLayoutChange(value as FormConfig['layout'])}>
                 <SelectTrigger className="h-8 rounded-lg text-[12px]"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {['classic','card','split-left','split-right','banner-top','floating','fullscreen'].map(l => (
+                  {['classic','card','split-left','split-right','editorial-left','editorial-right','banner-top','showcase-banner','floating','fullscreen'].map(l => (
                     <SelectItem key={l} value={l} className="text-[12px] capitalize">{l}</SelectItem>
                   ))}
                 </SelectContent>
@@ -404,13 +404,16 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             {form.layout ?? 'classic'}
           </Badge>
         }>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {[
               { value: 'classic', label: 'Classic' },
               { value: 'card', label: 'Card' },
               { value: 'split-left', label: 'Split L' },
               { value: 'split-right', label: 'Split R' },
+              { value: 'editorial-left', label: 'Edit L' },
+              { value: 'editorial-right', label: 'Edit R' },
               { value: 'banner-top', label: 'Banner' },
+              { value: 'showcase-banner', label: 'Hero' },
               { value: 'floating', label: 'Float' },
               { value: 'fullscreen', label: 'Full' },
             ].map((opt) => (
@@ -430,7 +433,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             ))}
           </div>
 
-          {['split-left', 'split-right', 'banner-top', 'floating'].includes(
+          {['split-left', 'split-right', 'editorial-left', 'editorial-right', 'banner-top', 'showcase-banner', 'floating'].includes(
             form.layout ?? ''
           ) && (
             <>
@@ -546,6 +549,28 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                   {form.layoutImagePositionX ?? '50'}% H ·{' '}
                   {form.layoutImagePositionY ?? '50'}% V
                 </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <FieldLabel>Horizontal Focus</FieldLabel>
+                    <Slider
+                      value={[Number(form.layoutImagePositionX ?? 50)]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={([v]) => onUpdate({ layoutImagePositionX: String(v) })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldLabel>Vertical Focus</FieldLabel>
+                    <Slider
+                      value={[Number(form.layoutImagePositionY ?? 50)]}
+                      min={0}
+                      max={100}
+                      step={1}
+                      onValueChange={([v]) => onUpdate({ layoutImagePositionY: String(v) })}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-1">
                   {[
                     { x: '0', y: '0', t: '↖' },
@@ -581,6 +606,28 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                       </button>
                     );
                   })}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {[
+                    { x: '18', y: '18', t: 'Top Left' },
+                    { x: '50', y: '18', t: 'Top Focus' },
+                    { x: '82', y: '18', t: 'Top Right' },
+                    { x: '18', y: '50', t: 'Left Focus' },
+                    { x: '50', y: '50', t: 'Center' },
+                    { x: '82', y: '50', t: 'Right Focus' },
+                    { x: '18', y: '82', t: 'Bottom Left' },
+                    { x: '50', y: '82', t: 'Bottom Focus' },
+                    { x: '82', y: '82', t: 'Bottom Right' },
+                  ].map((pos) => (
+                    <button
+                      key={`${pos.t}-${pos.x}-${pos.y}`}
+                      type="button"
+                      onClick={() => onUpdate({ layoutImagePositionX: pos.x, layoutImagePositionY: pos.y })}
+                      className="rounded-md border border-border/40 bg-muted/20 px-2 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+                    >
+                      {pos.t}
+                    </button>
+                  ))}
                 </div>
               </div>
             </>

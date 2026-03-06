@@ -7,21 +7,26 @@ interface FormPreviewProps {
 }
 
 export function FormPreview({ form }: FormPreviewProps) {
-  const html = useMemo(() => generateFormHtml(form), [form]);
+  const html = useMemo(() => generateFormHtml(form, { previewMode: true }), [form]);
 
   return (
-    <div className="w-full rounded-xl border border-border/50 overflow-hidden shadow-sm bg-muted/20">
-      <div className="h-8 bg-card border-b border-border/50 flex items-center px-3 gap-1.5">
-        <span className="w-2.5 h-2.5 rounded-full bg-red-400/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/70" />
-        <span className="w-2.5 h-2.5 rounded-full bg-green-400/70" />
-        <span className="ml-2 text-[11px] text-muted-foreground font-medium select-none">Form Preview</span>
+    <div className="w-full overflow-hidden rounded-[28px] border border-border/60 bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.16),transparent_45%),linear-gradient(180deg,rgba(255,255,255,0.92),rgba(241,245,249,0.85))] shadow-[0_24px_80px_rgba(15,23,42,0.14)]">
+      <div className="border-b border-border/50 bg-background/90 px-4 py-3 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80" />
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80" />
+          <div className="ml-2 min-w-0">
+            <p className="truncate text-xs font-semibold text-foreground">Live Preview</p>
+            <p className="truncate text-[11px] text-muted-foreground">Matches the generated form layout, page flow, and hero treatment.</p>
+          </div>
+        </div>
       </div>
       <iframe
         srcDoc={html}
         title="Form Preview"
-        sandbox="allow-scripts"
-        style={{ width: '100%', height: 'calc(100vh - 240px)', minHeight: '640px', border: 'none', display: 'block' }}
+        sandbox="allow-scripts allow-forms allow-same-origin"
+        style={{ width: '100%', height: 'calc(100vh - 228px)', minHeight: '720px', border: 'none', display: 'block', background: 'transparent' }}
       />
     </div>
   );

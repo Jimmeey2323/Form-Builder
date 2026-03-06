@@ -6,6 +6,9 @@ const IMAGE_LAYOUTS: FormConfig['layout'][] = [
   'split-right',
   'banner-top',
   'floating',
+  'editorial-left',
+  'editorial-right',
+  'showcase-banner',
 ];
 
 export function layoutUsesHeroImage(layout?: FormConfig['layout']): boolean {

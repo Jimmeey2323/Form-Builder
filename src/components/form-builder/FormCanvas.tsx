@@ -696,10 +696,14 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   );
 
   const sortedFields = [...form.fields].sort((a, b) => a.order - b.order);
-  const isSplitLayout = form.layout === 'split-left' || form.layout === 'split-right';
+  const isSplitLayout =
+    form.layout === 'split-left' ||
+    form.layout === 'split-right' ||
+    form.layout === 'editorial-left' ||
+    form.layout === 'editorial-right';
   const imagePanelWidth = Math.max(20, Math.min(80, form.layoutImagePanelWidth ?? 45));
   const splitCols =
-    form.layout === 'split-right'
+    form.layout === 'split-right' || form.layout === 'editorial-right'
       ? `minmax(0, 1fr) ${imagePanelWidth}%`
       : `${imagePanelWidth}% minmax(0, 1fr)`;
   const panelHero = getHeroForPage(form, 0, { defaultHeight: 760 });

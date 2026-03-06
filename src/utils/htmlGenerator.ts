@@ -12,6 +12,7 @@ function escapeHtml(str: string): string {
 
 interface GenerateOptions {
   logoBase64?: string;
+  previewMode?: boolean;
 }
 
 function generateFormTitle(config: FormConfig): string {
@@ -393,6 +394,10 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
               <span class="appt-selected-day-label">Select a date</span>
               <button type="button" class="appt-day-nav appt-next-day">&#8250;</button>
             </div>
+            <div class="appt-slot-detail" aria-live="polite">
+              <div class="appt-slot-detail-title">Choose a time slot</div>
+              <div class="appt-slot-detail-meta">Hover or tap a slot to view class, teacher, and duration details.</div>
+            </div>
             <div class="appt-time-slots-grid"></div>
             <div class="appt-tz-row">
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -636,7 +641,8 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
     </div>`;
 }
 
-function generatePixelScripts(config: FormConfig): string {
+function generatePixelScripts(config: FormConfig, previewMode = false): string {
+  if (previewMode) return '';
   const { pixelConfig } = config;
   let scripts = '';
 
@@ -694,6 +700,7 @@ function generatePixelScripts(config: FormConfig): string {
 
 function generateWebhookScript(config: FormConfig): string {
   const { webhookConfig, pixelConfig } = config;
+  const hasAppointmentSlots = config.fields.some(f => f.type === 'appointment-slots');
   
   let utmScript = '';
   if (webhookConfig.includeUtmParams) {
@@ -805,32 +812,76 @@ function generateWebhookScript(config: FormConfig): string {
                   console.warn('Supabase save exception:', e);
                 }`;
 
+  const appointmentGate = hasAppointmentSlots
+    ? `
+            var appointmentValidation = window.__validateAppointmentBooking
+              ? window.__validateAppointmentBooking(this)
+              : Promise.resolve({ ok: true });
+
+            appointmentValidation.then(function(result) {
+                if (result && result.ok === false) {
+                    throw new Error(result.message || 'Selected appointment slot is no longer available.');
+                }`
+    : '';
+
+  const appointmentGateClose = hasAppointmentSlots ? `
+            }).catch(function(error) {
+                console.error('Error:', error);
+                reportSubmitStatus(error && error.message ? error.message : 'Submission failed.', true);
+                if (submitBtn) {
+                  submitBtn.disabled = false;
+                  submitBtn.textContent = '${escapeHtml(config.submitButtonText)}';
+                }
+            });` : '';
+
   if (!webhookConfig.enabled) {
     return `
+        function reportSubmitStatus(message, isError) {
+            var statusEl = document.getElementById('form-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.className = 'form-status' + (isError ? ' is-error' : ' is-success');
+            statusEl.style.display = message ? 'block' : 'none';
+        }
+
         document.getElementById('generated-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            var submitBtn = this.querySelector('.submit-btn');
+            var formEl = this;
+            reportSubmitStatus('', false);
+            var submitBtn = formEl.querySelector('.submit-btn');
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
-            var formData = new FormData(this);
+            ${appointmentGate}
+            var formData = new FormData(formEl);
             Array.from(formData.keys()).forEach(function(k) { if (k.endsWith('_raw')) formData.delete(k); });
             var baseData = Object.fromEntries(formData);
             var data = baseData;
             console.log('Form submitted:', baseData);${pixelEvents}
             ${generateSheetsSubmitScript(config)}
             ${supabaseSaveScript}
-            ${redirectLine}
+            reportSubmitStatus('${escapeHtml(config.successMessage)}', false);
+            ${redirectLine}${appointmentGateClose}
         });`;
   }
 
   return `${utmScript}
 
+        function reportSubmitStatus(message, isError) {
+            var statusEl = document.getElementById('form-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.className = 'form-status' + (isError ? ' is-error' : ' is-success');
+            statusEl.style.display = message ? 'block' : 'none';
+        }
+
         document.getElementById('generated-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            var submitBtn = this.querySelector('.submit-btn');
+            var formEl = this;
+            reportSubmitStatus('', false);
+            var submitBtn = formEl.querySelector('.submit-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
-
-            var formData = new FormData(this);
+            ${appointmentGate}
+            var formData = new FormData(formEl);
             // Remove raw shadow inputs, keep combined hidden values
             Array.from(formData.keys()).forEach(function(k) { if (k.endsWith('_raw')) formData.delete(k); });
             var baseData = Object.fromEntries(formData);
@@ -855,13 +906,14 @@ function generateWebhookScript(config: FormConfig): string {
             }).then(function() {${pixelEvents}
                 ${generateSheetsSubmitScript(config)}
                 ${supabaseSaveScript}
+                reportSubmitStatus('${escapeHtml(config.successMessage)}', false);
                 ${redirectLine}
             }).catch(function(error) {
                 console.error('Error:', error);
-                alert(error.message);
+                reportSubmitStatus(error && error.message ? error.message : 'Submission failed.', true);
                 submitBtn.disabled = false;
                 submitBtn.textContent = '${escapeHtml(config.submitButtonText)}';
-            });
+            });${appointmentGateClose}
         });`;
 }
 
@@ -1522,10 +1574,13 @@ function generateEmailOtpScript(config: FormConfig): string {
 function generateAppointmentSlotsScript(config: FormConfig): string {
   const hasAppointmentSlots = config.fields.some(f => f.type === 'appointment-slots');
   if (!hasAppointmentSlots) return '';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
 
   return `
         // ── Appointment Booking Calendar ──────────────────────────────────────
         (function () {
+          var APPT_FORM_ID = '${escapeHtml(config.id)}';
+          var APPT_COUNTS_URL = '${supabaseUrl}/functions/v1/appointment-bookings';
           var MONTHS = ['January','February','March','April','May','June',
                         'July','August','September','October','November','December'];
           var DAYS_SHORT_SUN = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -1544,6 +1599,16 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
           function minsToStr(m) { return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
 
+          function isExcludedIntervalSlot(dateStr, timeStr, cfg) {
+            var excluded = (cfg && cfg.excludedSlots) || [];
+            for (var ei = 0; ei < excluded.length; ei++) {
+              if (excluded[ei] && excluded[ei].date === dateStr && excluded[ei].startTime === timeStr) {
+                return true;
+              }
+            }
+            return false;
+          }
+
           function slotKey(slot) {
             if (slot && slot.id) return String(slot.id);
             if (!slot) return '';
@@ -1560,21 +1625,39 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             return 1;
           }
 
-          function readBookingMap(storageKey) {
-            try {
-              var raw = localStorage.getItem(storageKey);
-              if (!raw) return {};
-              var parsed = JSON.parse(raw);
-              return (parsed && typeof parsed === 'object') ? parsed : {};
-            } catch (e) {
-              return {};
+          // Capacity for auto-generated interval slots
+          function intervalSlotCapacity(cfg) {
+            var n = Number(cfg && cfg.maxBookingsPerSlot);
+            if (isFinite(n) && n > 0) return n;
+            if ((cfg && cfg.appointmentType) === 'group') {
+              var g = Number(cfg && cfg.groupMaxAttendees);
+              return (isFinite(g) && g > 0) ? g : 10;
             }
+            return 1;
           }
 
-          function writeBookingMap(storageKey, map) {
-            try {
-              localStorage.setItem(storageKey, JSON.stringify(map || {}));
-            } catch (e) {}
+          function fetchBookingSnapshot(fieldName, slotKeys, datePrefix) {
+            var safeKeys = (slotKeys || []).filter(Boolean);
+            return fetch(APPT_COUNTS_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                formId: APPT_FORM_ID,
+                fieldName: fieldName,
+                slotKeys: safeKeys,
+                datePrefix: datePrefix || '',
+              }),
+            }).then(function(response) {
+              if (!response.ok) {
+                return response.text().then(function(body) {
+                  throw new Error(body || ('Appointment count check failed (' + response.status + ')'));
+                });
+              }
+              return response.json();
+            }).catch(function(err) {
+              console.warn('Appointment availability check failed:', err);
+              return { countsBySlot: {}, dayBookingCount: 0 };
+            });
           }
 
           function formatDisplayDate(d, fmt) {
@@ -1647,33 +1730,28 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
               if (ds >= vacs[vi].startDate && ds <= (vacs[vi].endDate || vacs[vi].startDate)) return false;
             }
 
-            var intervals = cfg.intervals || [];
-            var dow = d.getDay();
-            for (var ii = 0; ii < intervals.length; ii++) {
-              if (dayMatchesInterval(intervals[ii].days, dow)) return true;
-            }
-
-            // If explicit slot list is configured, availability can come from slots too.
             var slots = cfg.slots || [];
             for (var si = 0; si < slots.length; si++) {
               if (slots[si].date === ds) return true;
             }
-            return false;
+            return getSlotsForDate(d, cfg).length > 0;
           }
 
           function getSlotsForDate(d, cfg) {
             var dow = d.getDay();
+            var ds  = toDateStr(d);
             var duration = cfg.slotDuration === 'custom'
               ? (cfg.customSlotDuration || 30)
               : (cfg.slotDuration || 60);
+            var buffer = Number(cfg.bufferMinutes) || 0;
+            var step   = duration + buffer;       // total minutes consumed per slot
             var lunchFrom = cfg.lunchtimeEnabled ? timeToMins(cfg.lunchtimeFrom || '12:00') : -1;
             var lunchTo   = cfg.lunchtimeEnabled ? timeToMins(cfg.lunchtimeTo   || '13:00') : -1;
 
             // Minimum notice cutoff (minutes from midnight today)
             var noticeMins = 0;
             var today = new Date();
-            var todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            var isToday = toDateStr(d) === toDateStr(today);
+            var isToday = ds === toDateStr(today);
             if (isToday && (cfg.minSchedulingNoticeHours || cfg.minSchedulingNoticeMinutes)) {
               var now = new Date();
               noticeMins = (now.getHours() * 60 + now.getMinutes()) +
@@ -1684,12 +1762,17 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             var intervals = cfg.intervals || [];
             for (var ii = 0; ii < intervals.length; ii++) {
               var interval = intervals[ii];
-              if (!dayMatchesInterval(interval.days, dow)) continue;
+              // Match by specificDate OR by day-of-week pattern
+              if (interval.specificDate) {
+                if (interval.specificDate !== ds) continue;
+              } else {
+                if (!dayMatchesInterval(interval.days, dow)) continue;
+              }
               var startMins = timeToMins(interval.from);
               var endMins   = timeToMins(interval.to);
               while (startMins + duration <= endMins) {
                 // Skip past notice cutoff
-                if (isToday && startMins < noticeMins) { startMins += duration; continue; }
+                if (isToday && startMins < noticeMins) { startMins += step; continue; }
                 // Skip lunchtime overlap
                 if (lunchFrom >= 0) {
                   var slotEnd = startMins + duration;
@@ -1698,8 +1781,11 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
                     continue;
                   }
                 }
-                slots.push(startMins);
-                startMins += duration;
+                var slotTime = minsToStr(startMins);
+                if (!isExcludedIntervalSlot(ds, slotTime, cfg)) {
+                  slots.push(startMins);
+                }
+                startMins += step;
               }
             }
             // Deduplicate & sort
@@ -1760,6 +1846,7 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
             var dateInput  = wrap.querySelector('.appt-date-input');
             var dayLabel   = wrap.querySelector('.appt-selected-day-label');
+            var detailCard = wrap.querySelector('.appt-slot-detail');
             var slotsGrid  = wrap.querySelector('.appt-time-slots-grid');
             var dayHdrs    = wrap.querySelector('.appt-day-headers');
             var daysGrid   = wrap.querySelector('.appt-days-grid');
@@ -1783,8 +1870,28 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             var use12h   = (cfg.timeFormat || '12h') === '12h';
             var startMon = cfg.startWeekOn === 'monday';
             var tz       = cfg.defaultTimezone || cfg.timezone || '';
-            var fieldId = wrap.dataset.fieldId || wrap.dataset.fieldName || 'appointment';
-            var bookingStoreKey = 'jforms_appt_bookings_' + fieldId;
+            var fieldName = wrap.dataset.fieldName || wrap.dataset.fieldId || 'appointment';
+            var slotRenderNonce = 0;
+            var selectedSlotDetailKey = '';
+
+            function setSlotDetail(title, meta, key) {
+              if (!detailCard) return;
+              var titleEl = detailCard.querySelector('.appt-slot-detail-title');
+              var metaEl = detailCard.querySelector('.appt-slot-detail-meta');
+              if (titleEl) titleEl.textContent = title || 'Choose a time slot';
+              if (metaEl) metaEl.textContent = meta || 'Hover or tap a slot to view class, teacher, and duration details.';
+              if (key) selectedSlotDetailKey = key;
+            }
+
+            function bindSlotDetail(btn, title, meta, key) {
+              btn.addEventListener('mouseenter', function() { setSlotDetail(title, meta); });
+              btn.addEventListener('focus', function() { setSlotDetail(title, meta); });
+              btn.addEventListener('click', function() { setSlotDetail(title, meta, key); });
+              btn.addEventListener('mouseleave', function() {
+                if (!selectedSlotDetailKey || selectedSlotDetailKey !== key) return;
+                setSlotDetail(title, meta, key);
+              });
+            }
 
             // Populate month select
             if (monthSel) {
@@ -1908,17 +2015,25 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
             function renderSlots() {
               if (!slotsGrid || !selectedDate) return;
+              var renderNonce = ++slotRenderNonce;
               slotsGrid.innerHTML = '';
+              selectedSlotDetailKey = '';
+              setSlotDetail('', '');
 
               var fullLabel = selectedDate.toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: '2-digit'
               });
               if (dayLabel) dayLabel.textContent = fullLabel;
 
-              var manualSlots = getManualSlotsForDate(selectedDate, cfg);
-              var hasManual = manualSlots.length > 0;
-              var intervalSlots = hasManual ? [] : getSlotsForDate(selectedDate, cfg);
-              if (!hasManual && !intervalSlots.length) {
+              var manualSlots   = getManualSlotsForDate(selectedDate, cfg);
+              var intervalMins  = getSlotsForDate(selectedDate, cfg);
+
+              // Deduplicate interval times that are already covered by a manual slot
+              var manualTimes = {};
+              manualSlots.forEach(function(s) { manualTimes[timeToMins(s.startTime || '00:00')] = true; });
+              var filteredIntervalMins = intervalMins.filter(function(m) { return !manualTimes[m]; });
+
+              if (!manualSlots.length && !filteredIntervalMins.length) {
                 var msg = document.createElement('div');
                 msg.className = 'appt-no-slots';
                 msg.textContent = 'No available slots for this day.';
@@ -1928,58 +2043,104 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
                 return;
               }
 
-              if (hasManual) {
-                var bookingMap = readBookingMap(bookingStoreKey);
-                manualSlots.forEach(function(slot) {
-                  var key = slotKey(slot);
-                  var cap = slotCapacity(slot, cfg);
-                  var booked = Number(bookingMap[key] || 0);
-                  var remaining = Math.max(0, cap - booked);
+              // Build a unified list sorted by start time
+              var unified = [];
+              manualSlots.forEach(function(slot) {
+                unified.push({ mins: timeToMins(slot.startTime || '00:00'), type: 'manual', slot: slot });
+              });
+              filteredIntervalMins.forEach(function(mins) {
+                unified.push({ mins: mins, type: 'interval', slot: null });
+              });
+              unified.sort(function(a, b) { return a.mins - b.mins; });
 
+              var slotKeys = unified.map(function(entry) {
+                return entry.type === 'manual'
+                  ? slotKey(entry.slot)
+                  : (toDateStr(selectedDate) + 'T' + minsToStr(entry.mins));
+              });
+              var intervalCap = intervalSlotCapacity(cfg);
+              var datePrefix = toDateStr(selectedDate);
+              var maxPerDay = Number(cfg.maxAppointmentsPerDay || 0);
+
+              slotsGrid.innerHTML = '<div class="appt-no-slots">Loading available slots...</div>';
+              fetchBookingSnapshot(fieldName, slotKeys, datePrefix).then(function(snapshot) {
+                if (renderNonce !== slotRenderNonce) return;
+                slotsGrid.innerHTML = '';
+
+                var bookingMap = snapshot && snapshot.countsBySlot ? snapshot.countsBySlot : {};
+                var dayBookingCount = Number(snapshot && snapshot.dayBookingCount || 0);
+                if (maxPerDay > 0 && dayBookingCount >= maxPerDay) {
+                  var fullDay = document.createElement('div');
+                  fullDay.className = 'appt-no-slots';
+                  fullDay.textContent = 'Daily booking limit reached for this date.';
+                  slotsGrid.appendChild(fullDay);
+                  return;
+                }
+
+                unified.forEach(function(entry) {
                   var btn = document.createElement('button');
                   btn.type = 'button';
                   btn.className = 'appt-time-btn';
-                  btn.dataset.slotKey = key;
-                  btn.dataset.slotCap = String(cap);
-                  btn.textContent = formatTime(timeToMins(slot.startTime || '00:00'), use12h) +
-                    ' · ' + (slot.className || 'Session') +
-                    ' · ' + (slot.teacherName || 'Instructor') +
-                    ' · ' + remaining + '/' + cap + ' left';
 
-                  if (remaining <= 0) {
-                    btn.disabled = true;
-                    btn.classList.add('appt-time-btn-full');
+                  if (entry.type === 'manual') {
+                    var slot = entry.slot;
+                    var key  = slotKey(slot);
+                    var cap  = slotCapacity(slot, cfg);
+                    var booked = Number(bookingMap[key] || 0);
+                    var remaining = Math.max(0, cap - booked);
+                    btn.dataset.slotKey = key;
+                    btn.dataset.slotCap = String(cap);
+                    var manualLabel = remaining === 1 ? '1 slot left' : remaining + ' slots left';
+                    btn.innerHTML = '<span class="appt-time-btn-time">' + formatTime(entry.mins, use12h) + '</span>' +
+                      '<span class="appt-time-btn-meta">' + manualLabel + '</span>';
+                    var manualMeta = (slot.className || 'Session') +
+                      ' · ' + (slot.teacherName || 'Instructor') +
+                      ' · ' + (slot.sessionType === 'group' ? 'Group' : 'Personal') +
+                      ' · ' + String(slot.durationMinutes || cfg.customSlotDuration || cfg.slotDuration || 30) + ' min';
+                    bindSlotDetail(btn, formatTime(entry.mins, use12h), manualMeta, key);
+                    if (remaining <= 0) {
+                      btn.disabled = true;
+                      btn.classList.add('appt-time-btn-full');
+                    } else {
+                      btn.addEventListener('click', function() {
+                        slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
+                        btn.classList.add('selected');
+                        hidden.value = toDateStr(selectedDate) + 'T' + (slot.startTime || '00:00');
+                        wrap.dataset.selectedSlotKey = key;
+                        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                      });
+                    }
+                  } else {
+                    var iKey = toDateStr(selectedDate) + 'T' + minsToStr(entry.mins);
+                    var iBooked = Number(bookingMap[iKey] || 0);
+                    var iRemaining = Math.max(0, intervalCap - iBooked);
+                    btn.dataset.slotKey = iKey;
+                    var intervalLabel = iRemaining === 1 ? '1 slot left' : iRemaining + ' slots left';
+                    btn.innerHTML = '<span class="appt-time-btn-time">' + formatTime(entry.mins, use12h) + '</span>' +
+                      '<span class="appt-time-btn-meta">' + intervalLabel + '</span>';
+                    var intervalMeta = 'Standard appointment' +
+                      ' · ' + String(cfg.appointmentType === 'group' ? 'Group' : 'Personal') +
+                      ' · ' + String(cfg.slotDuration === 'custom' ? (cfg.customSlotDuration || 30) : (cfg.slotDuration || 60)) + ' min';
+                    bindSlotDetail(btn, formatTime(entry.mins, use12h), intervalMeta, iKey);
+                    if (iRemaining <= 0) {
+                      btn.disabled = true;
+                      btn.classList.add('appt-time-btn-full');
+                    } else {
+                      btn.addEventListener('click', function() {
+                        slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
+                        btn.classList.add('selected');
+                        hidden.value = iKey;
+                        wrap.dataset.selectedSlotKey = iKey;
+                        hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                      });
+                    }
                   }
-
-                  btn.addEventListener('click', function() {
-                    if (btn.disabled) return;
-                    slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
-                    btn.classList.add('selected');
-                    hidden.value = toDateStr(selectedDate) + 'T' + (slot.startTime || '00:00');
-                    wrap.dataset.selectedSlotKey = key;
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                  });
                   slotsGrid.appendChild(btn);
                 });
-              } else {
-                intervalSlots.forEach(function(mins) {
-                  var btn = document.createElement('button');
-                  btn.type = 'button';
-                  btn.className = 'appt-time-btn';
-                  btn.textContent = formatTime(mins, use12h);
-                  btn.addEventListener('click', function() {
-                    slotsGrid.querySelectorAll('.appt-time-btn').forEach(function(b) { b.classList.remove('selected'); });
-                    btn.classList.add('selected');
-                    hidden.value = toDateStr(selectedDate) + 'T' + minsToStr(mins);
-                    wrap.dataset.selectedSlotKey = toDateStr(selectedDate) + 'T' + minsToStr(mins);
-                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                  });
-                  slotsGrid.appendChild(btn);
-                });
-              }
 
-              if (prevDayBtn) prevDayBtn.disabled = false;
-              if (nextDayBtn) nextDayBtn.disabled = false;
+                if (prevDayBtn) prevDayBtn.disabled = false;
+                if (nextDayBtn) nextDayBtn.disabled = false;
+              });
             }
 
             // Prev/Next day navigation
@@ -2013,74 +2174,67 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             renderCalendar();
           }
 
+          window.__validateAppointmentBooking = function(formEl) {
+            var root = formEl || document;
+            var groups = Array.prototype.slice.call(root.querySelectorAll('[data-appt="true"]'));
+            if (!groups.length) return Promise.resolve({ ok: true });
+
+            var chain = Promise.resolve({ ok: true });
+            groups.forEach(function(group) {
+              chain = chain.then(function(result) {
+                if (!result.ok) return result;
+
+                var hidden = group.querySelector('input[type="hidden"]');
+                if (hidden && hidden.required && !hidden.value) {
+                  var missingLabel = group.querySelector('.appt-selected-day-label');
+                  if (missingLabel) missingLabel.textContent = 'Please select a date and time.';
+                  return { ok: false, message: 'Please select a date and time.' };
+                }
+
+                var selectedKey = group.dataset.selectedSlotKey || '';
+                if (!selectedKey || !hidden || !hidden.value) return { ok: true };
+
+                var apptCfg = {};
+                try { apptCfg = JSON.parse(group.dataset.apptConfig || '{}'); } catch (err) {}
+                var selectedSlot = null;
+                if (apptCfg.slots && apptCfg.slots.length) {
+                  for (var si = 0; si < apptCfg.slots.length; si++) {
+                    if (slotKey(apptCfg.slots[si]) === selectedKey) {
+                      selectedSlot = apptCfg.slots[si];
+                      break;
+                    }
+                  }
+                }
+
+                var capacity = selectedSlot ? slotCapacity(selectedSlot, apptCfg) : intervalSlotCapacity(apptCfg);
+                var datePrefix = String(hidden.value).split('T')[0] || '';
+                var maxPerDay = Number(apptCfg.maxAppointmentsPerDay || 0);
+                var fieldName = group.dataset.fieldName || group.dataset.fieldId || 'appointment';
+
+                return fetchBookingSnapshot(fieldName, [selectedKey], datePrefix).then(function(snapshot) {
+                  var counts = snapshot && snapshot.countsBySlot ? snapshot.countsBySlot : {};
+                  var booked = Number(counts[selectedKey] || 0);
+                  var dayBookingCount = Number(snapshot && snapshot.dayBookingCount || 0);
+
+                  if (booked >= capacity) {
+                    var fullLabel = group.querySelector('.appt-selected-day-label');
+                    if (fullLabel) fullLabel.textContent = 'Selected slot is fully booked. Pick another slot.';
+                    return { ok: false, message: 'Selected slot is fully booked. Pick another slot.' };
+                  }
+                  if (maxPerDay > 0 && dayBookingCount >= maxPerDay) {
+                    var dayLabel2 = group.querySelector('.appt-selected-day-label');
+                    if (dayLabel2) dayLabel2.textContent = 'Daily booking limit reached for this date.';
+                    return { ok: false, message: 'Daily booking limit reached for this date.' };
+                  }
+                  return { ok: true };
+                });
+              });
+            });
+            return chain;
+          };
+
           document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('[data-appt="true"]').forEach(bindApptWidget);
-
-            var form = document.getElementById('generated-form');
-            if (!form) return;
-            form.addEventListener('submit', function (e) {
-              var groups = document.querySelectorAll('[data-appt="true"]');
-              for (var i = 0; i < groups.length; i++) {
-                var g = groups[i];
-                var hidden = g.querySelector('input[type="hidden"]');
-                if (hidden && hidden.required && !hidden.value) {
-                  e.preventDefault();
-                  e.stopImmediatePropagation();
-                  var label = g.querySelector('.appt-selected-day-label');
-                  if (label) label.textContent = 'Please select a date and time.';
-                  return;
-                }
-
-                var selectedKey = g.dataset.selectedSlotKey || '';
-                if (!selectedKey) continue;
-                var apptCfg = {};
-                try { apptCfg = JSON.parse(g.dataset.apptConfig || '{}'); } catch(err) {}
-                if (!apptCfg.slots || !apptCfg.slots.length) continue;
-                var selectedSlot = null;
-                for (var si = 0; si < apptCfg.slots.length; si++) {
-                  if (slotKey(apptCfg.slots[si]) === selectedKey) {
-                    selectedSlot = apptCfg.slots[si];
-                    break;
-                  }
-                }
-                if (!selectedSlot) continue;
-                var fieldId = g.dataset.fieldId || g.dataset.fieldName || 'appointment';
-                var storeKey = 'jforms_appt_bookings_' + fieldId;
-                var map = readBookingMap(storeKey);
-                var booked = Number(map[selectedKey] || 0);
-                var cap = slotCapacity(selectedSlot, apptCfg);
-                if (booked >= cap) {
-                  e.preventDefault();
-                  e.stopImmediatePropagation();
-                  var fullLabel = g.querySelector('.appt-selected-day-label');
-                  if (fullLabel) fullLabel.textContent = 'Selected slot is fully booked. Pick another slot.';
-                  return;
-                }
-              }
-
-              // Reserve selected manual slots locally to avoid overbooking on the same browser.
-              for (var gi = 0; gi < groups.length; gi++) {
-                var group = groups[gi];
-                var key = group.dataset.selectedSlotKey || '';
-                if (!key) continue;
-                var cfg = {};
-                try { cfg = JSON.parse(group.dataset.apptConfig || '{}'); } catch(err) {}
-                if (!cfg.slots || !cfg.slots.length) continue;
-                var slot = null;
-                for (var sj = 0; sj < cfg.slots.length; sj++) {
-                  if (slotKey(cfg.slots[sj]) === key) {
-                    slot = cfg.slots[sj];
-                    break;
-                  }
-                }
-                if (!slot) continue;
-                var fId = group.dataset.fieldId || group.dataset.fieldName || 'appointment';
-                var sKey = 'jforms_appt_bookings_' + fId;
-                var bookings = readBookingMap(sKey);
-                bookings[key] = Number(bookings[key] || 0) + 1;
-                writeBookingMap(sKey, bookings);
-              }
-            }, true);
           });
         })();`;
 }
@@ -2185,10 +2339,12 @@ function getLayoutGridCss(layout: string, fieldGap = '16px'): string {
 function generateLayoutCss(config: FormConfig): string {
   const layout = config.layout ?? 'classic';
   if (layout === 'classic') return '';
+  const splitLayouts = ['split-left', 'split-right', 'editorial-left', 'editorial-right'];
+  const bannerLayouts = ['banner-top', 'showcase-banner'];
   const defaultHeroHeight =
-    layout === 'banner-top'
-      ? 260
-      : layout === 'split-left' || layout === 'split-right'
+    bannerLayouts.includes(layout)
+      ? layout === 'showcase-banner' ? 420 : 260
+      : splitLayouts.includes(layout)
         ? 760
         : 420;
   const initialHero = getHeroForPage(config, 0, { defaultHeight: defaultHeroHeight });
@@ -2205,14 +2361,14 @@ function generateLayoutCss(config: FormConfig): string {
         body.layout-card .form-container {
             box-shadow: 0 32px 64px -12px rgba(0,0,0,0.28), 0 16px 32px -8px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.04);
         }
-        body.layout-split-left, body.layout-split-right {
+        body.layout-split-left, body.layout-split-right, body.layout-editorial-left, body.layout-editorial-right {
             padding: 0;
             align-items: stretch;
             justify-content: flex-start;
             min-height: 100vh;
         }
-        body.layout-split-left { flex-direction: row; }
-        body.layout-split-right { flex-direction: row-reverse; }
+        body.layout-split-left, body.layout-editorial-left { flex-direction: row; }
+        body.layout-split-right, body.layout-editorial-right { flex-direction: row-reverse; }
         .layout-image-panel {
             flex: 0 0 ${imgPanelW}%;
             min-height: ${heroHeight}px;
@@ -2242,7 +2398,9 @@ function generateLayoutCss(config: FormConfig): string {
         }
         /* Strip card styling in split layout — panel IS the container */
         body.layout-split-left .form-container,
-        body.layout-split-right .form-container {
+        body.layout-split-right .form-container,
+        body.layout-editorial-left .form-container,
+        body.layout-editorial-right .form-container {
             width: 100%;
             max-width: 100%;
             box-shadow: none;
@@ -2255,24 +2413,66 @@ function generateLayoutCss(config: FormConfig): string {
             flex-direction: column;
         }
         body.layout-split-left .form-container::before,
-        body.layout-split-right .form-container::before {
+        body.layout-split-right .form-container::before,
+        body.layout-editorial-left .form-container::before,
+        body.layout-editorial-right .form-container::before {
             display: none;
         }
         /* Remove inner horizontal padding — outer panel padding is enough */
         body.layout-split-left .logo-container,
         body.layout-split-right .logo-container,
+        body.layout-editorial-left .logo-container,
+        body.layout-editorial-right .logo-container,
         body.layout-split-left .form-header,
         body.layout-split-right .form-header,
+        body.layout-editorial-left .form-header,
+        body.layout-editorial-right .form-header,
         body.layout-split-left .form-body,
-        body.layout-split-right .form-body {
+        body.layout-split-right .form-body,
+        body.layout-editorial-left .form-body,
+        body.layout-editorial-right .form-body {
             padding-left: 0;
             padding-right: 0;
         }
         body.layout-split-left .form-body,
-        body.layout-split-right .form-body {
+        body.layout-split-right .form-body,
+        body.layout-editorial-left .form-body,
+        body.layout-editorial-right .form-body {
             flex: 1;
         }
-        body.layout-banner-top {
+        body.layout-editorial-left,
+        body.layout-editorial-right {
+            background:
+              radial-gradient(circle at top, rgba(15,23,42,0.08), transparent 45%),
+              linear-gradient(180deg, #f8fafc, #e2e8f0);
+            padding: 24px;
+        }
+        body.layout-editorial-left .layout-image-panel,
+        body.layout-editorial-right .layout-image-panel {
+            border-radius: 28px 0 0 28px;
+        }
+        body.layout-editorial-right .layout-image-panel {
+            border-radius: 0 28px 28px 0;
+        }
+        body.layout-editorial-left .layout-image-overlay,
+        body.layout-editorial-right .layout-image-overlay {
+            display: block;
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.28));
+        }
+        body.layout-editorial-left .layout-form-panel,
+        body.layout-editorial-right .layout-form-panel {
+            background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.96));
+            padding: 72px 76px;
+            border-radius: 0 28px 28px 0;
+            box-shadow: 0 32px 80px rgba(15,23,42,0.12);
+        }
+        body.layout-editorial-right .layout-form-panel {
+            border-radius: 28px 0 0 28px;
+        }
+        body.layout-banner-top,
+        body.layout-showcase-banner {
             flex-direction: column;
             align-items: center;
             padding: 0;
@@ -2289,11 +2489,23 @@ function generateLayoutCss(config: FormConfig): string {
             background-repeat: ${bgRepeat};
             position: relative;
         }
-        body.layout-banner-top .form-container {
+        body.layout-showcase-banner .layout-banner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.45));
+        }
+        body.layout-banner-top .form-container,
+        body.layout-showcase-banner .form-container {
             margin-top: -48px;
             margin-bottom: 32px;
             position: relative;
             z-index: 1;
+        }
+        body.layout-showcase-banner .form-container {
+            margin-top: -110px;
+            width: min(920px, calc(100vw - 64px));
+            box-shadow: 0 28px 80px rgba(15,23,42,0.18);
         }
         body.layout-floating {
             position: relative;
@@ -2327,11 +2539,21 @@ function generateLayoutCss(config: FormConfig): string {
             animation: none;
         }
         @media (max-width: 768px) {
-            body.layout-split-left, body.layout-split-right {
+            body.layout-split-left, body.layout-split-right, body.layout-editorial-left, body.layout-editorial-right {
                 flex-direction: column;
             }
             .layout-image-panel { min-height: 260px; flex: none; width: 100%; }
             .layout-form-panel { width: 100%; padding: 40px 28px; }
+            body.layout-editorial-left .layout-image-panel,
+            body.layout-editorial-right .layout-image-panel,
+            body.layout-editorial-left .layout-form-panel,
+            body.layout-editorial-right .layout-form-panel {
+                border-radius: 0;
+            }
+            body.layout-showcase-banner .form-container {
+                width: calc(100vw - 32px);
+                margin-top: -64px;
+            }
         }`;
   return base;
 }
@@ -2423,6 +2645,7 @@ function generateAnimationScript(config: FormConfig): string {
 
 export function generateFormHtml(config: FormConfig, options?: GenerateOptions): string {
   const { theme, pixelConfig } = config;
+  const previewMode = !!options?.previewMode;
   const sortedFields = [...config.fields].sort((a, b) => a.order - b.order);
   
   const pages: FormField[][] = [[]];
@@ -2493,9 +2716,9 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     : '';
 
   const defaultHeroHeight =
-    config.layout === 'banner-top'
-      ? 260
-      : config.layout === 'split-left' || config.layout === 'split-right'
+    config.layout === 'banner-top' || config.layout === 'showcase-banner'
+      ? (config.layout === 'showcase-banner' ? 420 : 260)
+      : config.layout === 'split-left' || config.layout === 'split-right' || config.layout === 'editorial-left' || config.layout === 'editorial-right'
         ? 760
         : 420;
   const defaultPosX = Number(config.layoutImagePositionX ?? '50');
@@ -2602,7 +2825,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${escapeHtml(config.title)}</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    ${generatePixelScripts(config)}
+    ${generatePixelScripts(config, previewMode)}
     <style>
         :root {
             --primary-color: ${theme.primaryColor};
@@ -2615,11 +2838,13 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             --bg-secondary: #f8fafc;
             --border-color: ${theme.inputBorderColor};
             --border-focus: ${theme.primaryColor};
+            --button-text-color: ${theme.buttonTextColor || '#ffffff'};
             --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
             --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
             --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
             --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
             --radius: ${theme.borderRadius};
+            --preview-mode: ${previewMode ? 1 : 0};
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -2859,7 +3084,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .appt-main-panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            min-height: 320px;
+            min-height: 360px;
         }
         @media (max-width: 560px) {
             .appt-main-panel { grid-template-columns: 1fr; }
@@ -2946,11 +3171,13 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             display: flex;
             flex-direction: column;
             gap: 10px;
+            overflow: hidden;
         }
         .appt-slots-header {
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-shrink: 0;
         }
         .appt-selected-day-label {
             flex: 1;
@@ -2981,24 +3208,59 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             flex: 1;
+            overflow-y: auto;
             align-content: start;
+            max-height: 260px;
+            padding-right: 2px;
+        }
+        .appt-slot-detail {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,250,252,0.88));
+            padding: 12px;
+            min-height: 72px;
+        }
+        .appt-slot-detail-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .appt-slot-detail-meta {
+            margin-top: 4px;
+            font-size: 12px;
+            line-height: 1.5;
+            color: var(--text-secondary);
         }
         .appt-time-btn {
             border: 1px solid var(--border-color, #c6d0e8);
             background: var(--bg-primary);
-            border-radius: 8px;
-            padding: 10px 6px;
+            border-radius: 12px;
+            padding: 12px 10px;
             font-size: 13px;
-            font-weight: 500;
-            color: var(--primary-color, #4f80f7);
+            font-weight: 600;
+            color: var(--text-primary);
             cursor: pointer;
-            text-align: center;
+            text-align: left;
             transition: all 0.12s;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            box-shadow: var(--shadow-sm);
         }
-        .appt-time-btn:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); }
+        .appt-time-btn:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); transform: translateY(-1px); }
         .appt-time-btn.selected { background: var(--primary-color, #4f80f7); color: #fff; border-color: var(--primary-color, #4f80f7); }
         .appt-time-btn:disabled { opacity: 0.35; cursor: default; }
         .appt-time-btn.appt-time-btn-full { text-decoration: line-through; }
+        .appt-time-btn-time {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .appt-time-btn-meta {
+            font-size: 11px;
+            opacity: 0.8;
+            line-height: 1.3;
+        }
         .appt-no-slots {
             grid-column: 1 / -1;
             text-align: center;
@@ -3078,7 +3340,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             border: none;
             border-radius: 8px;
             background: var(--primary-gradient);
-            color: ${theme.buttonTextColor};
+            color: var(--button-text-color) !important;
             font-family: inherit;
             font-size: 15px;
             font-weight: 600;
@@ -3087,6 +3349,8 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             box-shadow: var(--shadow-md);
             position: relative;
             overflow: hidden;
+            isolation: isolate;
+            text-shadow: 0 1px 1px rgba(15, 23, 42, 0.18);
         }
         .submit-btn::before {
             content: '';
@@ -3094,17 +3358,49 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             top: 0; left: -100%; width: 100%; height: 100%;
             background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
             transition: left 0.6s;
+            pointer-events: none;
         }
-        .submit-btn:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+        .submit-btn:hover {
+            color: var(--button-text-color) !important;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
         .submit-btn:hover::before { left: 100%; }
         .submit-btn:active { transform: translateY(-1px); }
         .submit-btn:disabled {
             background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
             cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm);
         }
+        .page-nav .submit-btn,
+        .page-nav .submit-btn:hover {
+            border: none;
+            color: var(--button-text-color) !important;
+        }
         .success-message { text-align: center; padding: 40px 20px; }
         .success-message h2 { font-size: 48px; margin-bottom: 12px; }
         .success-message p { font-size: 16px; color: var(--text-secondary); }
+        .form-status {
+            display: none;
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        .form-status.is-error {
+            border-color: rgba(220, 38, 38, 0.25);
+            background: rgba(254, 242, 242, 0.95);
+            color: #b91c1c;
+        }
+        .form-status.is-success {
+            border-color: rgba(22, 163, 74, 0.25);
+            background: rgba(240, 253, 244, 0.95);
+            color: #166534;
+        }
         ${getLayoutGridCss(layout, theme.fieldGap || '16px')}
         ${paginationStyles}
         @media (max-width: 640px) {
@@ -3363,10 +3659,10 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     </script>
 </head>
 <body${config.layout && config.layout !== 'classic' ? ` class="layout-${config.layout}"` : ''}>
-    ${['split-left','split-right'].includes(config.layout ?? '') ? `<div class="layout-image-panel"><div class="layout-image-overlay"></div></div>` : ''}
-    ${config.layout === 'banner-top' ? `<div class="layout-banner"></div>` : ''}
+    ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? `<div class="layout-image-panel"><div class="layout-image-overlay"></div></div>` : ''}
+    ${['banner-top','showcase-banner'].includes(config.layout ?? '') ? `<div class="layout-banner"></div>` : ''}
     ${config.layout === 'floating' ? `<div class="layout-backdrop"></div>` : ''}
-    ${['split-left','split-right'].includes(config.layout ?? '') ? '<div class="layout-form-panel">' : ''}
+    ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? '<div class="layout-form-panel">' : ''}
     <div class="form-container">
         ${theme.showLogo && logoSrc ? `<div class="logo-container"><img src="${logoSrc}" alt="Logo"></div>` : ''}
         <div class="form-header">
@@ -3384,6 +3680,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             <form id="generated-form">
 ${pagesHtml}
             </form>
+            <div id="form-status" class="form-status" aria-live="polite"></div>
             <div id="address-display" style="display:none; align-items:center; gap:8px; margin-top:16px; padding:14px 16px; background:var(--bg-secondary); border-radius:8px; border:1px solid var(--border-color);">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 <span id="location-address" style="font-size:13px; color:var(--text-secondary);"></span>
@@ -3391,7 +3688,7 @@ ${pagesHtml}
         </div>
         ${config.footer ? `<div class="form-footer">${escapeHtml(config.footer)}</div>` : ''}
     </div>
-    ${['split-left','split-right'].includes(config.layout ?? '') ? '</div>' : ''}
+    ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? '</div>' : ''}
     <script>
         ${multiPageScript}
         ${generateWebhookScript(config)}
