@@ -3538,16 +3538,17 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
 
         /* ── Services-mode appointment widget ── */
         .appt-services-mode {
-            border: 1px solid var(--border-focus, #4f80f7);
-            border-radius: 14px;
+            border: 1.5px solid var(--border-focus, #4f80f7);
+            border-radius: 16px;
             overflow: hidden;
             background: var(--bg-primary);
+            box-shadow: 0 4px 24px rgba(79,128,247,0.07), 0 1px 4px rgba(0,0,0,0.04);
         }
         .appt-svc-tabs-row {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
-            padding: 14px 14px 10px;
+            padding: 14px 16px 12px;
             border-bottom: 1px solid var(--border-color);
             background: var(--bg-secondary);
         }
@@ -3557,85 +3558,114 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             align-items: flex-start;
             gap: 2px;
             padding: 8px 14px;
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 12px;
             background: var(--bg-primary);
             cursor: pointer;
             font-size: 13px;
-            transition: all 0.15s;
+            transition: all 0.18s ease;
             color: var(--text-primary);
+            font-weight: 500;
         }
-        .appt-svc-tab:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); }
-        .appt-svc-tab.active { background: var(--primary-color, #4f80f7); border-color: var(--primary-color, #4f80f7); color: #fff; }
+        .appt-svc-tab:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); box-shadow: 0 2px 8px rgba(79,128,247,0.12); }
+        .appt-svc-tab.active { background: var(--primary-color, #4f80f7); border-color: var(--primary-color, #4f80f7); color: #fff; box-shadow: 0 4px 16px rgba(79,128,247,0.28); }
         .appt-svc-tab-name { font-weight: 700; font-size: 13px; }
         .appt-svc-tab-sub { font-size: 11px; font-weight: 400; opacity: 0.85; }
         .appt-svc-tab-dur { font-size: 11px; opacity: 0.8; }
         .appt-svc-tab.active .appt-svc-tab-dur { opacity: 0.9; color: rgba(255,255,255,0.9); }
         .appt-svc-panels {
-            padding: 14px;
+            padding: 16px;
         }
-        .appt-svc-panel { display: flex; flex-direction: column; gap: 14px; }
+        .appt-svc-panel { display: flex; flex-direction: column; gap: 18px; }
         .appt-svc-date-group { }
         .appt-svc-date-header {
-            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11.5px;
             font-weight: 700;
             color: var(--text-secondary);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            letter-spacing: 0.07em;
+            margin-bottom: 10px;
+        }
+        .appt-svc-date-header::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+            opacity: 0.6;
         }
         .appt-svc-slots-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 10px;
         }
         .appt-svc-slot-btn {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
-            padding: 8px 14px;
-            border: 1px solid var(--border-color, #c6d0e8);
-            border-radius: 10px;
+            gap: 3px;
+            padding: 10px 16px;
+            border: 1.5px solid var(--border-color, #c6d0e8);
+            border-radius: 12px;
             background: var(--bg-primary);
             cursor: pointer;
-            transition: all 0.15s;
+            transition: all 0.18s ease;
             font-size: 13px;
             color: var(--text-primary);
-            min-width: 70px;
+            min-width: 76px;
+            position: relative;
         }
-        .appt-svc-slot-btn:hover:not(:disabled) { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); transform: translateY(-1px); }
-        .appt-svc-slot-btn.selected { background: var(--primary-color, #4f80f7); border-color: var(--primary-color, #4f80f7); color: #fff; }
-        .appt-svc-slot-btn:disabled { opacity: 0.38; cursor: default; }
-        .appt-svc-slot-time { font-weight: 700; }
-        .appt-svc-slot-rem { font-size: 10px; opacity: 0.75; }
-        .appt-svc-slot-full .appt-svc-slot-time { text-decoration: line-through; }
+        .appt-svc-slot-btn:hover:not(:disabled) {
+            border-color: var(--primary-color, #4f80f7);
+            background: var(--bg-secondary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(79,128,247,0.14);
+        }
+        .appt-svc-slot-btn.selected {
+            background: var(--primary-color, #4f80f7);
+            border-color: var(--primary-color, #4f80f7);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(79,128,247,0.32);
+            transform: translateY(-1px);
+        }
+        .appt-svc-slot-btn:disabled { opacity: 0.42; cursor: default; }
+        .appt-svc-slot-time { font-weight: 800; font-size: 14px; letter-spacing: -0.01em; }
+        .appt-svc-slot-rem { font-size: 10px; opacity: 0.7; font-weight: 500; }
+        .appt-svc-slot-btn.selected .appt-svc-slot-rem { opacity: 0.85; color: rgba(255,255,255,0.9); }
+        .appt-svc-slot-full .appt-svc-slot-time { text-decoration: line-through; opacity: 0.6; }
         .appt-badge-full {
             font-size: 10px;
+            font-weight: 600;
             background: rgba(239,68,68,0.1);
             color: #ef4444;
-            border-radius: 4px;
-            padding: 1px 5px;
+            border-radius: 6px;
+            padding: 2px 6px;
+            border: 1px solid rgba(239,68,68,0.15);
         }
         .appt-svc-selection-summary {
-            padding: 8px 14px 12px;
+            padding: 10px 16px 14px;
             font-size: 13px;
             font-weight: 600;
             color: var(--primary-color, #4f80f7);
             min-height: 20px;
         }
         .appt-svc-booking-note {
-            padding: 10px 14px 6px;
-            font-size: 13px;
+            margin: 12px 16px 0;
+            padding: 10px 14px;
+            font-size: 12.5px;
             color: var(--text-secondary);
-            border-bottom: 1px solid var(--border-color);
             background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            line-height: 1.5;
         }
         .appt-svc-single-header {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 14px 10px;
+            padding: 14px 16px 12px;
             border-bottom: 1px solid var(--border-color);
             background: var(--bg-secondary);
         }
@@ -3643,12 +3673,12 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             display: flex;
             align-items: center;
             gap: 5px;
-            padding: 4px 14px 8px;
+            padding: 6px 16px 10px;
             font-size: 11px;
             color: var(--text-secondary);
-            opacity: 0.7;
+            opacity: 0.65;
         }
-        .appt-svc-tz-label { font-weight: 500; }
+        .appt-svc-tz-label { font-weight: 600; }
         .appt-loading { font-style: italic; }
 
 

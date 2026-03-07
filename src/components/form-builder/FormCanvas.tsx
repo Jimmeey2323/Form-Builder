@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, Fragment } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -34,7 +34,7 @@ import {
 import {
   GripVertical, Pencil, Trash2, Copy,
   ChevronDown, Star, Calendar,
-  FileUp, Plus, Lock,
+  FileUp, Plus, Lock, BookOpen, SplitSquareVertical,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -642,8 +642,98 @@ function CanvasField({
   });
 
   const colSpan = fieldColSpan(field, formLayout);
-  const isLayoutField = field.type === 'section-break' || field.type === 'page-break';
+  const isPageBreak = field.type === 'page-break';
+  const isSectionBreak = field.type === 'section-break';
 
+  // ── Page-break: dramatic horizontal divider ───────────────────────────
+  if (isPageBreak) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="py-1.5">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-200/80 to-transparent" />
+            <div
+              {...(!isLocked ? listeners : {})}
+              {...(!isLocked ? attributes : {})}
+              className={`group flex items-center gap-2 rounded-full bg-gradient-to-r from-indigo-50 to-violet-50 border border-indigo-200/70 px-3 py-1.5 shadow-sm ${
+                isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+              }`}
+            >
+              <GripVertical className="h-3 w-3 text-indigo-300 group-hover:text-indigo-400" />
+              <SplitSquareVertical className="h-3 w-3 text-indigo-400" />
+              <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
+                {field.label && field.label !== 'Page Break' ? field.label : 'Page Break'}
+              </span>
+            </div>
+            <div
+              className="flex items-center gap-0.5 transition-opacity"
+              style={{ opacity: hovered ? 1 : 0 }}
+            >
+              <Button
+                size="icon" variant="ghost"
+                className="h-6 w-6 text-indigo-400/70 hover:text-indigo-700 hover:bg-indigo-50"
+                onClick={() => onEdit(field)}
+              >
+                <Pencil className="h-3 w-3" />
+              </Button>
+              <Button
+                size="icon" variant="ghost"
+                className="h-6 w-6 text-red-400/70 hover:text-red-600 hover:bg-red-50"
+                onClick={() => onDelete(field.id)}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-indigo-200/80 to-transparent" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Section-break: horizontal ruler with title ────────────────────────
+  if (isSectionBreak) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={{ transform: CSS.Transform.toString(transform), transition }}
+        className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <div className="pt-2 pb-1 group">
+          <div className="flex items-center gap-3">
+            <div
+              {...(!isLocked ? listeners : {})}
+              {...(!isLocked ? attributes : {})}
+              className={`text-muted-foreground/30 hover:text-muted-foreground/60 ${isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+            <span className="text-sm font-bold text-foreground/80 shrink-0">{field.label || 'Section'}</span>
+            <div className="h-px flex-1 bg-border/60" />
+            <div
+              className="flex items-center gap-0.5 transition-opacity"
+              style={{ opacity: hovered ? 1 : 0 }}
+            >
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground/50 hover:text-foreground" onClick={() => onEdit(field)}><Pencil className="h-3 w-3" /></Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground/50 hover:text-foreground" onClick={() => onDuplicate(field.id)}><Copy className="h-3 w-3" /></Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-red-400/60 hover:text-red-600 hover:bg-red-50" onClick={() => onDelete(field.id)}><Trash2 className="h-3 w-3" /></Button>
+            </div>
+          </div>
+          {field.helpText && <p className="text-xs text-muted-foreground mt-1 ml-7">{field.helpText}</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Regular field card ────────────────────────────────────────────────
   return (
     <div
       ref={setNodeRef}
@@ -652,41 +742,79 @@ function CanvasField({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Drop-before indicator */}
       {insertDropActive && (
         <div className="h-1 rounded-full bg-primary/60 mb-1.5 mx-2 transition-all" />
       )}
-
-      <div className={`group relative rounded-xl border-2 transition-all ${
-        isLayoutField
-          ? 'border-dashed border-border/50 bg-muted/20 p-2.5'
-          : `bg-card ${ hovered ? 'border-primary/30 shadow-md' : 'border-border/40 shadow-sm'}`
-      }`} style={{ padding: isLayoutField ? undefined : '16px 20px 16px 44px' }}>
-        {/* Drag handle */}
-        <div
-          {...(!isLocked ? listeners : {})}
-          {...(!isLocked ? attributes : {})}
-          className={`absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity z-10 ${isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'}`}
-        >
-          <GripVertical className="h-4 w-4" />
+      <div className={`rounded-xl border overflow-hidden transition-all duration-200 ${
+        hovered
+          ? 'border-indigo-200/80 shadow-[0_4px_20px_rgba(99,102,241,0.09)] bg-white'
+          : 'border-slate-200/80 shadow-sm bg-white'
+      }`}>
+        {/* Card header */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50/70">
+          <div
+            {...(!isLocked ? listeners : {})}
+            {...(!isLocked ? attributes : {})}
+            className={`text-slate-300 hover:text-slate-400 transition-colors shrink-0 ${
+              isLocked ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+            }`}
+          >
+            <GripVertical className="h-3.5 w-3.5" />
+          </div>
+          <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-500/90 border border-indigo-100 leading-none whitespace-nowrap">
+            {FIELD_TYPE_LABELS[field.type as FieldType] ?? field.type}
+          </span>
+          {field.isRequired && (
+            <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-100 rounded px-1 py-0.5 leading-none">required</span>
+          )}
+          {field.isHidden && (
+            <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-100 rounded px-1 py-0.5 leading-none">hidden</span>
+          )}
+          <div
+            className="ml-auto flex items-center gap-0.5 transition-opacity"
+            style={{ opacity: hovered ? 1 : 0 }}
+          >
+            <Button
+              size="icon" variant="ghost"
+              className="h-6 w-6 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+              title="Edit field"
+              onClick={() => onEdit(field)}
+            >
+              <Pencil className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon" variant="ghost"
+              className="h-6 w-6 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
+              title="Duplicate field"
+              onClick={() => onDuplicate(field.id)}
+            >
+              <Copy className="h-3 w-3" />
+            </Button>
+            <Button
+              size="icon" variant="ghost"
+              className="h-6 w-6 text-red-400/70 hover:text-red-600 hover:bg-red-50 rounded-lg"
+              title="Delete field"
+              onClick={() => onDelete(field.id)}
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
         </div>
 
-        <div>
-          {!isLayoutField && (
-            <div className="flex items-center gap-1.5 mb-2 leading-snug">
-              <span className="text-xs font-semibold text-foreground/85">
-                {field.label}
-              </span>
-              {field.isRequired && <span className="text-xs text-destructive font-bold leading-none">*</span>}
-              {field.isHidden && <Badge variant="secondary" className="text-[9px] px-1 py-0 leading-none">hidden</Badge>}
-              <span className="ml-auto text-[9px] text-muted-foreground/50 font-mono uppercase tracking-wide">{field.type}</span>
-            </div>
-          )}
-
+        {/* Field preview area */}
+        <div className="px-4 py-3.5">
           <RealFieldPreview field={field} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} />
         </div>
 
-        {/* Action buttons - now handled by RealFieldPreview overlay */}
+        {/* Footer: field name */}
+        <div
+          className="flex items-center gap-2 px-3 py-1.5 border-t border-slate-100 bg-slate-50/50 transition-opacity"
+          style={{ opacity: hovered ? 1 : 0 }}
+        >
+          <code className="text-[9px] font-mono text-slate-400">{field.name}</code>
+          <span className="text-[9px] text-slate-300">·</span>
+          <code className="text-[9px] font-mono text-slate-300">{field.id}</code>
+        </div>
       </div>
     </div>
   );
@@ -748,6 +876,18 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   );
 
   const sortedFields = [...form.fields].sort((a, b) => a.order - b.order);
+
+  // Compute per-field page numbers (page-break fields separate pages)
+  const { fieldPageNums, totalPages } = (() => {
+    const nums: Record<string, number> = {};
+    let page = 1;
+    for (const f of sortedFields) {
+      nums[f.id] = page;
+      if (f.type === 'page-break') page++;
+    }
+    return { fieldPageNums: nums, totalPages: page };
+  })();
+
   const isSplitLayout =
     form.layout === 'split-left' ||
     form.layout === 'split-right' ||
@@ -931,8 +1071,13 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
               </span>
             )}
             <span className="text-[10px] text-muted-foreground/60 font-mono">
-              {sortedFields.length} field{sortedFields.length !== 1 ? 's' : ''}
+              {sortedFields.filter(f => f.type !== 'page-break' && f.type !== 'section-break').length} field{sortedFields.filter(f => f.type !== 'page-break' && f.type !== 'section-break').length !== 1 ? 's' : ''}
             </span>
+            {totalPages > 1 && (
+              <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                {totalPages} pages
+              </span>
+            )}
           </div>
         </div>
 
@@ -1012,18 +1157,38 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                     strategy={rectSortingStrategy}
                   >
                     <div className="form-fields-grid">
-                      {sortedFields.map(field => (
-                        <CanvasField
-                          key={field.id}
-                          field={field}
-                          formLayout={form.theme.formLayout}
-                          isLocked={isLocked}
-                          onEdit={(field) => onEdit(field)}
-                          onDelete={(fieldId) => setPendingDeleteId(fieldId)}
-                          onDuplicate={(fieldId) => onDuplicate(fieldId)}
-                          insertDropActive={false}
-                        />
-                      ))}
+                      {sortedFields.map((field, fi) => {
+                        const pageNum = fieldPageNums[field.id];
+                        const prevField = fi > 0 ? sortedFields[fi - 1] : null;
+                        const isFirstInPage = fi === 0 || (prevField?.type === 'page-break');
+                        const showPageHeader = totalPages > 1 && isFirstInPage && field.type !== 'page-break';
+                        const fieldsOnPage = sortedFields.filter(f => fieldPageNums[f.id] === pageNum && f.type !== 'page-break').length;
+                        return (
+                          <Fragment key={field.id}>
+                            {showPageHeader && (
+                              <div className="col-span-12 flex items-center gap-3 pt-2 pb-0.5">
+                                <div className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full px-3 py-1 shadow-sm shadow-indigo-500/20">
+                                  <BookOpen className="h-3 w-3" />
+                                  <span className="text-[10px] font-bold uppercase tracking-widest">Page {pageNum}</span>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground/50 font-medium">
+                                  {fieldsOnPage} field{fieldsOnPage !== 1 ? 's' : ''}
+                                </span>
+                                <div className="h-px flex-1 bg-gradient-to-r from-indigo-100 to-transparent" />
+                              </div>
+                            )}
+                            <CanvasField
+                              field={field}
+                              formLayout={form.theme.formLayout}
+                              isLocked={isLocked}
+                              onEdit={(field) => onEdit(field)}
+                              onDelete={(fieldId) => setPendingDeleteId(fieldId)}
+                              onDuplicate={(fieldId) => onDuplicate(fieldId)}
+                              insertDropActive={false}
+                            />
+                          </Fragment>
+                        );
+                      })}
 
                       {/* Drop zone always visible at the bottom */}
                       <DropZone onDrop={handleCanvasDrop} isLocked={isLocked} />
