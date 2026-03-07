@@ -266,7 +266,39 @@ export interface AppointmentSlotExclusion {
   startTime: string;
 }
 
+/** A bookable service / appointment type configured by the form builder */
+export interface AppointmentService {
+  id: string;
+  /** Display name of the service, e.g. "Haircut" (optional) */
+  name?: string;
+  /** Person providing the service, e.g. "John" (optional) */
+  with?: string;
+  /** Duration of one slot for this service, in minutes (default 30) */
+  durationMinutes: number;
+  /** Gap/buffer between consecutive slots in minutes (default 0) */
+  bufferMinutes?: number;
+  /** How many people can book the same time slot for this service (default 1) */
+  maxBookingsPerSlot?: number;
+}
+
+/** A specific date window during which appointments can be booked */
+export interface AppointmentAvailableDate {
+  id: string;
+  /** Date in YYYY-MM-DD format */
+  date: string;
+  /** Availability window start time in HH:MM (24h) */
+  from: string;
+  /** Availability window end time in HH:MM (24h) */
+  to: string;
+}
+
 export interface AppointmentSlotsConfig {
+  // ── Simplified services mode (primary UI) ─────────────────────────────
+  /** List of bookable services. When present, the simplified services UI is used. */
+  services?: AppointmentService[];
+  /** Specific date windows during which appointments can be booked */
+  availableDates?: AppointmentAvailableDate[];
+
   // ── General display ───────────────────────────────────────────────────
   dateFormat?: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY/MM/DD';
   startWeekOn?: 'sunday' | 'monday';

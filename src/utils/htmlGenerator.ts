@@ -356,7 +356,54 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       const cfgJson = escapeHtml(JSON.stringify(cfg));
       const tz = cfg.defaultTimezone || cfg.timezone || 'America/New_York';
       const tzDisplay = escapeHtml(tz);
-      inputHtml = `<div class="appt-booking${cssClass}"${condAttrs}
+      const useServicesMode = (cfg.services?.length ?? 0) > 0;
+
+      if (useServicesMode) {
+        // ── Services mode: one tab per service, slots from availableDates ──
+        const services = cfg.services || [];
+        const availDates = cfg.availableDates || [];
+        const use12h = (cfg.timeFormat || '12h') === '12h';
+
+        const serviceTabsHtml = services.map((svc, idx) => {
+          const label = svc.name || `Service ${idx + 1}`;
+          const subtitle = svc.with ? ` <span class="appt-svc-tab-sub">with ${escapeHtml(svc.with)}</span>` : '';
+          return `<button type="button" class="appt-svc-tab${idx === 0 ? ' active' : ''}" data-svc-idx="${idx}">` +
+            `<span class="appt-svc-tab-name">${escapeHtml(label)}</span>${subtitle}` +
+            `<span class="appt-svc-tab-dur">${svc.durationMinutes} min</span>` +
+            `</button>`;
+        }).join('');
+
+        const panelsHtml = services.map((svc, idx) => {
+          const dateGroupsHtml = availDates.map(dateEntry => {
+            const d = new Date(`${dateEntry.date}T00:00:00`);
+            const dateLabel = escapeHtml(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
+            return `<div class="appt-svc-date-group" data-date="${escapeHtml(dateEntry.date)}" data-svc-id="${escapeHtml(svc.id)}">` +
+              `<div class="appt-svc-date-header">${dateLabel}</div>` +
+              `<div class="appt-svc-slots-row">` +
+              `<div class="appt-no-slots">Loading…</div>` +
+              `</div>` +
+              `</div>`;
+          }).join('');
+          return `<div class="appt-svc-panel${idx === 0 ? ' active' : ''}" data-svc-panel-idx="${idx}"` +
+            `${idx !== 0 ? ' hidden' : ''}>` +
+            `${dateGroupsHtml || '<div class="appt-no-slots">No dates configured.</div>'}` +
+            `</div>`;
+        }).join('');
+
+        inputHtml = `<div class="appt-booking appt-services-mode${cssClass}"${condAttrs}
+          data-appt="true"
+          data-appt-mode="services"
+          data-field-name="${escapeHtml(field.name)}"
+          data-field-id="${escapeHtml(field.id)}"
+          data-appt-config="${cfgJson}">
+          <div class="appt-svc-tabs-row">${serviceTabsHtml}</div>
+          <div class="appt-svc-panels">${panelsHtml}</div>
+          <div class="appt-svc-selection-summary" aria-live="polite"></div>
+          <input type="hidden" id="${field.id}" name="${field.name}"${required}>
+        </div>`;
+      } else {
+        // ── Legacy calendar mode ─────────────────────────────────────────
+        inputHtml = `<div class="appt-booking${cssClass}"${condAttrs}
           data-appt="true"
           data-field-name="${escapeHtml(field.name)}"
           data-field-id="${escapeHtml(field.id)}"
@@ -409,6 +456,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         </div>
         <input type="hidden" id="${field.id}" name="${field.name}"${required}>
       </div>`;
+      }
       break;
     }
     case 'conditional':
@@ -2233,8 +2281,171 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             return chain;
           };
 
+          // ── Services-mode widget ─────────────────────────────────────────────
+          function bindServicesWidget(wrap) {
+            var cfg = {};
+            try { cfg = JSON.parse(wrap.dataset.apptConfig || '{}'); } catch(e) {}
+            var hidden = wrap.querySelector('input[type="hidden"]');
+            if (!hidden) return;
+            var services  = cfg.services  || [];
+            var availDates = cfg.availableDates || [];
+            var use12h = (cfg.timeFormat || '12h') === '12h';
+            var fieldName = wrap.dataset.fieldName || wrap.dataset.fieldId || 'appointment';
+            var summary = wrap.querySelector('.appt-svc-selection-summary');
+
+            // ── slot generation ──────────────────────────────────────────────
+            function genSlots(svc, dateEntry) {
+              var duration = Number(svc.durationMinutes) || 30;
+              var buffer   = Number(svc.bufferMinutes)   || 0;
+              var step     = duration + buffer;
+              var start    = timeToMins(dateEntry.from);
+              var end      = timeToMins(dateEntry.to);
+              var slots    = [];
+              while (start + duration <= end) {
+                slots.push(minsToStr(start));
+                start += step;
+              }
+              return slots;
+            }
+
+            // ── service tab switching ────────────────────────────────────────
+            var tabs   = Array.prototype.slice.call(wrap.querySelectorAll('.appt-svc-tab'));
+            var panels = Array.prototype.slice.call(wrap.querySelectorAll('.appt-svc-panel'));
+            tabs.forEach(function(tab, idx) {
+              tab.addEventListener('click', function() {
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                panels.forEach(function(p) { p.classList.remove('active'); p.hidden = true; });
+                tab.classList.add('active');
+                if (panels[idx]) { panels[idx].classList.add('active'); panels[idx].hidden = false; }
+              });
+            });
+
+            // ── render slots for one date group ─────────────────────────────
+            function renderDateGroup(group, svc) {
+              var dateStr   = group.dataset.date;
+              var slotsRow  = group.querySelector('.appt-svc-slots-row');
+              if (!slotsRow) return;
+              var times = genSlots(svc, { from: '', to: '' });
+              // find the correct availDate entry
+              var dateEntry = null;
+              for (var di = 0; di < availDates.length; di++) {
+                if (availDates[di].date === dateStr) { dateEntry = availDates[di]; break; }
+              }
+              if (!dateEntry) { slotsRow.innerHTML = '<div class="appt-no-slots">No time window configured.</div>'; return; }
+              times = genSlots(svc, dateEntry);
+              if (!times.length) { slotsRow.innerHTML = '<div class="appt-no-slots">No slots in this window.</div>'; return; }
+
+              var slotKeys = times.map(function(t) { return svc.id + '::' + dateStr + 'T' + t; });
+              var cap = Number(svc.maxBookingsPerSlot) || 1;
+
+              slotsRow.innerHTML = '<div class="appt-no-slots appt-loading">Loading available slots…</div>';
+              fetchBookingSnapshot(fieldName, slotKeys, '').then(function(snapshot) {
+                slotsRow.innerHTML = '';
+                var counts = snapshot && snapshot.countsBySlot ? snapshot.countsBySlot : {};
+                times.forEach(function(t, ti) {
+                  var key     = slotKeys[ti];
+                  var booked  = Number(counts[key] || 0);
+                  var remaining = Math.max(0, cap - booked);
+
+                  var btn = document.createElement('button');
+                  btn.type = 'button';
+                  btn.className = 'appt-svc-slot-btn';
+                  var timeLabel = formatTime(timeToMins(t), use12h);
+                  var remLabel  = cap > 1 ? (remaining === 1 ? ' · 1 left' : ' · ' + remaining + ' left') : '';
+                  btn.innerHTML = '<span class="appt-svc-slot-time">' + timeLabel + '</span>' +
+                    (cap > 1 ? '<span class="appt-svc-slot-rem">' + remLabel + '</span>' : '');
+
+                  if (remaining <= 0) {
+                    btn.disabled = true;
+                    btn.classList.add('appt-svc-slot-full');
+                    btn.innerHTML += '<span class="appt-svc-slot-badge appt-badge-full">Full</span>';
+                  } else {
+                    btn.addEventListener('click', function() {
+                      // Clear all selections in this widget
+                      wrap.querySelectorAll('.appt-svc-slot-btn.selected').forEach(function(b) { b.classList.remove('selected'); });
+                      btn.classList.add('selected');
+                      // Store the slotKey as the field value (enables exact-match counting in Supabase)
+                      hidden.value = key;
+                      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                      if (summary) {
+                        summary.textContent = (svc.name ? svc.name : 'Appointment') +
+                          (svc.with ? ' with ' + svc.with : '') +
+                          ' on ' + dateStr + ' at ' + timeLabel +
+                          ' (' + (svc.durationMinutes || 30) + ' min)';
+                      }
+                    });
+                  }
+                  slotsRow.appendChild(btn);
+                });
+              });
+            }
+
+            // ── initial render ───────────────────────────────────────────────
+            panels.forEach(function(panel, svcIdx) {
+              var svc = services[svcIdx];
+              if (!svc) return;
+              var groups = Array.prototype.slice.call(panel.querySelectorAll('.appt-svc-date-group'));
+              groups.forEach(function(group) { renderDateGroup(group, svc); });
+            });
+          }
+
+          // ── Validation for services mode ─────────────────────────────────────
+          var _origValidate = window.__validateAppointmentBooking;
+          window.__validateAppointmentBooking = function(formEl) {
+            var root = formEl || document;
+            // Services-mode widgets
+            var svcWidgets = Array.prototype.slice.call(root.querySelectorAll('[data-appt-mode="services"]'));
+            var svcChain = Promise.resolve({ ok: true });
+            svcWidgets.forEach(function(wrap) {
+              svcChain = svcChain.then(function(prev) {
+                if (!prev.ok) return prev;
+                var hidden = wrap.querySelector('input[type="hidden"]');
+                if (hidden && hidden.required && !hidden.value) {
+                  var sum = wrap.querySelector('.appt-svc-selection-summary');
+                  if (sum) sum.textContent = 'Please select an appointment slot.';
+                  return { ok: false, message: 'Please select an appointment slot.' };
+                }
+                if (!hidden || !hidden.value) return { ok: true };
+                // In services mode, hidden.value IS the slotKey (e.g. "svc1::2026-03-14T12:00")
+                var slotKey2 = hidden.value;
+                if (!slotKey2) return { ok: true };
+                // Determine capacity: find the matching service
+                var cfg2 = {};
+                try { cfg2 = JSON.parse(wrap.dataset.apptConfig || '{}'); } catch(e) {}
+                var svcId2 = slotKey2.split('::')[0] || '';
+                var svc2 = null;
+                var svcs = cfg2.services || [];
+                for (var si = 0; si < svcs.length; si++) {
+                  if (svcs[si].id === svcId2) { svc2 = svcs[si]; break; }
+                }
+                var cap2 = svc2 ? (Number(svc2.maxBookingsPerSlot) || 1) : 1;
+                var fn2 = wrap.dataset.fieldName || wrap.dataset.fieldId || 'appointment';
+                return fetchBookingSnapshot(fn2, [slotKey2], '').then(function(snap) {
+                  var booked2 = Number(snap && snap.countsBySlot ? (snap.countsBySlot[slotKey2] || 0) : 0);
+                  if (booked2 >= cap2) {
+                    var sum2 = wrap.querySelector('.appt-svc-selection-summary');
+                    if (sum2) sum2.textContent = 'Selected slot is now fully booked. Please pick another.';
+                    return { ok: false, message: 'Selected slot is now fully booked. Please pick another.' };
+                  }
+                  return { ok: true };
+                });
+              });
+            });
+            // Then run legacy validation
+            return svcChain.then(function(r) {
+              if (!r.ok) return r;
+              return _origValidate(formEl);
+            });
+          };
+
           document.addEventListener('DOMContentLoaded', function () {
-            document.querySelectorAll('[data-appt="true"]').forEach(bindApptWidget);
+            document.querySelectorAll('[data-appt="true"]').forEach(function(wrap) {
+              if (wrap.dataset.apptMode === 'services') {
+                bindServicesWidget(wrap);
+              } else {
+                bindApptWidget(wrap);
+              }
+            });
           });
         })();`;
 }
@@ -3289,6 +3500,96 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             padding: 0 2px;
         }
         .appt-tz-toggle:hover { color: var(--text-primary); }
+
+        /* ── Services-mode appointment widget ── */
+        .appt-services-mode {
+            border: 1px solid var(--border-focus, #4f80f7);
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--bg-primary);
+        }
+        .appt-svc-tabs-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 14px 14px 10px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .appt-svc-tab {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+            color: var(--text-primary);
+        }
+        .appt-svc-tab:hover { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); }
+        .appt-svc-tab.active { background: var(--primary-color, #4f80f7); border-color: var(--primary-color, #4f80f7); color: #fff; }
+        .appt-svc-tab-name { font-weight: 700; font-size: 13px; }
+        .appt-svc-tab-sub { font-size: 11px; font-weight: 400; opacity: 0.85; }
+        .appt-svc-tab-dur { font-size: 11px; opacity: 0.8; }
+        .appt-svc-tab.active .appt-svc-tab-dur { opacity: 0.9; color: rgba(255,255,255,0.9); }
+        .appt-svc-panels {
+            padding: 14px;
+        }
+        .appt-svc-panel { display: flex; flex-direction: column; gap: 14px; }
+        .appt-svc-date-group { }
+        .appt-svc-date-header {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+        .appt-svc-slots-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .appt-svc-slot-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            padding: 8px 14px;
+            border: 1px solid var(--border-color, #c6d0e8);
+            border-radius: 10px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 13px;
+            color: var(--text-primary);
+            min-width: 70px;
+        }
+        .appt-svc-slot-btn:hover:not(:disabled) { border-color: var(--primary-color, #4f80f7); background: var(--bg-secondary); transform: translateY(-1px); }
+        .appt-svc-slot-btn.selected { background: var(--primary-color, #4f80f7); border-color: var(--primary-color, #4f80f7); color: #fff; }
+        .appt-svc-slot-btn:disabled { opacity: 0.38; cursor: default; }
+        .appt-svc-slot-time { font-weight: 700; }
+        .appt-svc-slot-rem { font-size: 10px; opacity: 0.75; }
+        .appt-svc-slot-full .appt-svc-slot-time { text-decoration: line-through; }
+        .appt-badge-full {
+            font-size: 10px;
+            background: rgba(239,68,68,0.1);
+            color: #ef4444;
+            border-radius: 4px;
+            padding: 1px 5px;
+        }
+        .appt-svc-selection-summary {
+            padding: 8px 14px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary-color, #4f80f7);
+            min-height: 20px;
+        }
+        .appt-loading { font-style: italic; }
 
 
         /* Advanced Signature */

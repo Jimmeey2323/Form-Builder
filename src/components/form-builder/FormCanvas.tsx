@@ -428,7 +428,35 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'appointment-slots': {
-        const slots = field.appointmentSlotsConfig?.slots || [];
+        const cfg = field.appointmentSlotsConfig || {};
+        const services = cfg.services || [];
+        const availDates = cfg.availableDates || [];
+
+        if (services.length > 0) {
+          // Services mode preview
+          return (
+            <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {services.map((svc, idx) => (
+                  <span key={svc.id} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${idx === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-foreground'}`}>
+                    {svc.name || `Service ${idx + 1}`}
+                    <span className="ml-1 font-normal opacity-70">{svc.durationMinutes}min</span>
+                  </span>
+                ))}
+              </div>
+              {availDates.length > 0 ? (
+                <div className="text-xs text-muted-foreground">
+                  {availDates.length} date{availDates.length > 1 ? 's' : ''} · {availDates.map(d => d.date).join(', ')}
+                </div>
+              ) : (
+                <div className="text-xs text-muted-foreground italic">No dates configured yet</div>
+              )}
+            </div>
+          );
+        }
+
+        // Legacy slots preview
+        const slots = cfg.slots || [];
         return (
           <div className="space-y-2">
             {slots.slice(0, 3).map(slot => (

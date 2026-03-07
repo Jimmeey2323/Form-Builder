@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig } from '@/types/formField';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig, AppointmentService, AppointmentAvailableDate } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
 
 interface FieldEditorDialogProps {
@@ -46,6 +46,16 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const [excludedSlotDate, setExcludedSlotDate] = useState(new Date().toISOString().slice(0, 10));
   const [excludedSlotTime, setExcludedSlotTime] = useState('12:00');
   const [slotPreviewDate, setSlotPreviewDate] = useState(new Date().toISOString().slice(0, 10));
+
+  // ── New simplified appointment state ──────────────────────────────────
+  const [newSvcName, setNewSvcName] = useState('');
+  const [newSvcWith, setNewSvcWith] = useState('');
+  const [newSvcDuration, setNewSvcDuration] = useState(30);
+  const [newSvcBuffer, setNewSvcBuffer] = useState(0);
+  const [newSvcMaxBookings, setNewSvcMaxBookings] = useState(1);
+  const [newDateValue, setNewDateValue] = useState('');
+  const [newDateFrom, setNewDateFrom] = useState('09:00');
+  const [newDateTo, setNewDateTo] = useState('17:00');
 
   useEffect(() => {
     if (field) setDraft({ ...field });
@@ -223,6 +233,71 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   const updateEmailOtp = (updates: Partial<EmailOtpConfig>) => {
     const existing = draft.emailOtpConfig || {};
     update('emailOtpConfig', { ...existing, ...updates });
+  };
+
+  // ── Simplified appointment service helpers ────────────────────────────
+  const addService = () => {
+    const current = draft.appointmentSlotsConfig || {};
+    const svc: AppointmentService = {
+      id: `svc_${Date.now()}`,
+      name: newSvcName || undefined,
+      with: newSvcWith || undefined,
+      durationMinutes: newSvcDuration,
+      bufferMinutes: newSvcBuffer || undefined,
+      maxBookingsPerSlot: newSvcMaxBookings > 1 ? newSvcMaxBookings : undefined,
+    };
+    updateAppointment({ services: [...(current.services || []), svc] });
+    setNewSvcName(''); setNewSvcWith(''); setNewSvcDuration(30); setNewSvcBuffer(0); setNewSvcMaxBookings(1);
+  };
+
+  const removeService = (id: string) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ services: (current.services || []).filter(s => s.id !== id) });
+  };
+
+  const updateService = (id: string, changes: Partial<AppointmentService>) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ services: (current.services || []).map(s => s.id === id ? { ...s, ...changes } : s) });
+  };
+
+  const addAvailableDate = () => {
+    if (!newDateValue) return;
+    const current = draft.appointmentSlotsConfig || {};
+    const existing = current.availableDates || [];
+    if (existing.some(d => d.date === newDateValue)) return; // no dupes
+    const entry: AppointmentAvailableDate = {
+      id: `date_${Date.now()}`,
+      date: newDateValue,
+      from: newDateFrom,
+      to: newDateTo,
+    };
+    updateAppointment({ availableDates: [...existing, entry].sort((a, b) => a.date.localeCompare(b.date)) });
+    setNewDateValue(''); setNewDateFrom('09:00'); setNewDateTo('17:00');
+  };
+
+  const removeAvailableDate = (id: string) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ availableDates: (current.availableDates || []).filter(d => d.id !== id) });
+  };
+
+  const updateAvailableDate = (id: string, changes: Partial<AppointmentAvailableDate>) => {
+    const current = draft.appointmentSlotsConfig || {};
+    updateAppointment({ availableDates: (current.availableDates || []).map(d => d.id === id ? { ...d, ...changes } : d) });
+  };
+
+  /** Preview: generate slot times for a given service + date entry */
+  const previewSlotsForService = (svc: AppointmentService, dateEntry: AppointmentAvailableDate): string[] => {
+    const duration = svc.durationMinutes;
+    const buffer = svc.bufferMinutes || 0;
+    const step = duration + buffer;
+    let start = timeToMinutes(dateEntry.from);
+    const end = timeToMinutes(dateEntry.to);
+    const slots: string[] = [];
+    while (start + duration <= end) {
+      slots.push(minutesToTime(start));
+      start += step;
+    }
+    return slots;
   };
 
   const addAppointmentSlot = () => {
@@ -1028,581 +1103,196 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
             {isAppointmentSlots && (
               <>
-                {/* ── Setup Tab ─────────────────────────────────────────────── */}
+                {/* ── Appointment Setup Tab (simplified) ─────────────────── */}
                 <TabsContent value="appt-setup" className="space-y-5 mt-4">
-                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold text-foreground">Appointment Setup</p>
-                      <p className="text-xs text-muted-foreground">All appointment rules live here: schedule windows, capacity, blackout times, and session metadata.</p>
-                    </div>
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Date Format</Label>
-                    <div className="flex gap-2">
-                      {(['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY/MM/DD'] as const).map(fmt => (
-                        <Button key={fmt} size="sm" variant={
-                          (draft.appointmentSlotsConfig?.dateFormat || 'MM/DD/YYYY') === fmt ? 'default' : 'outline'
-                        } onClick={() => updateAppointment({ dateFormat: fmt })}>{fmt}</Button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Select a date format. D = day, M = month, Y = year.</p>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Start Week on</Label>
-                    <div className="flex gap-2">
-                      {(['monday', 'sunday'] as const).map(d => (
-                        <Button key={d} size="sm" variant={
-                          (draft.appointmentSlotsConfig?.startWeekOn || 'sunday') === d ? 'default' : 'outline'
-                        } className="uppercase" onClick={() => updateAppointment({ startWeekOn: d })}>{d}</Button>
-                      ))}
+                  {/* ── Services ─────────────────────────────────────────── */}
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Services</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Add one or more services users can book. Duration and buffer control how slots are generated.</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Select when the week starts in your calendar.</p>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Time Format</Label>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '24h' ? 'default' : 'outline'}
-                        onClick={() => updateAppointment({ timeFormat: '24h' })}>24 HOUR</Button>
-                      <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '12h' ? 'default' : 'outline'}
-                        onClick={() => updateAppointment({ timeFormat: '12h' })}>AM/PM</Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Select a time format.</p>
-                  </div>
-                  </div>
-                </TabsContent>
-
-                {/* ── Availability Tab ──────────────────────────────────────── */}
-                <TabsContent value="appt-setup" className="space-y-5 mt-4">
-                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold text-foreground">Availability</p>
-                      <p className="text-xs text-muted-foreground">Define recurring windows, one-off dates, slot duration, rest buffers, and breaks.</p>
-                    </div>
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Calendar Integrations</Label>
-                    <div className="flex gap-2">
-                      {([
-                        { key: 'google', label: 'Google Calendar' },
-                        { key: 'outlook', label: 'Outlook Calendar' },
-                        { key: 'calendly', label: 'Calendly' },
-                      ] as { key: 'google' | 'outlook' | 'calendly'; label: string }[]).map(({ key, label }) => (
-                        <Button key={key} size="sm" variant={
-                          draft.appointmentSlotsConfig?.calIntegrations?.[key] ? 'default' : 'outline'
-                        } onClick={() => updateAppointment({
-                          calIntegrations: {
-                            ...(draft.appointmentSlotsConfig?.calIntegrations || {}),
-                            [key]: !draft.appointmentSlotsConfig?.calIntegrations?.[key],
-                          },
-                        })}>{label}</Button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-muted-foreground">Check your calendar's availability.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Appointment Slot Duration</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {([15, 30, 45, 60, 'custom'] as const).map(d => (
-                        <Button key={d} size="sm" variant={
-                          (draft.appointmentSlotsConfig?.slotDuration ?? 60) === d ? 'default' : 'outline'
-                        } onClick={() => updateAppointment({ slotDuration: d })}>
-                          {d === 'custom' ? 'Custom' : `${d} min`}
-                        </Button>
-                      ))}
-                    </div>
-                    {draft.appointmentSlotsConfig?.slotDuration === 'custom' && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <Input type="number" min={1} className="w-24"
-                          value={draft.appointmentSlotsConfig?.customSlotDuration ?? 30}
-                          onChange={e => updateAppointment({ customSlotDuration: Number(e.target.value) || 30 })} />
-                        <span className="text-sm text-muted-foreground">minutes</span>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">Select the length of each appointment slot.</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="font-semibold">Intervals</Label>
-                    {(draft.appointmentSlotsConfig?.intervals || []).map(interval => (
-                      <div key={interval.id} className="rounded-lg border p-3 space-y-3">
-                        <div className="grid grid-cols-3 gap-2 items-end">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">From</Label>
-                            <Input type="time" value={interval.from}
-                              onChange={e => updateAppointmentInterval(interval.id, { from: e.target.value })} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">To</Label>
-                            <Input type="time" value={interval.to}
-                              onChange={e => updateAppointmentInterval(interval.id, { to: e.target.value })} />
-                          </div>
-                          <Button variant="ghost" size="icon" className="text-destructive"
-                            onClick={() => removeAppointmentInterval(interval.id)}>
+                    {/* Existing services */}
+                    {(draft.appointmentSlotsConfig?.services || []).map(svc => (
+                      <div key={svc.id} className="rounded-xl border bg-background/70 p-3 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-muted-foreground truncate max-w-[200px]">
+                            {svc.name || 'Unnamed Service'}
+                            {svc.with ? <span className="font-normal"> · with {svc.with}</span> : ''}
+                          </p>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0" onClick={() => removeService(svc.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs font-medium">Specific Date Only</Label>
-                          <Switch
-                            checked={!!interval.specificDate}
-                            onCheckedChange={v => updateAppointmentInterval(interval.id, {
-                              specificDate: v ? (interval.specificDate || new Date().toISOString().slice(0, 10)) : undefined,
-                            })} />
-                        </div>
-                        {interval.specificDate ? (
+                        <div className="grid grid-cols-2 gap-2">
                           <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground">Date</Label>
-                            <Input type="date" value={interval.specificDate}
-                              onChange={e => updateAppointmentInterval(interval.id, { specificDate: e.target.value })} />
+                            <Label className="text-xs text-muted-foreground">Service Name <span className="text-muted-foreground/60">(optional)</span></Label>
+                            <Input value={svc.name || ''} placeholder="e.g. Haircut"
+                              onChange={e => updateService(svc.id, { name: e.target.value || undefined })} />
                           </div>
-                        ) : (
-                          <Select value={interval.days}
-                            onValueChange={v => updateAppointmentInterval(interval.id, { days: v })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Every Day">Every Day</SelectItem>
-                              <SelectItem value="Weekdays">Weekdays</SelectItem>
-                              <SelectItem value="Weekends">Weekends</SelectItem>
-                              <SelectItem value="Mon">Monday</SelectItem>
-                              <SelectItem value="Tue">Tuesday</SelectItem>
-                              <SelectItem value="Wed">Wednesday</SelectItem>
-                              <SelectItem value="Thu">Thursday</SelectItem>
-                              <SelectItem value="Fri">Friday</SelectItem>
-                              <SelectItem value="Sat">Saturday</SelectItem>
-                              <SelectItem value="Sun">Sunday</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Appointment With <span className="text-muted-foreground/60">(optional)</span></Label>
+                            <Input value={svc.with || ''} placeholder="e.g. John"
+                              onChange={e => updateService(svc.id, { with: e.target.value || undefined })} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Duration (min)</Label>
+                            <Input type="number" min={1} value={svc.durationMinutes}
+                              onChange={e => updateService(svc.id, { durationMinutes: Number(e.target.value) || 30 })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Gap Between Slots (min)</Label>
+                            <Input type="number" min={0} value={svc.bufferMinutes ?? 0}
+                              onChange={e => updateService(svc.id, { bufferMinutes: Number(e.target.value) || undefined })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Max Bookings / Slot</Label>
+                            <Input type="number" min={1} value={svc.maxBookingsPerSlot ?? 1}
+                              onChange={e => updateService(svc.id, { maxBookingsPerSlot: Number(e.target.value) > 1 ? Number(e.target.value) : undefined })} />
+                          </div>
+                        </div>
+                        {/* Slot preview for this service */}
+                        {(draft.appointmentSlotsConfig?.availableDates || []).length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-xs text-muted-foreground font-medium">Preview — generated slots</p>
+                            {(draft.appointmentSlotsConfig?.availableDates || []).map(dateEntry => {
+                              const slots = previewSlotsForService(svc, dateEntry);
+                              if (!slots.length) return null;
+                              return (
+                                <div key={dateEntry.id} className="flex items-start gap-2 flex-wrap">
+                                  <span className="text-xs font-medium text-muted-foreground w-20 shrink-0 pt-0.5">{dateEntry.date}</span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {slots.map(s => (
+                                      <span key={s} className="rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-xs text-primary">{s}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     ))}
-                    <div className="rounded-lg border border-dashed p-3 space-y-2">
-                      <p className="text-xs text-muted-foreground font-medium">Add New Interval</p>
+
+                    {/* Add new service */}
+                    <div className="rounded-xl border border-dashed p-3 space-y-3">
+                      <p className="text-xs text-muted-foreground font-medium">Add New Service</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Service Name <span className="text-muted-foreground/60">(optional)</span></Label>
+                          <Input value={newSvcName} placeholder="e.g. Haircut"
+                            onChange={e => setNewSvcName(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Appointment With <span className="text-muted-foreground/60">(optional)</span></Label>
+                          <Input value={newSvcWith} placeholder="e.g. John"
+                            onChange={e => setNewSvcWith(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Duration (min)</Label>
+                          <Input type="number" min={1} value={newSvcDuration}
+                            onChange={e => setNewSvcDuration(Number(e.target.value) || 30)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Gap Between Slots (min)</Label>
+                          <Input type="number" min={0} value={newSvcBuffer}
+                            onChange={e => setNewSvcBuffer(Number(e.target.value))} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Max Bookings / Slot</Label>
+                          <Input type="number" min={1} value={newSvcMaxBookings}
+                            onChange={e => setNewSvcMaxBookings(Number(e.target.value) || 1)} />
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="w-full" onClick={addService}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Service
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Gap between slots:</strong> extra minutes after each appointment before the next slot starts (e.g. 5 min cleanup).
+                      &nbsp;<strong>Max bookings:</strong> how many people can book the same time slot for this service.
+                    </p>
+                  </div>
+
+                  {/* ── Available Dates ────────────────────────────────────── */}
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Available Dates</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Pick the exact dates on which bookings can be made and specify the time window for each date.</p>
+                    </div>
+
+                    {/* Existing dates */}
+                    {(draft.appointmentSlotsConfig?.availableDates || []).length === 0 && (
+                      <p className="text-xs text-muted-foreground">No dates added yet.</p>
+                    )}
+                    {(draft.appointmentSlotsConfig?.availableDates || []).map(dateEntry => (
+                      <div key={dateEntry.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-end">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Date</Label>
+                          <Input type="date" value={dateEntry.date}
+                            onChange={e => updateAvailableDate(dateEntry.id, { date: e.target.value })} />
+                        </div>
+                        <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">From</Label>
-                          <Input type="time" value={newIntervalFrom} onChange={e => setNewIntervalFrom(e.target.value)} />
+                          <Input type="time" value={dateEntry.from}
+                            onChange={e => updateAvailableDate(dateEntry.id, { from: e.target.value })} />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">To</Label>
-                          <Input type="time" value={newIntervalTo} onChange={e => setNewIntervalTo(e.target.value)} />
+                          <Input type="time" value={dateEntry.to}
+                            onChange={e => updateAvailableDate(dateEntry.id, { to: e.target.value })} />
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium">Specific Date Only</Label>
-                        <Switch checked={newIntervalUseSpecificDate} onCheckedChange={setNewIntervalUseSpecificDate} />
-                      </div>
-                      {newIntervalUseSpecificDate ? (
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Date</Label>
-                          <Input type="date" value={newIntervalSpecificDate} onChange={e => setNewIntervalSpecificDate(e.target.value)} />
-                        </div>
-                      ) : (
-                        <Select value={newIntervalDays} onValueChange={setNewIntervalDays}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                          <SelectItem value="Every Day">Every Day</SelectItem>
-                          <SelectItem value="Weekdays">Weekdays</SelectItem>
-                          <SelectItem value="Weekends">Weekends</SelectItem>
-                          <SelectItem value="Mon">Monday</SelectItem>
-                          <SelectItem value="Tue">Tuesday</SelectItem>
-                          <SelectItem value="Wed">Wednesday</SelectItem>
-                          <SelectItem value="Thu">Thursday</SelectItem>
-                          <SelectItem value="Fri">Friday</SelectItem>
-                          <SelectItem value="Sat">Saturday</SelectItem>
-                          <SelectItem value="Sun">Sunday</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      )}
-                      <Button variant="outline" size="sm" className="w-full" onClick={addAppointmentInterval}>
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add New Interval
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Intervals define when slots are available. Toggle "Specific Date Only" to create a one-off availability window for a particular date instead of a recurring weekly pattern.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Buffer / Rest Period Between Slots</Label>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" min={0} className="w-24"
-                        value={draft.appointmentSlotsConfig?.bufferMinutes ?? ''}
-                        placeholder="0"
-                        onChange={e => updateAppointment({ bufferMinutes: e.target.value ? Number(e.target.value) : undefined })} />
-                      <span className="text-sm text-muted-foreground">minutes</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Add a gap after each slot before the next one is shown (e.g. 5 mins for cleanup/travel). For 15-min slots with a 5-min buffer: 12:00, 12:20, 12:40…</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between rounded-lg border p-3">
-                      <div>
-                        <Label className="text-sm font-medium">Lunchtime</Label>
-                        <p className="text-xs text-muted-foreground">Appointments can't be scheduled during this time.</p>
-                      </div>
-                      <Switch
-                        checked={draft.appointmentSlotsConfig?.lunchtimeEnabled ?? false}
-                        onCheckedChange={v => updateAppointment({ lunchtimeEnabled: v })} />
-                    </div>
-                    {draft.appointmentSlotsConfig?.lunchtimeEnabled && (
-                      <div className="grid grid-cols-2 gap-2 pl-1">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Lunch From</Label>
-                          <Input type="time" value={draft.appointmentSlotsConfig?.lunchtimeFrom || '12:00'}
-                            onChange={e => updateAppointment({ lunchtimeFrom: e.target.value })} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Lunch To</Label>
-                          <Input type="time" value={draft.appointmentSlotsConfig?.lunchtimeTo || '13:00'}
-                            onChange={e => updateAppointment({ lunchtimeTo: e.target.value })} />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  </div>
-                </TabsContent>
-
-                {/* ── Limits Tab ────────────────────────────────────────────── */}
-                <TabsContent value="appt-setup" className="space-y-5 mt-4">
-                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold text-foreground">Limits & Blackouts</p>
-                      <p className="text-xs text-muted-foreground">Set booking windows, day limits, notice periods, vacations, and manually removed slots.</p>
-                    </div>
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Start &amp; End Date</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Start Date</Label>
-                        <Input type="date" value={draft.appointmentSlotsConfig?.bookingStartDate || ''}
-                          onChange={e => updateAppointment({ bookingStartDate: e.target.value })} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">End Date</Label>
-                        <Input type="date" value={draft.appointmentSlotsConfig?.bookingEndDate || ''}
-                          onChange={e => updateAppointment({ bookingEndDate: e.target.value })} />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Allow selection only between these dates.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Rolling Days</Label>
-                    <div className="flex items-center gap-2">
-                      <Input type="number" min={1} className="flex-1"
-                        value={draft.appointmentSlotsConfig?.rollingDays ?? ''}
-                        placeholder="e.g. 60"
-                        onChange={e => updateAppointment({ rollingDays: e.target.value ? Number(e.target.value) : undefined })} />
-                      <span className="text-sm font-semibold text-muted-foreground uppercase">Days</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Offer appointment availability for a certain number of days into the future.</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="font-semibold">Vacation and Holidays</Label>
-                    {(draft.appointmentSlotsConfig?.vacations || []).map(vac => (
-                      <div key={vac.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Start Date</Label>
-                          <Input type="date" value={vac.startDate} onChange={e => {
-                            const current = draft.appointmentSlotsConfig || {};
-                            updateAppointment({ vacations: (current.vacations || []).map(v => v.id === vac.id ? { ...v, startDate: e.target.value } : v) });
-                          }} />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">End Date</Label>
-                          <Input type="date" value={vac.endDate} onChange={e => {
-                            const current = draft.appointmentSlotsConfig || {};
-                            updateAppointment({ vacations: (current.vacations || []).map(v => v.id === vac.id ? { ...v, endDate: e.target.value } : v) });
-                          }} />
-                        </div>
-                        <Button variant="outline" size="icon" onClick={() => removeAppointmentVacation(vac.id)}>
+                        <Button variant="ghost" size="icon" className="text-destructive mb-0.5" onClick={() => removeAvailableDate(dateEntry.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
                     ))}
-                    <div className="rounded-lg border border-dashed p-3 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
+
+                    {/* Add new date */}
+                    <div className="rounded-xl border border-dashed p-3 space-y-2">
+                      <p className="text-xs text-muted-foreground font-medium">Add Date</p>
+                      <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Start Date</Label>
-                          <Input type="date" value={newVacStart} onChange={e => setNewVacStart(e.target.value)} />
+                          <Label className="text-xs text-muted-foreground">Date</Label>
+                          <Input type="date" value={newDateValue} onChange={e => setNewDateValue(e.target.value)} />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">End Date</Label>
-                          <Input type="date" value={newVacEnd} onChange={e => setNewVacEnd(e.target.value)} />
+                          <Label className="text-xs text-muted-foreground">From</Label>
+                          <Input type="time" value={newDateFrom} onChange={e => setNewDateFrom(e.target.value)} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">To</Label>
+                          <Input type="time" value={newDateTo} onChange={e => setNewDateTo(e.target.value)} />
                         </div>
                       </div>
-                      <Button variant="outline" size="sm" className="w-full" onClick={addAppointmentVacation}>
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add New Vacation Date
+                      <Button variant="outline" size="sm" className="w-full" onClick={addAvailableDate}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Date
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">Block out dates on your calendar so that appointments can't be scheduled on those dates.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Max Bookings Per Slot</Label>
-                    <Input type="number" min={1}
-                      value={draft.appointmentSlotsConfig?.maxBookingsPerSlot ?? ''}
-                      placeholder="1 (default)"
-                      onChange={e => updateAppointment({ maxBookingsPerSlot: e.target.value ? Number(e.target.value) : undefined })} />
-                    <p className="text-xs text-muted-foreground">How many people can book each auto-generated time slot. Slots are disabled once full.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Maximum Appointments Per Day</Label>
-                    <Input type="number" min={1}
-                      value={draft.appointmentSlotsConfig?.maxAppointmentsPerDay ?? ''}
-                      placeholder="Unlimited"
-                      onChange={e => updateAppointment({ maxAppointmentsPerDay: e.target.value ? Number(e.target.value) : undefined })} />
-                    <p className="text-xs text-muted-foreground">Limit the number of appointments for each day.</p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Minimum Scheduling Notice</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Hours</Label>
-                        <Input type="number" min={0}
-                          value={draft.appointmentSlotsConfig?.minSchedulingNoticeHours ?? ''}
-                          placeholder="0"
-                          onChange={e => updateAppointment({ minSchedulingNoticeHours: e.target.value ? Number(e.target.value) : undefined })} />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Minutes</Label>
-                        <Input type="number" min={0} max={59}
-                          value={draft.appointmentSlotsConfig?.minSchedulingNoticeMinutes ?? ''}
-                          placeholder="0"
-                          onChange={e => updateAppointment({ minSchedulingNoticeMinutes: e.target.value ? Number(e.target.value) : undefined })} />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-semibold">Remove Individual Time Slots</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="date"
-                          className="w-[160px]"
-                          value={slotPreviewDate}
-                          onChange={e => {
-                            setSlotPreviewDate(e.target.value);
-                            setExcludedSlotDate(e.target.value);
-                          }}
-                        />
-                      </div>
-                    </div>
                     <p className="text-xs text-muted-foreground">
-                      Keep interval-based generation active, but remove specific generated slots for a particular date.
-                    </p>
-
-                    <div className="rounded-lg border bg-card/70 p-3 space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {getGeneratedSlotsForDate(slotPreviewDate).length === 0 ? (
-                          <p className="text-xs text-muted-foreground">
-                            No interval-generated slots exist for this date yet. Add an interval or choose another date.
-                          </p>
-                        ) : (
-                          getGeneratedSlotsForDate(slotPreviewDate).map(time => {
-                            const excluded = isExcludedIntervalSlot(slotPreviewDate, time);
-                            return (
-                              <button
-                                key={`${slotPreviewDate}-${time}`}
-                                type="button"
-                                onClick={() => {
-                                  if (excluded) {
-                                    const existing = (draft.appointmentSlotsConfig?.excludedSlots || []).find(slot => slot.date === slotPreviewDate && slot.startTime === time);
-                                    if (existing) removeExcludedAppointmentSlot(existing.id);
-                                  } else {
-                                    addExcludedAppointmentSlot(slotPreviewDate, time);
-                                  }
-                                }}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                                  excluded
-                                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
-                                    : 'border-border bg-background text-foreground hover:border-destructive/40 hover:text-destructive'
-                                }`}
-                              >
-                                {excluded ? `Restore ${time}` : `Remove ${time}`}
-                              </button>
-                            );
-                          })
-                        )}
-                      </div>
-                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                        <Input type="date" value={excludedSlotDate} onChange={e => setExcludedSlotDate(e.target.value)} />
-                        <Input type="time" value={excludedSlotTime} onChange={e => setExcludedSlotTime(e.target.value)} />
-                        <Button variant="outline" onClick={() => addExcludedAppointmentSlot()}>
-                          Remove Slot
-                        </Button>
-                      </div>
-                    </div>
-
-                    {(draft.appointmentSlotsConfig?.excludedSlots || []).length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs font-medium text-muted-foreground">Removed Time Slots</Label>
-                        <div className="space-y-2">
-                          {[...(draft.appointmentSlotsConfig?.excludedSlots || [])]
-                            .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`))
-                            .map(slot => (
-                              <div key={slot.id} className="flex items-center justify-between rounded-lg border bg-background px-3 py-2 text-sm">
-                                <span>{slot.date} at {slot.startTime}</span>
-                                <Button variant="ghost" size="sm" className="text-destructive" onClick={() => removeExcludedAppointmentSlot(slot.id)}>
-                                  Restore
-                                </Button>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  </div>
-                </TabsContent>
-
-                {/* ── Advanced Tab ──────────────────────────────────────────── */}
-                <TabsContent value="appt-setup" className="space-y-5 mt-4">
-                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm">
-                    <div className="mb-3">
-                      <p className="text-sm font-semibold text-foreground">Session Details</p>
-                      <p className="text-xs text-muted-foreground">Choose session type, define custom slots, and control timezone behavior.</p>
-                    </div>
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Appointment Type</Label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {([
-                        { value: 'one-on-one', label: 'One-on-one', icon: '👤' },
-                        { value: 'group', label: 'Group', icon: '👥' },
-                      ] as const).map(({ value, label, icon }) => (
-                        <button key={value} type="button" onClick={() => updateAppointment({ appointmentType: value })}
-                          className={`flex flex-col items-center justify-center gap-2 rounded-lg border p-4 text-sm font-medium transition-colors ${
-                            (draft.appointmentSlotsConfig?.appointmentType ?? 'one-on-one') === value
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                          }`}>
-                          <span className="text-2xl">{icon}</span>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {draft.appointmentSlotsConfig?.appointmentType === 'group' && (
-                      <div className="space-y-1 mt-2">
-                        <Label className="text-xs text-muted-foreground">Max Attendees per Slot</Label>
-                        <Input type="number" min={2}
-                          value={draft.appointmentSlotsConfig?.groupMaxAttendees ?? ''}
-                          placeholder="Unlimited"
-                          onChange={e => updateAppointment({ groupMaxAttendees: e.target.value ? Number(e.target.value) : undefined })} />
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">Make each appointment slot available to one person or multiple people.</p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="font-semibold">Specific Slots (Class & Teacher)</Label>
-                      <Button variant="outline" size="sm" onClick={addAppointmentSlot}>
-                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Slot
-                      </Button>
-                    </div>
-                    {(draft.appointmentSlotsConfig?.slots || []).length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        No custom slots added. Add slots to configure class name, teacher, type, and per-slot capacity.
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {(draft.appointmentSlotsConfig?.slots || []).map((slot, index) => (
-                          <div key={slot.id} className="rounded-lg border p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold text-muted-foreground">Slot {index + 1}</p>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => removeAppointmentSlot(index)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Class Name</Label>
-                                <Input value={slot.className} onChange={e => updateAppointmentSlot(index, { className: e.target.value })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Teacher Name</Label>
-                                <Input value={slot.teacherName} onChange={e => updateAppointmentSlot(index, { teacherName: e.target.value })} />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Date</Label>
-                                <Input type="date" value={slot.date} onChange={e => updateAppointmentSlot(index, { date: e.target.value })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Start Time</Label>
-                                <Input type="time" value={slot.startTime} onChange={e => updateAppointmentSlot(index, { startTime: e.target.value })} />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Duration (min)</Label>
-                                <Input type="number" min={1} value={slot.durationMinutes} onChange={e => updateAppointmentSlot(index, { durationMinutes: Number(e.target.value) || 30 })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Max Bookings</Label>
-                                <Input type="number" min={1} value={slot.maxBookings} onChange={e => updateAppointmentSlot(index, { maxBookings: Number(e.target.value) || 1 })} />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">Type</Label>
-                                <Select value={slot.sessionType} onValueChange={v => updateAppointmentSlot(index, { sessionType: v as AppointmentSlot['sessionType'] })}>
-                                  <SelectTrigger><SelectValue /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="group">Group</SelectItem>
-                                    <SelectItem value="personal">Personal</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      When custom slots are present, users can book only these slots and each slot respects its max booking capacity.
+                      Slots are auto-generated for each date using the time window and each service's duration + gap.
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label className="text-sm font-medium">Send Reminder Emails</Label>
-                      <p className="text-xs text-muted-foreground">Send a reminder email to all attendees before the appointment time.</p>
+                  {/* ── Time Format ────────────────────────────────────────── */}
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm space-y-3">
+                    <p className="text-sm font-semibold text-foreground">Display</p>
+                    <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground font-medium">Time Format</Label>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '12h' ? 'default' : 'outline'}
+                          onClick={() => updateAppointment({ timeFormat: '12h' })}>AM/PM</Button>
+                        <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '24h' ? 'default' : 'outline'}
+                          onClick={() => updateAppointment({ timeFormat: '24h' })}>24 Hour</Button>
+                      </div>
                     </div>
-                    <Switch
-                      checked={draft.appointmentSlotsConfig?.sendReminderEmails ?? false}
-                      onCheckedChange={v => updateAppointment({ sendReminderEmails: v })} />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="font-semibold">Default Time Zone</Label>
-                    <Select
-                      value={draft.appointmentSlotsConfig?.defaultTimezone || 'America/New_York'}
-                      onValueChange={v => updateAppointment({ defaultTimezone: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {[
-                          'America/New_York','America/Chicago','America/Denver','America/Los_Angeles',
-                          'America/Sao_Paulo','Europe/London','Europe/Paris','Europe/Berlin',
-                          'Europe/Moscow','Asia/Dubai','Asia/Kolkata','Asia/Singapore',
-                          'Asia/Tokyo','Asia/Shanghai','Australia/Sydney','Pacific/Auckland',
-                        ].map(tz => <SelectItem key={tz} value={tz}>{tz}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">Select the time zone for your appointments. Attendees will see your availability in their local time zone.</p>
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <Label className="text-sm font-medium">Lock the Time Zone</Label>
-                      <p className="text-xs text-muted-foreground">Users will only see appointments in your time zone.</p>
-                    </div>
-                    <Switch
-                      checked={draft.appointmentSlotsConfig?.lockTimezone ?? false}
-                      onCheckedChange={v => updateAppointment({ lockTimezone: v })} />
-                  </div>
-                  </div>
                 </TabsContent>
               </>
             )}
