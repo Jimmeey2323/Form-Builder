@@ -298,6 +298,10 @@ export interface AppointmentSlotsConfig {
   services?: AppointmentService[];
   /** Specific date windows during which appointments can be booked */
   availableDates?: AppointmentAvailableDate[];
+  /** Optional instructional note displayed above the slot picker */
+  bookingNote?: string;
+  /** When true, fully-booked slots are hidden instead of shown as "Full" */
+  hideFullSlots?: boolean;
 
   // ── General display ───────────────────────────────────────────────────
   dateFormat?: 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY/MM/DD';

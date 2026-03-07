@@ -363,6 +363,8 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         const services = cfg.services || [];
         const availDates = cfg.availableDates || [];
         const use12h = (cfg.timeFormat || '12h') === '12h';
+        const bookingNote = cfg.bookingNote ? escapeHtml(cfg.bookingNote) : '';
+        const tzDisplay2 = escapeHtml(cfg.defaultTimezone || tz);
 
         const serviceTabsHtml = services.map((svc, idx) => {
           const label = svc.name || `Service ${idx + 1}`;
@@ -379,9 +381,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
             const dateLabel = escapeHtml(d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }));
             return `<div class="appt-svc-date-group" data-date="${escapeHtml(dateEntry.date)}" data-svc-id="${escapeHtml(svc.id)}">` +
               `<div class="appt-svc-date-header">${dateLabel}</div>` +
-              `<div class="appt-svc-slots-row">` +
-              `<div class="appt-no-slots">Loading…</div>` +
-              `</div>` +
+              `<div class="appt-svc-slots-row"></div>` +
               `</div>`;
           }).join('');
           return `<div class="appt-svc-panel${idx === 0 ? ' active' : ''}" data-svc-panel-idx="${idx}"` +
@@ -396,8 +396,13 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
           data-field-name="${escapeHtml(field.name)}"
           data-field-id="${escapeHtml(field.id)}"
           data-appt-config="${cfgJson}">
-          <div class="appt-svc-tabs-row">${serviceTabsHtml}</div>
+          ${bookingNote ? `<div class="appt-svc-booking-note">${bookingNote}</div>` : ''}
+          ${services.length > 1 ? `<div class="appt-svc-tabs-row">${serviceTabsHtml}</div>` : `<div class="appt-svc-single-header">${services[0] ? `<span class="appt-svc-tab-name">${escapeHtml(services[0].name || 'Appointment')}</span>${services[0].with ? `<span class="appt-svc-tab-sub"> with ${escapeHtml(services[0].with)}</span>` : ''}<span class="appt-svc-tab-dur">${services[0].durationMinutes} min</span>` : ''}</div>`}
           <div class="appt-svc-panels">${panelsHtml}</div>
+          <div class="appt-svc-tz-row">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="appt-svc-tz-label">${tzDisplay2}</span>
+          </div>
           <div class="appt-svc-selection-summary" aria-live="polite"></div>
           <input type="hidden" id="${field.id}" name="${field.name}"${required}>
         </div>`;
@@ -1686,6 +1691,8 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
           function fetchBookingSnapshot(fieldName, slotKeys, datePrefix) {
             var safeKeys = (slotKeys || []).filter(Boolean);
+            var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var timer = controller ? setTimeout(function() { controller.abort(); }, 6000) : null;
             return fetch(APPT_COUNTS_URL, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1695,7 +1702,9 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
                 slotKeys: safeKeys,
                 datePrefix: datePrefix || '',
               }),
+              signal: controller ? controller.signal : undefined,
             }).then(function(response) {
+              if (timer) clearTimeout(timer);
               if (!response.ok) {
                 return response.text().then(function(body) {
                   throw new Error(body || ('Appointment count check failed (' + response.status + ')'));
@@ -1703,6 +1712,7 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
               }
               return response.json();
             }).catch(function(err) {
+              if (timer) clearTimeout(timer);
               console.warn('Appointment availability check failed:', err);
               return { countsBySlot: {}, dayBookingCount: 0 };
             });
@@ -2231,6 +2241,8 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             groups.forEach(function(group) {
               chain = chain.then(function(result) {
                 if (!result.ok) return result;
+                // Services-mode widgets are validated separately above — skip here
+                if (group.dataset.apptMode === 'services') return result;
 
                 var hidden = group.querySelector('input[type="hidden"]');
                 if (hidden && hidden.required && !hidden.value) {
@@ -2290,6 +2302,7 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             var services  = cfg.services  || [];
             var availDates = cfg.availableDates || [];
             var use12h = (cfg.timeFormat || '12h') === '12h';
+            var hideFullSlots = cfg.hideFullSlots === true;
             var fieldName = wrap.dataset.fieldName || wrap.dataset.fieldId || 'appointment';
             var summary = wrap.querySelector('.appt-svc-selection-summary');
 
@@ -2338,43 +2351,65 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
               var slotKeys = times.map(function(t) { return svc.id + '::' + dateStr + 'T' + t; });
               var cap = Number(svc.maxBookingsPerSlot) || 1;
 
-              slotsRow.innerHTML = '<div class="appt-no-slots appt-loading">Loading available slots…</div>';
+              // ── Build slot button helper ──────────────────────────────────
+              function buildSlotBtn(t, ti, booked) {
+                var key = slotKeys[ti];
+                var remaining = Math.max(0, cap - booked);
+                if (remaining <= 0 && hideFullSlots) return null; // hide fully booked
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.slotKey = key;
+                btn.dataset.slotTime = t;
+                btn.className = 'appt-svc-slot-btn';
+                var timeLabel = formatTime(timeToMins(t), use12h);
+                var remLabel  = cap > 1 ? (remaining === 1 ? ' · 1 left' : remaining > 0 ? ' · ' + remaining + ' left' : '') : '';
+                btn.innerHTML = '<span class="appt-svc-slot-time">' + timeLabel + '</span>' +
+                  (cap > 1 && remaining > 0 ? '<span class="appt-svc-slot-rem">' + remLabel + '</span>' : '');
+
+                if (remaining <= 0) {
+                  btn.disabled = true;
+                  btn.classList.add('appt-svc-slot-full');
+                  btn.innerHTML += '<span class="appt-svc-slot-badge appt-badge-full">Full</span>';
+                } else {
+                  btn.addEventListener('click', function() {
+                    wrap.querySelectorAll('.appt-svc-slot-btn.selected').forEach(function(b) { b.classList.remove('selected'); });
+                    btn.classList.add('selected');
+                    hidden.value = key;
+                    hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (summary) {
+                      summary.textContent = (svc.name ? svc.name : 'Appointment') +
+                        (svc.with ? ' with ' + svc.with : '') +
+                        ' on ' + dateStr + ' at ' + timeLabel +
+                        ' (' + (svc.durationMinutes || 30) + ' min)';
+                    }
+                  });
+                }
+                return btn;
+              }
+
+              // ── Render all slots immediately as available ─────────────────
+              slotsRow.innerHTML = '';
+              times.forEach(function(t, ti) {
+                var btn = buildSlotBtn(t, ti, 0);
+                if (btn) slotsRow.appendChild(btn);
+              });
+
+              // ── Async update with real booking counts ─────────────────────
               fetchBookingSnapshot(fieldName, slotKeys, '').then(function(snapshot) {
-                slotsRow.innerHTML = '';
                 var counts = snapshot && snapshot.countsBySlot ? snapshot.countsBySlot : {};
+                var hasChanges = false;
+                for (var ki = 0; ki < slotKeys.length; ki++) {
+                  if (Number(counts[slotKeys[ki]] || 0) > 0) { hasChanges = true; break; }
+                }
+                if (!hasChanges) return; // no bookings yet, slots are already showing as fully available
+                // Re-render with real counts
+                var prevSelected = hidden.value;
+                slotsRow.innerHTML = '';
                 times.forEach(function(t, ti) {
-                  var key     = slotKeys[ti];
-                  var booked  = Number(counts[key] || 0);
-                  var remaining = Math.max(0, cap - booked);
-
-                  var btn = document.createElement('button');
-                  btn.type = 'button';
-                  btn.className = 'appt-svc-slot-btn';
-                  var timeLabel = formatTime(timeToMins(t), use12h);
-                  var remLabel  = cap > 1 ? (remaining === 1 ? ' · 1 left' : ' · ' + remaining + ' left') : '';
-                  btn.innerHTML = '<span class="appt-svc-slot-time">' + timeLabel + '</span>' +
-                    (cap > 1 ? '<span class="appt-svc-slot-rem">' + remLabel + '</span>' : '');
-
-                  if (remaining <= 0) {
-                    btn.disabled = true;
-                    btn.classList.add('appt-svc-slot-full');
-                    btn.innerHTML += '<span class="appt-svc-slot-badge appt-badge-full">Full</span>';
-                  } else {
-                    btn.addEventListener('click', function() {
-                      // Clear all selections in this widget
-                      wrap.querySelectorAll('.appt-svc-slot-btn.selected').forEach(function(b) { b.classList.remove('selected'); });
-                      btn.classList.add('selected');
-                      // Store the slotKey as the field value (enables exact-match counting in Supabase)
-                      hidden.value = key;
-                      hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                      if (summary) {
-                        summary.textContent = (svc.name ? svc.name : 'Appointment') +
-                          (svc.with ? ' with ' + svc.with : '') +
-                          ' on ' + dateStr + ' at ' + timeLabel +
-                          ' (' + (svc.durationMinutes || 30) + ' min)';
-                      }
-                    });
-                  }
+                  var booked = Number(counts[slotKeys[ti]] || 0);
+                  var btn = buildSlotBtn(t, ti, booked);
+                  if (!btn) return; // hidden because full + hideFullSlots
+                  if (prevSelected === slotKeys[ti] && !btn.disabled) btn.classList.add('selected');
                   slotsRow.appendChild(btn);
                 });
               });
@@ -3589,6 +3624,31 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             color: var(--primary-color, #4f80f7);
             min-height: 20px;
         }
+        .appt-svc-booking-note {
+            padding: 10px 14px 6px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .appt-svc-single-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 14px 10px;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .appt-svc-tz-row {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 14px 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+        .appt-svc-tz-label { font-weight: 500; }
         .appt-loading { font-style: italic; }
 
 

@@ -1279,16 +1279,72 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                     </p>
                   </div>
 
-                  {/* ── Time Format ────────────────────────────────────────── */}
-                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm space-y-3">
-                    <p className="text-sm font-semibold text-foreground">Display</p>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground font-medium">Time Format</Label>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '12h' ? 'default' : 'outline'}
-                          onClick={() => updateAppointment({ timeFormat: '12h' })}>AM/PM</Button>
-                        <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '24h' ? 'default' : 'outline'}
-                          onClick={() => updateAppointment({ timeFormat: '24h' })}>24 Hour</Button>
+                  {/* ── Display / Settings ────────────────────────────────────── */}
+                  <div className="rounded-2xl border border-border/60 bg-card/90 p-4 shadow-sm space-y-4">
+                    <p className="text-sm font-semibold text-foreground">Settings &amp; Display</p>
+
+                    {/* Booking note */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground font-medium">Instructions / Booking Note <span className="text-muted-foreground/60">(optional)</span></Label>
+                      <Input
+                        value={draft.appointmentSlotsConfig?.bookingNote || ''}
+                        onChange={e => updateAppointment({ bookingNote: e.target.value || undefined })}
+                        placeholder="e.g. Please arrive 5 minutes early."
+                      />
+                      <p className="text-xs text-muted-foreground">Shown above the slot picker in the published form.</p>
+                    </div>
+
+                    {/* Timezone */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground font-medium">Timezone</Label>
+                      <Select
+                        value={draft.appointmentSlotsConfig?.defaultTimezone || 'Asia/Kolkata'}
+                        onValueChange={v => updateAppointment({ defaultTimezone: v })}
+                      >
+                        <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Asia/Kolkata">Asia/Kolkata (IST, UTC+5:30)</SelectItem>
+                          <SelectItem value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</SelectItem>
+                          <SelectItem value="Asia/Singapore">Asia/Singapore (SGT, UTC+8)</SelectItem>
+                          <SelectItem value="Asia/Tokyo">Asia/Tokyo (JST, UTC+9)</SelectItem>
+                          <SelectItem value="Asia/Shanghai">Asia/Shanghai (CST, UTC+8)</SelectItem>
+                          <SelectItem value="Europe/London">Europe/London (GMT/BST)</SelectItem>
+                          <SelectItem value="Europe/Paris">Europe/Paris (CET, UTC+1)</SelectItem>
+                          <SelectItem value="America/New_York">America/New_York (ET)</SelectItem>
+                          <SelectItem value="America/Chicago">America/Chicago (CT)</SelectItem>
+                          <SelectItem value="America/Denver">America/Denver (MT)</SelectItem>
+                          <SelectItem value="America/Los_Angeles">America/Los_Angeles (PT)</SelectItem>
+                          <SelectItem value="America/Sao_Paulo">America/Sao_Paulo (BRT)</SelectItem>
+                          <SelectItem value="Australia/Sydney">Australia/Sydney (AEST)</SelectItem>
+                          <SelectItem value="Pacific/Auckland">Pacific/Auckland (NZST)</SelectItem>
+                          <SelectItem value="UTC">UTC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Timezone displayed alongside slot times in the form.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Time Format */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground font-medium">Time Format</Label>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '12h' ? 'default' : 'outline'}
+                            onClick={() => updateAppointment({ timeFormat: '12h' })}>AM/PM</Button>
+                          <Button size="sm" variant={(draft.appointmentSlotsConfig?.timeFormat || '12h') === '24h' ? 'default' : 'outline'}
+                            onClick={() => updateAppointment({ timeFormat: '24h' })}>24 Hour</Button>
+                        </div>
+                      </div>
+
+                      {/* Hide fully booked slots */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground font-medium">Fully Booked Slots</Label>
+                        <div className="flex items-center gap-2 rounded-lg border p-2.5">
+                          <Switch
+                            checked={draft.appointmentSlotsConfig?.hideFullSlots ?? false}
+                            onCheckedChange={v => updateAppointment({ hideFullSlots: v || undefined })}
+                          />
+                          <Label className="text-xs cursor-pointer">{draft.appointmentSlotsConfig?.hideFullSlots ? 'Hidden' : 'Show as "Full"'}</Label>
+                        </div>
                       </div>
                     </div>
                   </div>

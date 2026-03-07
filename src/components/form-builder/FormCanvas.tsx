@@ -433,24 +433,48 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         const availDates = cfg.availableDates || [];
 
         if (services.length > 0) {
-          // Services mode preview
+          // Helper: generate slot times for preview
+          const timeToMins = (t: string) => {
+            const [h, m = '0'] = (t || '00:00').split(':');
+            return Number(h) * 60 + Number(m);
+          };
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const minsToStr = (m: number) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+          const genSlots = (dur: number, buf: number, from: string, to: string) => {
+            const step = dur + buf; let s = timeToMins(from); const e = timeToMins(to); const r: string[] = [];
+            while (s + dur <= e) { r.push(minsToStr(s)); s += step; } return r;
+          };
+
           return (
             <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              {cfg.bookingNote && <p className="text-xs italic text-muted-foreground border-b border-primary/10 pb-2">{cfg.bookingNote}</p>}
               <div className="flex flex-wrap gap-1.5">
                 {services.map((svc, idx) => (
                   <span key={svc.id} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${idx === 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border text-foreground'}`}>
                     {svc.name || `Service ${idx + 1}`}
+                    {svc.with && <span className="ml-1 font-normal opacity-75">w/ {svc.with}</span>}
                     <span className="ml-1 font-normal opacity-70">{svc.durationMinutes}min</span>
                   </span>
                 ))}
               </div>
               {availDates.length > 0 ? (
-                <div className="text-xs text-muted-foreground">
-                  {availDates.length} date{availDates.length > 1 ? 's' : ''} · {availDates.map(d => d.date).join(', ')}
+                <div className="space-y-1">
+                  {availDates.slice(0, 2).map(d => {
+                    const svc = services[0];
+                    const slots = svc ? genSlots(svc.durationMinutes, svc.bufferMinutes || 0, d.from, d.to) : [];
+                    return (
+                      <div key={d.id} className="text-xs text-muted-foreground flex items-start gap-2">
+                        <span className="font-medium shrink-0">{d.date}</span>
+                        <span className="opacity-70">{d.from}–{d.to} · {slots.length} slot{slots.length !== 1 ? 's' : ''}{slots.length > 0 ? ` (${slots.slice(0, 3).join(', ')}${slots.length > 3 ? '…' : ''})` : ''}</span>
+                      </div>
+                    );
+                  })}
+                  {availDates.length > 2 && <div className="text-xs text-muted-foreground/60">+{availDates.length - 2} more date{availDates.length - 2 > 1 ? 's' : ''}</div>}
                 </div>
               ) : (
                 <div className="text-xs text-muted-foreground italic">No dates configured yet</div>
               )}
+              {cfg.defaultTimezone && <div className="text-xs text-muted-foreground/60">⏱ {cfg.defaultTimezone} · {cfg.timeFormat === '24h' ? '24h' : 'AM/PM'}</div>}
             </div>
           );
         }
