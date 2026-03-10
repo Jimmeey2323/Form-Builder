@@ -1642,6 +1642,16 @@ function generateMomenceSessionsScript(config: FormConfig): string {
             sv(pfx + '_zoom_link',            pick(selected, 'zoomLink'));
             sv(pfx + '_online_stream_url',    pick(selected, 'onlineStreamUrl'));
 
+            // Hide session detail field groups that have no value; show those that do
+            wrap.querySelectorAll('.msess-fields-grid .msess-field-group').forEach(function(grp) {
+              var inp = grp.querySelector('.msess-field');
+              if (inp && inp.value && String(inp.value).trim()) {
+                grp.style.display = '';
+              } else {
+                grp.style.display = 'none';
+              }
+            });
+
             if (ids.length === 1) {
               loadBookings(wrap, ids[0]);
             } else {
@@ -4260,42 +4270,108 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         /* ── Bookings Table ─────────────────────────────────────────────── */
         .msess-bookings { padding: 0 16px 16px; }
         .msess-bookings-loading, .msess-bookings-empty, .msess-bookings-error {
-          padding: 12px 0; font-size: 13px; color: var(--text-secondary); text-align: center;
+          display: flex; flex-direction: column; align-items: center; justify-content: center;
+          padding: 24px 16px; font-size: 13px; color: var(--text-secondary); text-align: center;
+          border: 1px dashed var(--border-color); border-radius: 12px; margin-top: 10px;
+          line-height: 1.6;
         }
-        .msess-bookings-error { color: #ef4444; }
-        .msess-bookings-header {
+        .msess-bookings-error { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+        /* Toolbar */
+        .msess-bk-toolbar {
           display: flex; align-items: center; justify-content: space-between;
-          padding: 10px 0 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
-          text-transform: uppercase; letter-spacing: 0.06em;
-          border-top: 1px solid var(--border-color); margin-top: 4px;
+          padding: 12px 0 10px; border-top: 2px solid var(--border-color); margin-top: 10px; gap: 8px;
         }
-        .msess-bookings-scroll { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; }
-        .msess-bookings-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .msess-bk-toolbar-left { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+        .msess-bk-title { font-size: 11.5px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
+        .msess-bk-count-badge { font-size: 11px; font-weight: 600; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 20px; padding: 2px 9px; }
+        .msess-bk-checkin-badge { font-size: 11px; font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; border-radius: 20px; padding: 2px 9px; }
+        .msess-bk-cancel-badge { font-size: 11px; font-weight: 700; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 20px; padding: 2px 9px; }
+        /* Scroll container */
+        .msess-bookings-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .msess-bookings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        /* Header row */
+        .msess-bookings-table thead tr { background: linear-gradient(to bottom, #f8fafc, #f1f5f9); }
         .msess-bookings-table thead th {
-          background: var(--bg-secondary); padding: 8px 10px; text-align: left;
-          font-size: 11px; font-weight: 700; color: var(--text-secondary);
-          text-transform: uppercase; letter-spacing: 0.05em;
-          border-bottom: 1px solid var(--border-color); white-space: nowrap;
+          padding: 11px 13px; text-align: left;
+          font-size: 10.5px; font-weight: 800; color: var(--text-secondary);
+          text-transform: uppercase; letter-spacing: 0.08em;
+          border-bottom: 2px solid var(--border-color); white-space: nowrap;
         }
-        .msess-bookings-table tbody tr { border-bottom: 1px solid var(--border-color); }
-        .msess-bookings-table tbody tr:last-child { border-bottom: none; }
-        .msess-bookings-table tbody tr:hover { background: var(--bg-secondary); }
-        .msess-bookings-table tbody td { padding: 7px 10px; vertical-align: middle; color: var(--text-primary); }
-        .msess-td-num { color: var(--text-secondary); font-size: 11px; width: 28px; text-align: center; }
-        .msess-td-name { display: flex; align-items: center; gap: 7px; white-space: nowrap; font-weight: 500; }
-        .msess-member-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-        .msess-cancelled-badge { font-size: 10px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 4px; padding: 1px 5px; font-weight: 600; }
-        .msess-row-cancelled td { opacity: 0.55; }
-        .msess-booking-comment { width: 100%; min-width: 160px; min-height: 60px; resize: vertical; padding: 5px 8px !important; font-size: 12px !important; }
-        .msess-booking-status { min-width: 180px; padding: 4px 8px !important; font-size: 12px !important; }
+        .msess-th-num { width: 40px; text-align: center; }
+        .msess-th-tickets { width: 70px; text-align: center; }
+        .msess-th-status { min-width: 185px; }
+        .msess-th-notes { min-width: 175px; }
+        /* Body rows */
+        .msess-bk-row { border-bottom: 1px solid var(--border-color); transition: background 0.12s; }
+        .msess-bk-row:last-child { border-bottom: none; }
+        .msess-bk-row:nth-child(even) { background: #fafbfc; }
+        .msess-bk-row:hover { background: rgba(99,102,241,0.04) !important; }
+        .msess-bk-row.msess-row-cancelled { opacity: 0.6; }
+        .msess-bk-row.msess-row-checkedin { background: rgba(16,185,129,0.04) !important; }
+        .msess-bookings-table tbody td { padding: 10px 13px; vertical-align: top; color: var(--text-primary); }
+        /* Row number */
+        .msess-td-num { color: var(--text-secondary); font-size: 11px; text-align: center; vertical-align: middle !important; font-weight: 700; }
+        /* Member cell */
+        .msess-td-member { display: flex !important; align-items: flex-start !important; gap: 10px !important; vertical-align: middle !important; min-width: 160px; }
+        .msess-member-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--border-color); }
+        .msess-member-avatar-placeholder {
+          width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+          background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+          color: #fff; font-size: 12px; font-weight: 700;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .msess-member-info { display: flex; flex-direction: column; gap: 2px; }
+        .msess-member-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+        .msess-member-secondary { font-size: 11px; color: var(--text-secondary); }
+        /* Attendance badges */
+        .msess-td-attendance { vertical-align: middle !important; white-space: nowrap; }
+        .msess-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 10px; }
+        .msess-badge-checkin { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+        .msess-badge-cancelled { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .msess-badge-pending { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); }
+        /* Tickets */
+        .msess-td-tickets { text-align: center; vertical-align: middle !important; }
+        .msess-tickets-val { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text-primary); padding: 0 6px; }
+        .msess-td-empty { color: var(--text-light); }
+        /* Status dropdown */
+        .msess-td-status { vertical-align: top; }
+        .msess-booking-status {
+          width: 100%; min-width: 160px; padding: 7px 28px 7px 10px !important;
+          font-size: 12px !important; border: 1.5px solid var(--border-color) !important;
+          border-radius: 8px !important; background: var(--bg-primary) !important;
+          color: var(--text-primary) !important; cursor: pointer; appearance: none;
+          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+          background-position: right 8px center !important; background-repeat: no-repeat !important; background-size: 14px !important;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .msess-booking-status:focus { outline: none; border-color: var(--primary-color) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
+        /* Notes textarea */
+        .msess-td-notes { vertical-align: top; }
+        .msess-booking-comment {
+          width: 100%; min-width: 150px; min-height: 58px; resize: vertical;
+          padding: 7px 10px !important; font-size: 12px !important; line-height: 1.45;
+          border: 1.5px solid var(--border-color) !important; border-radius: 8px !important;
+          background: var(--bg-primary) !important; color: var(--text-primary) !important;
+          font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .msess-booking-comment:focus { outline: none; border-color: var(--primary-color) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
+        .msess-booking-comment[required] { border-color: #f59e0b !important; background: #fffdf5 !important; }
+        /* Footer / save button */
+        .msess-bk-footer { display: flex; justify-content: flex-end; padding: 12px 0 0; }
         .msess-save-comments-btn {
-          margin-top: 10px; padding: 7px 16px; font-size: 12px; font-weight: 600;
-          background: var(--primary-color); color: #fff; border: none; border-radius: 8px;
-          cursor: pointer; transition: opacity 0.15s;
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 9px 20px; font-size: 12.5px; font-weight: 700;
+          background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+          color: #fff; border: none; border-radius: 10px;
+          cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+          box-shadow: 0 3px 10px rgba(99,102,241,0.28);
         }
-        .msess-save-comments-btn:hover { opacity: 0.88; }
+        .msess-save-comments-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .msess-save-comments-btn:active { transform: translateY(0); }
         @media (max-width: 520px) {
           .mmember-fields-grid, .msess-fields-grid { grid-template-columns: 1fr; }
+          .msess-bookings-scroll { border-radius: 8px; }
+          .msess-bk-toolbar { flex-wrap: wrap; }
         }
     </style>
     <script>
