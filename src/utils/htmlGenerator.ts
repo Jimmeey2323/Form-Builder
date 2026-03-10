@@ -992,6 +992,7 @@ function generateWebhookScript(config: FormConfig): string {
             var data = baseData;
             console.log('Form submitted:', baseData);${pixelEvents}
             ${generateSheetsSubmitScript(config)}
+            ${generateEmailNotificationScript(config)}
             ${supabaseSaveScript}
             reportSubmitStatus('${escapeHtml(config.successMessage)}', false);
             ${redirectLine}${appointmentGateClose}
@@ -1040,6 +1041,7 @@ function generateWebhookScript(config: FormConfig): string {
                 return response;
             }).then(function() {${pixelEvents}
                 ${generateSheetsSubmitScript(config)}
+                ${generateEmailNotificationScript(config)}
                 ${supabaseSaveScript}
                 reportSubmitStatus('${escapeHtml(config.successMessage)}', false);
                 ${redirectLine}
@@ -2713,6 +2715,55 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
             });
           });
         })();`;
+}
+
+function generateEmailNotificationScript(config: FormConfig): string {
+  const emailCfg = config.emailNotificationConfig;
+  if (!emailCfg?.enabled || !emailCfg.mailtrapToken || !emailCfg.to || !emailCfg.from) return '';
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+
+  // Build array of {label, name} for all visible fields (used at runtime)
+  const fieldMeta = config.fields
+    .filter(f => f.type !== 'page-break' && f.type !== 'section-break' && f.type !== 'hidden')
+    .sort((a, b) => a.order - b.order)
+    .map(f => ({ label: escapeHtml(f.label), name: f.name }));
+
+  const fieldMetaJson = JSON.stringify(fieldMeta);
+
+  return `
+                // Send email notification
+                try {
+                  var emailFieldMeta = ${fieldMetaJson};
+                  var emailFields = emailFieldMeta.map(function(f) {
+                    return { label: f.label, name: f.name, value: String(baseData[f.name] || '') };
+                  });
+                  fetch('${supabaseUrl}/functions/v1/send-form-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      mailtrapToken: '${escapeHtml(emailCfg.mailtrapToken)}',
+                      clientId: '${escapeHtml(emailCfg.clientId || '')}',
+                      clientSecret: '${escapeHtml(emailCfg.clientSecret || '')}',
+                      refreshToken: '${escapeHtml(emailCfg.refreshToken || '')}',
+                      from: '${escapeHtml(emailCfg.from)}',
+                      fromName: '${escapeHtml(emailCfg.fromName || config.title)}',
+                      to: '${escapeHtml(emailCfg.to)}',
+                      cc: '${escapeHtml(emailCfg.cc || '')}',
+                      bcc: '${escapeHtml(emailCfg.bcc || '')}',
+                      subject: '${escapeHtml(emailCfg.subject || 'New Form Submission')}',
+                      formTitle: '${escapeHtml(config.title)}',
+                      formId: '${escapeHtml(config.id)}',
+                      fields: emailFields,
+                      submittedAt: new Date().toISOString()
+                    })
+                  }).then(function(r) {
+                    if (!r.ok) r.text().then(function(t) { console.warn('Email notification failed:', r.status, t); });
+                    else console.log('Email notification sent.');
+                  }).catch(function(e) { console.warn('Email notification error:', e); });
+                } catch(e) {
+                  console.warn('Email notification exception:', e);
+                }`;
 }
 
 function generateSheetsSubmitScript(config: FormConfig): string {

@@ -413,6 +413,31 @@ export interface FormField {
   order: number;
 }
 
+// Email notification configuration
+export interface EmailNotificationConfig {
+  enabled: boolean;
+  /** Mailtrap API token (Bearer auth for send.api.mailtrap.io) */
+  mailtrapToken: string;
+  /** Google OAuth Client ID (optional, for reference) */
+  clientId?: string;
+  /** Google OAuth Client Secret (optional, for reference) */
+  clientSecret?: string;
+  /** Google OAuth Refresh Token (optional, for reference) */
+  refreshToken?: string;
+  /** Sender email address */
+  from: string;
+  /** Sender display name */
+  fromName?: string;
+  /** Recipient email(s) — comma-separated. Supports {{fieldName}} placeholders */
+  to: string;
+  /** CC email(s) — comma-separated */
+  cc?: string;
+  /** BCC email(s) — comma-separated */
+  bcc?: string;
+  /** Email subject. Supports {{fieldName}} placeholders */
+  subject: string;
+}
+
 // Webhook configuration
 export interface WebhookConfig {
   enabled: boolean;
@@ -571,6 +596,7 @@ export interface FormConfig {
   webhookConfig: WebhookConfig;
   pixelConfig: PixelConfig;
   googleSheetsConfig: GoogleSheetsConfig;
+  emailNotificationConfig: EmailNotificationConfig;
   /** The last successfully deployed Vercel URL for this form */
   deployedUrl?: string;
   /** Per-page hero image settings — key = page index (0-based) */

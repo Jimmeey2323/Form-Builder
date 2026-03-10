@@ -6,6 +6,7 @@ import {
   WebhookConfig,
   PixelConfig,
   GoogleSheetsConfig,
+  EmailNotificationConfig,
   createDefaultField,
   FieldType,
 } from '@/types/formField';
@@ -69,6 +70,20 @@ const defaultGoogleSheets: GoogleSheetsConfig = {
   sheetName: 'Form Submissions',
 };
 
+const defaultEmailNotification: EmailNotificationConfig = {
+  enabled: false,
+  mailtrapToken: '',
+  clientId: '',
+  clientSecret: '',
+  refreshToken: '',
+  from: '',
+  fromName: '',
+  to: '',
+  cc: '',
+  bcc: '',
+  subject: 'New Form Submission — {{formTitle}}',
+};
+
 function getDefaultFields(): FormField[] {
   return [
     {
@@ -118,7 +133,7 @@ function getDefaultFields(): FormField[] {
       name: 'phoneNumber',
       label: 'Phone Number',
       type: 'tel',
-      placeholder: '+91-XXXXXXXXXX',
+      placeholder: 'XXXXXXXXXX',
       isRequired: true,
       isHidden: false,
       isReadOnly: false,
@@ -187,6 +202,7 @@ function createDefaultForm(): FormConfig {
     webhookConfig: { ...defaultWebhook },
     pixelConfig: { ...defaultPixels },
     googleSheetsConfig: { ...defaultGoogleSheets },
+    emailNotificationConfig: { ...defaultEmailNotification },
     isLocked: false,
     isTemplate: false,
     isPublished: false,
@@ -226,6 +242,7 @@ export function useFormBuilder() {
           },
         pixelConfig: f.pixelConfig || {},
         googleSheetsConfig: f.googleSheetsConfig || { enabled: false },
+        emailNotificationConfig: { ...defaultEmailNotification, ...(f.emailNotificationConfig || {}) },
       };
     });
   });
@@ -266,6 +283,7 @@ export function useFormBuilder() {
             id: row.id,
             publicationState,
             isPublished: config.isPublished ?? publicationState === 'published',
+            emailNotificationConfig: { ...defaultEmailNotification, ...(config.emailNotificationConfig || {}) },
           };
         });
 

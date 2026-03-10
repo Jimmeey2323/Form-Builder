@@ -1,4 +1,4 @@
-import { FormConfig, WebhookConfig, PixelConfig, FormAnimations, FormTheme } from '@/types/formField';
+import { FormConfig, WebhookConfig, PixelConfig, FormAnimations, FormTheme, EmailNotificationConfig } from '@/types/formField';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
 import { HeroImagePickerDialog } from '@/components/form-builder/HeroImagePickerDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye, Mail } from 'lucide-react';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 import { getHeroImageUrl, hasHeroImage, normalizeHeroImageValue } from '@/utils/heroImageConfig';
 import { useState } from 'react';
@@ -27,6 +27,20 @@ const TOKEN_PRESETS = [
   { label: 'DOjMVL37Q5 (Alt)', value: 'DOjMVL37Q5' },
   { label: 'Custom Token…', value: '__custom__' },
 ];
+
+const defaultEmailConfig: import('@/types/formField').EmailNotificationConfig = {
+  enabled: false,
+  mailtrapToken: '',
+  clientId: '',
+  clientSecret: '',
+  refreshToken: '',
+  from: '',
+  fromName: '',
+  to: '',
+  cc: '',
+  bcc: '',
+  subject: 'New Form Submission — {{formTitle}}',
+};
 
 interface FormSettingsPanelProps {
   form: FormConfig;
@@ -101,6 +115,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const updateAnimations = (updates: Partial<FormAnimations>) => onUpdate({ animations: { enabled: true, ...form.animations, ...updates } });
   const updateWebhook = (updates: Partial<WebhookConfig>) => onUpdate({ webhookConfig: { ...form.webhookConfig, ...updates } });
   const updatePixels = (updates: Partial<PixelConfig>) => onUpdate({ pixelConfig: { ...form.pixelConfig, ...updates } });
+  const updateEmail = (updates: Partial<EmailNotificationConfig>) => onUpdate({ emailNotificationConfig: { ...defaultEmailConfig, ...form.emailNotificationConfig, ...updates } });
   const updateUtmDefaults = (key: string, value: string) => updateWebhook({ utmParamDefaults: { ...form.webhookConfig.utmParamDefaults, [key]: value } });
   const handleLayoutChange = (layout: FormConfig['layout']) => onUpdate(applyHeroImageForLayout(form, { layout }));
 
@@ -819,6 +834,138 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             )
           )}
         </SettingsSection>
+
+        {/* ── Email Notifications ── */}
+        {(() => {
+          const emailCfg = form.emailNotificationConfig ?? defaultEmailConfig;
+          return (
+            <SettingsSection title="Email Notifications" icon={Mail} badge={
+              <Badge variant={emailCfg.enabled ? 'default' : 'secondary'} className="text-[10px] h-5 rounded-full">{emailCfg.enabled ? 'Active' : 'Off'}</Badge>
+            } defaultOpen={false}>
+              <SettingsRow label="Send email on submission">
+                <Switch checked={emailCfg.enabled} onCheckedChange={v => updateEmail({ enabled: v })} />
+              </SettingsRow>
+              {emailCfg.enabled && (
+                <div className="space-y-3">
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    Emails are sent via the <strong>Mailtrap Sending API</strong>. Use <code className="bg-muted px-1 rounded">{'{{fieldName}}'}</code> in Subject / To fields to insert form values.
+                  </p>
+
+                  {/* Mailtrap credentials */}
+                  <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">API Credentials</p>
+                    <div className="space-y-1">
+                      <FieldLabel>Mailtrap API Token</FieldLabel>
+                      <Input
+                        type="password"
+                        value={emailCfg.mailtrapToken}
+                        onChange={e => updateEmail({ mailtrapToken: e.target.value })}
+                        placeholder="Enter your Mailtrap API token"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <FieldLabel>Client ID</FieldLabel>
+                        <Input
+                          value={emailCfg.clientId ?? ''}
+                          onChange={e => updateEmail({ clientId: e.target.value })}
+                          placeholder="OAuth Client ID"
+                          className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <FieldLabel>Client Secret</FieldLabel>
+                        <Input
+                          type="password"
+                          value={emailCfg.clientSecret ?? ''}
+                          onChange={e => updateEmail({ clientSecret: e.target.value })}
+                          placeholder="OAuth Client Secret"
+                          className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <FieldLabel>Refresh Token</FieldLabel>
+                      <Input
+                        type="password"
+                        value={emailCfg.refreshToken ?? ''}
+                        onChange={e => updateEmail({ refreshToken: e.target.value })}
+                        placeholder="OAuth Refresh Token"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  {/* From */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <FieldLabel>From Name</FieldLabel>
+                      <Input
+                        value={emailCfg.fromName ?? ''}
+                        onChange={e => updateEmail({ fromName: e.target.value })}
+                        placeholder="Your Company"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <FieldLabel>From Email</FieldLabel>
+                      <Input
+                        type="email"
+                        value={emailCfg.from}
+                        onChange={e => updateEmail({ from: e.target.value })}
+                        placeholder="hello@example.com"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                      />
+                    </div>
+                  </div>
+
+                  {/* To / Subject */}
+                  <div className="space-y-1">
+                    <FieldLabel>To</FieldLabel>
+                    <Input
+                      value={emailCfg.to}
+                      onChange={e => updateEmail({ to: e.target.value })}
+                      placeholder="admin@example.com or {{email}}"
+                      className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <FieldLabel>Subject</FieldLabel>
+                    <Input
+                      value={emailCfg.subject}
+                      onChange={e => updateEmail({ subject: e.target.value })}
+                      placeholder="New submission from {{name}}"
+                      className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                    />
+                  </div>
+
+                  {/* CC / BCC */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <FieldLabel>CC</FieldLabel>
+                      <Input
+                        value={emailCfg.cc ?? ''}
+                        onChange={e => updateEmail({ cc: e.target.value })}
+                        placeholder="cc@example.com"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <FieldLabel>BCC</FieldLabel>
+                      <Input
+                        value={emailCfg.bcc ?? ''}
+                        onChange={e => updateEmail({ bcc: e.target.value })}
+                        placeholder="bcc@example.com"
+                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </SettingsSection>
+          );
+        })()}
       </div>
     )}
 
