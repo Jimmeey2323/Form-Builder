@@ -217,7 +217,6 @@ const Index = () => {
   const handleCopyForm = (formToCopy: any) => {
     const newForm = {
       ...formToCopy,
-      id: `form_${Date.now()}`,  
       title: `${formToCopy.title} (Copy)`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

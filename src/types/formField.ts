@@ -54,6 +54,7 @@ export type FieldType =
   | 'social-links'
   | 'member-search'
   | 'momence-sessions'
+  | 'hosted-class'
   | 'appointment-slots';
 
 export interface FieldOption {
@@ -631,6 +632,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'social-links': 'Social Media Links',
   'member-search': 'Member Search (Momence)',
   'momence-sessions': 'Sessions Picker (Momence)',
+  'hosted-class': 'Hosted Class',
   'appointment-slots': 'Appointment Time Slots',
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
@@ -659,7 +661,7 @@ export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Navigation & Layout': ['section-break', 'section-collapse', 'divider', 'spacer', 'html-snippet', 'page-break', 'hidden'],
   'Media': ['image', 'video', 'pdf-viewer', 'social-links'],
   'Advanced': ['lookup', 'formula', 'conditional', 'dependent'],
-  'Integrations': ['member-search', 'momence-sessions'],
+  'Integrations': ['member-search', 'momence-sessions', 'hosted-class'],
 };
 
 export function createDefaultField(type: FieldType, order: number): FormField {
@@ -710,8 +712,8 @@ export function createDefaultField(type: FieldType, order: number): FormField {
     base.helpText = 'Drop your nested fields here';
   }
 
-  if (type === 'momence-sessions') {
-    base.label = 'Select Sessions';
+  if (type === 'momence-sessions' || type === 'hosted-class') {
+    base.label = type === 'hosted-class' ? 'Hosted Class' : 'Select Sessions';
     base.momenceSessionsConfig = {
       dateRangeDays: 30,
       showDatePicker: true,

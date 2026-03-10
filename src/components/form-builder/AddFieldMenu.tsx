@@ -34,6 +34,7 @@ const FIELD_ICONS: Partial<Record<FieldType, React.ReactNode>> = {
   range: <SlidersHorizontal className="h-3.5 w-3.5" />,
   'member-search': <Users className="h-3.5 w-3.5" />,
   'momence-sessions': <CalendarDays className="h-3.5 w-3.5" />,
+  'hosted-class': <CalendarDays className="h-3.5 w-3.5" />,
   'appointment-slots': <CalendarDays className="h-3.5 w-3.5" />,
 };
 

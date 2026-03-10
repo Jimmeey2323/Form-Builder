@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   FormConfig,
   FormField,
@@ -173,7 +173,7 @@ function getDefaultFields(): FormField[] {
 
 function createDefaultForm(): FormConfig {
   return {
-    id: `form_${Date.now()}`,
+    id: `form_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     title: 'Book a Trial',
     subHeader: '',
     description: '',
@@ -230,6 +230,12 @@ export function useFormBuilder() {
     });
   });
 
+  // Avoid stale closures when creating/updating multiple forms within the same tick.
+  const formsRef = useRef<FormConfig[]>(forms);
+  useEffect(() => {
+    formsRef.current = forms;
+  }, [forms]);
+
   // Keep empty by default so opening /builder does not auto-open a form.
   const [activeFormId, setActiveFormId] = useState<string | null>(null);
 
@@ -264,6 +270,7 @@ export function useFormBuilder() {
         });
 
         setForms(loaded);
+        formsRef.current = loaded;
         localStorage.setItem('formcraft_forms', JSON.stringify(loaded));
       } catch {
         // local storage remains fallback
@@ -274,6 +281,7 @@ export function useFormBuilder() {
   }, []);
 
   const save = useCallback((updatedForms: FormConfig[]) => {
+    formsRef.current = updatedForms;
     setForms(updatedForms);
     localStorage.setItem('formcraft_forms', JSON.stringify(updatedForms));
 
@@ -308,15 +316,15 @@ export function useFormBuilder() {
 
   const createForm = useCallback(() => {
     const newForm = createDefaultForm();
-    const updated = [...forms, newForm];
+    const updated = [...formsRef.current, newForm];
     save(updated);
     setActiveFormId(newForm.id);
     return newForm;
-  }, [forms, save]);
+  }, [save]);
 
   const deleteForm = useCallback(
     (formId: string) => {
-      const updated = forms.filter(f => f.id !== formId);
+      const updated = formsRef.current.filter(f => f.id !== formId);
       save(updated);
 
       if (activeFormId === formId) {
@@ -342,62 +350,65 @@ export function useFormBuilder() {
 
       deleteFromSupabase();
     },
-    [forms, activeFormId, save],
+    [activeFormId, save],
   );
 
   const updateForm = useCallback(
     (formId: string, updates: Partial<FormConfig>, opts?: { force?: boolean }) => {
-      const target = forms.find(f => f.id === formId);
+      const current = formsRef.current;
+      const target = current.find(f => f.id === formId);
       if (!target) return false;
 
       const allowedWhileLocked = new Set(['isLocked', 'isPublished', 'deployedUrl', 'publicationState', 'updatedAt']);
-      const updateKeys = Object.keys(updates);
+      // Never allow id changes; ids are used as stable keys throughout the app.
+      const { id: _ignoredId, ...safeUpdates } = updates as Partial<FormConfig> & { id?: never };
+      const updateKeys = Object.keys(safeUpdates);
       const lockBypass = opts?.force || updateKeys.every(k => allowedWhileLocked.has(k));
       if (target.isLocked && !lockBypass) return false;
 
-      const updated = forms.map(f =>
-        f.id === formId ? { ...f, ...updates, updatedAt: new Date().toISOString() } : f,
+      const updated = current.map(f =>
+        f.id === formId ? { ...f, ...safeUpdates, updatedAt: new Date().toISOString() } : f,
       );
       save(updated);
       return true;
     },
-    [forms, save],
+    [save],
   );
 
   const addField = useCallback(
     (formId: string, fieldType: FieldType, overrides?: Partial<FormField>) => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return null;
       const newField = { ...createDefaultField(fieldType, form.fields.length), ...overrides };
       updateForm(formId, { fields: [...form.fields, newField] });
       return newField;
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   const updateField = useCallback(
     (formId: string, fieldId: string, updates: Partial<FormField>) => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return false;
       const updatedFields = form.fields.map(f => (f.id === fieldId ? { ...f, ...updates } : f));
       return updateForm(formId, { fields: updatedFields });
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   const deleteField = useCallback(
     (formId: string, fieldId: string) => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return false;
       const updatedFields = form.fields.filter(f => f.id !== fieldId).map((f, i) => ({ ...f, order: i }));
       return updateForm(formId, { fields: updatedFields });
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   const moveField = useCallback(
     (formId: string, fieldId: string, direction: 'up' | 'down') => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return false;
       const fields = [...form.fields].sort((a, b) => a.order - b.order);
       const idx = fields.findIndex(f => f.id === fieldId);
@@ -406,12 +417,12 @@ export function useFormBuilder() {
       [fields[idx].order, fields[swapIdx].order] = [fields[swapIdx].order, fields[idx].order];
       return updateForm(formId, { fields });
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   const reorderFields = useCallback(
     (formId: string, orderedIds: string[]) => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return false;
       const fieldMap = new Map(form.fields.map(f => [f.id, f]));
       const reordered = orderedIds
@@ -419,12 +430,12 @@ export function useFormBuilder() {
         .map((id, index) => ({ ...fieldMap.get(id)!, order: index }));
       return updateForm(formId, { fields: reordered });
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   const duplicateField = useCallback(
     (formId: string, fieldId: string) => {
-      const form = forms.find(f => f.id === formId);
+      const form = formsRef.current.find(f => f.id === formId);
       if (!form || form.isLocked) return null;
       const field = form.fields.find(f => f.id === fieldId);
       if (!field) return null;
@@ -438,7 +449,7 @@ export function useFormBuilder() {
       updateForm(formId, { fields: [...form.fields, newField] });
       return newField;
     },
-    [forms, updateForm],
+    [updateForm],
   );
 
   return {

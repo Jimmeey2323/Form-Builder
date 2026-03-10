@@ -43,18 +43,23 @@ async function getAccessToken(): Promise<string> {
   return cachedToken!;
 }
 
-async function fetchSessions(startDate: string, endDate: string): Promise<any> {
+async function fetchSessions(startDate: string, endDate: string, types?: string): Promise<any> {
   let token = await getAccessToken();
 
   const params = new URLSearchParams({
     page: "0",
     pageSize: "200",
-    sortOrder: "ASC",
+    sortOrder: "DESC",
     sortBy: "startsAt",
     includeCancelled: "false",
-    startAfter: `${startDate}T00:00:00.000Z`,
-    endBefore: `${endDate}T23:59:59.999Z`,
   });
+
+  // Date filters are always included; types[] filter is added on top when provided.
+  params.set("startAfter", `${startDate}T00:00:00.000Z`);
+  params.set("endBefore", `${endDate}T23:59:59.999Z`);
+  if (types) {
+    types.split(",").forEach((t) => params.append("types[]", t.trim()));
+  }
 
   let res = await fetch(`${MOMENCE_BASE}/host/sessions?${params}`, {
     headers: { accept: "application/json", authorization: `Bearer ${token}` },
@@ -106,24 +111,49 @@ async function fetchAllDetails(
   return map;
 }
 
-serve(async (req) => {
+// ── Bookings for a specific session ───────────────────────────────────────────
+async function fetchSessionBookings(token: string, sessionId: number): Promise<any[]> {
+  const params = new URLSearchParams({
+    page: "0",
+    pageSize: "100",
+    sortOrder: "DESC",
+    sortBy: "firstName",
+    includeCancelled: "false",
+  });
+  try {
+    const res = await fetch(`${MOMENCE_BASE}/host/sessions/${sessionId}/bookings?${params}`, {
+      headers: { accept: "application/json", authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.payload ?? data.bookings ?? [];
+  } catch {
+    return [];
+  }
+}
+
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    let startDate = "";
-    let endDate = "";
-
     const url = new URL(req.url);
-    startDate = url.searchParams.get("startDate") || "";
-    endDate = url.searchParams.get("endDate") || "";
-
+    let body: any = {};
     if (req.method === "POST") {
-      try {
-        const body = await req.json();
-        startDate = body.startDate || startDate;
-        endDate = body.endDate || endDate;
-      } catch { /* ignore */ }
+      try { body = await req.json(); } catch { /* ignore */ }
     }
+
+    // ── Bookings sub-action: POST { action: "bookings", sessionId: 123 } ──────
+    if (body.action === "bookings" && body.sessionId) {
+      const token = await getAccessToken();
+      const bookings = await fetchSessionBookings(token, Number(body.sessionId));
+      return new Response(JSON.stringify({ bookings }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    let startDate = url.searchParams.get("startDate") || body.startDate || "";
+    let endDate   = url.searchParams.get("endDate")   || body.endDate   || "";
+    let types     = url.searchParams.get("types")     || body.types     || "";
 
     if (!startDate || !endDate) {
       const today = new Date();
@@ -133,7 +163,7 @@ serve(async (req) => {
     }
 
     // 1. Fetch the session list
-    const data = await fetchSessions(startDate, endDate);
+    const data = await fetchSessions(startDate, endDate, types || undefined);
     const raw: any[] = data.payload ?? data.sessions ?? data ?? [];
 
     // 2. Fetch per-session detail in parallel batches (uses cached token)

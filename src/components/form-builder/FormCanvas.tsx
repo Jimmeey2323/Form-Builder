@@ -419,6 +419,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'momence-sessions':
+      case 'hosted-class':
         return (
           <select className="form-input" required={required} defaultValue="">
             <option value="" disabled>Select a session</option>

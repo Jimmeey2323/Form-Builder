@@ -300,7 +300,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
           </div>
           <svg class="msess-hdr-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <div class="msess-section-body" style="display:none">
+        <div class="msess-section-body">
         ${showDatePicker ? `<div class="msess-controls">
           <input type="date" class="form-input msess-start" title="From">
           <span class="msess-sep">to</span>
@@ -320,7 +320,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
               <svg class="msess-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
           </div>
-          <div class="msess-fields-grid" style="display:none">
+          <div class="msess-fields-grid">
             ${sf('Session Name', 'session_name', 'text', true)}
             ${sf('Start Time', 'session_start')}
             ${sf('End Time', 'session_end')}
@@ -347,6 +347,88 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
             ${sf('Online Stream URL', 'online_stream_url', 'url', true)}
           </div>
         </div>
+        <div class="msess-bookings"></div>
+        <input type="hidden" name="${pfxS}_bookings_json">
+        </div>
+      </div>
+    </div>`;
+    }
+    case 'hosted-class': {
+      const hCfg = field.momenceSessionsConfig;
+      const hRangeDays     = hCfg?.dateRangeDays ?? 30;
+      const hAllowMultiple = hCfg?.allowMultiple !== false;
+      const hShowDatePicker = hCfg?.showDatePicker !== false;
+      const pfxH = escapeHtml(field.name);
+      const reqMarkH = field.isRequired ? '<span class="required">*</span>' : '';
+      const sfH = (lbl: string, nm: string, type = 'text', span2 = false) =>
+        `<div class="form-group msess-field-group"${span2 ? ' style="grid-column:span 2"' : ''}>
+              <label class="msess-field-label">${lbl}</label>
+              <input type="${type}" name="${pfxH}_${nm}" readonly class="form-input msess-field" placeholder="Auto-filled">
+            </div>`;
+      return `
+    <div class="form-group"${hidden}${widthStyle}>
+      <div class="msess-section${cssClass}"${condAttrs}
+        data-momence-sessions="true"
+        data-session-type-filter="private"
+        data-range-days="${hRangeDays}"
+        data-allow-multiple="${hAllowMultiple}"
+        data-field-prefix="${pfxH}">
+        <div class="msess-section-header" style="cursor:pointer;justify-content:space-between" onclick="var b=this.nextElementSibling;var c=this.querySelector('.msess-hdr-chevron');var open=b.style.display!=='none';b.style.display=open?'none':'block';c.style.transform=open?'':'rotate(180deg)'">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+            <span class="msess-section-title">${escapeHtml(field.label)}${reqMarkH}</span>
+          </div>
+          <svg class="msess-hdr-chevron" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="msess-section-body">
+        ${hShowDatePicker ? `<div class="msess-controls">
+          <input type="date" class="form-input msess-start" title="From">
+          <span class="msess-sep">to</span>
+          <input type="date" class="form-input msess-end" title="To">
+          <button type="button" class="msess-load-btn">
+            <svg class="msess-load-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span class="msess-btn-text">Load Sessions</span>
+          </button>
+        </div>` : ''}
+        <div class="msess-list"><div class="msess-placeholder">Click <em>Load Sessions</em> to fetch available sessions.</div></div>
+        <input type="hidden" id="${field.id}" name="${escapeHtml(field.name)}">
+        <div class="msess-detail-fields">
+          <div class="msess-detail-divider" style="cursor:pointer" onclick="var g=this.nextElementSibling;var c=this.querySelector('.msess-chevron');var open=g.style.display==='grid';g.style.display=open?'none':'grid';c.style.transform=open?'':'rotate(180deg)'">
+            <span>Session Details</span>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="msess-detail-hint">Click to expand</span>
+              <svg class="msess-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;transition:transform 0.2s"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+          </div>
+          <div class="msess-fields-grid">
+            ${sfH('Session Name', 'session_name', 'text', true)}
+            ${sfH('Start Time', 'session_start')}
+            ${sfH('End Time', 'session_end')}
+            ${sfH('Duration (min)', 'duration_min')}
+            ${sfH('Instructor', 'instructor')}
+            ${sfH('Location', 'location')}
+            ${sfH('Level', 'level')}
+            ${sfH('Category', 'category')}
+            ${sfH('Capacity', 'capacity')}
+            ${sfH('Spots Left', 'spots_left')}
+            ${sfH('Booked Count', 'booked_count')}
+            ${sfH('Late Cancelled', 'late_cancelled')}
+            ${sfH('Price', 'price')}
+            ${sfH('Is Recurring', 'is_recurring')}
+            ${sfH('Is In-Person', 'is_in_person')}
+            ${sfH('Description', 'description', 'text', true)}
+            ${sfH('Tags', 'tags', 'text', true)}
+            ${sfH('Teacher Email', 'teacher_email', 'email')}
+            ${sfH('Original Teacher', 'original_teacher')}
+            ${sfH('Additional Teachers', 'additional_teachers', 'text', true)}
+            ${sfH('Waitlist Capacity', 'waitlist_capacity')}
+            ${sfH('Waitlist Booked', 'waitlist_booked')}
+            ${sfH('Zoom Link', 'zoom_link', 'url', true)}
+            ${sfH('Online Stream URL', 'online_stream_url', 'url', true)}
+          </div>
+        </div>
+        <div class="msess-bookings"></div>
+        <input type="hidden" name="${pfxH}_bookings_json">
         </div>
       </div>
     </div>`;
@@ -1238,13 +1320,15 @@ function generateMomenceSearchScript(config: FormConfig): string {
 }
 
 function generateMomenceSessionsScript(config: FormConfig): string {
-  const hasSessions = config.fields.some(f => f.type === 'momence-sessions');
+  const hasSessions = config.fields.some(f => f.type === 'momence-sessions' || f.type === 'hosted-class');
   if (!hasSessions) return '';
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9sZWlvZGl2dWJodGNhZ3JsZnVnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYwMTkxMjYsImV4cCI6MjA4MTU5NTEyNn0.QH_201DUxgNACmV9_48z1UUM5rFoy0-0yACIBBRkT2s';
   return `
         // ── Momence Sessions Picker ────────────────────────────────────────────
         (function () {
           var SESS_URL = '${supabaseUrl}/functions/v1/momence-sessions';
+          var SESS_KEY = '${supabaseAnonKey}';
 
           function pad(n) { return n < 10 ? '0' + n : String(n); }
           function toDateStr(d) {
@@ -1298,6 +1382,31 @@ function generateMomenceSessionsScript(config: FormConfig): string {
           function pick(sessions, prop) {
             return sessions.map(function(s){ return s[prop] != null ? String(s[prop]) : ''; })
               .filter(Boolean).join(', ');
+          }
+
+          // ── normalize raw Momence API shape → enriched shape ───────────────
+          function normalizeSession(s) {
+            var instructor = s.instructor;
+            if (!instructor && s.teacher) {
+              instructor = ((s.teacher.firstName || '') + ' ' + (s.teacher.lastName || '')).trim();
+            }
+            var location = s.location || (s.inPersonLocation && s.inPersonLocation.name) || null;
+            var durationMin = s.durationMin != null ? s.durationMin : (s.durationInMinutes != null ? s.durationInMinutes : null);
+            var bookedCount = s.bookedCount != null ? s.bookedCount : (s.bookingCount != null ? s.bookingCount : null);
+            var spotsLeft = s.spotsLeft != null ? s.spotsLeft
+              : (s.capacity != null && bookedCount != null ? Math.max(0, s.capacity - bookedCount) : null);
+            var tags = s.tags;
+            if (Array.isArray(tags)) {
+              tags = tags.map(function(t){ return typeof t === 'string' ? t : (t.name || t.label || ''); }).filter(Boolean).join(', ');
+            }
+            return Object.assign({}, s, {
+              instructor: instructor,
+              location: location,
+              durationMin: durationMin,
+              bookedCount: bookedCount,
+              spotsLeft: spotsLeft,
+              tags: tags,
+            });
           }
 
           // ── render session list ───────────────────────────────────────────
@@ -1387,6 +1496,88 @@ function generateMomenceSessionsScript(config: FormConfig): string {
             });
           }
 
+          // ── fetch bookings for a selected session ──────────────────────────
+          function loadBookings(wrap, sessionId) {
+            var bWrap = wrap.querySelector('.msess-bookings');
+            if (!bWrap) return;
+            bWrap.innerHTML = '<div class="msess-bookings-loading">Loading bookings…</div>';
+            fetch(SESS_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': SESS_KEY, 'Authorization': 'Bearer ' + SESS_KEY },
+              body: JSON.stringify({ action: 'bookings', sessionId: sessionId }),
+            })
+              .then(function(r) { return r.json(); })
+              .then(function(data) { renderBookings(wrap, data.bookings || []); })
+              .catch(function() { bWrap.innerHTML = '<div class="msess-bookings-error">Failed to load bookings.</div>'; });
+          }
+
+          function renderBookings(wrap, bookings) {
+            var bWrap = wrap.querySelector('.msess-bookings');
+            var pfx = wrap.dataset.fieldPrefix || '';
+            if (!bWrap) return;
+            if (!bookings.length) {
+              bWrap.innerHTML = '<div class="msess-bookings-empty">No bookings found for this session.</div>';
+              return;
+            }
+            var STATUSES = ['','Trial Scheduled','Not Interested - Other','Trial Completed','Shared Pricing & Schedule Details','Membership Sold','Client Unresponsive','New Enquiry','Sent Introductory message','Shared Class Descriptions and Benefits','Post Trial Follow Up','Not Interested - Proximity Issues','Will get back to us at a later date','Lead Dropped or Lost','Called - Did Not Answer','Called - Asked to Call back later','Language Barrier - Couldn\'t comprehend or speak the language','Called - Invalid Contact No','Not Interested - Timings not suitable','Not Interested - Pricing Issues','Trial Rescheduled','Not Interested - Health Issues','Initial Contact','No Response after Trial','Trial Completed - Other Issues','Trial Completed - Unresponsive','Will come back once I exhaust my current gym membership','Trial Completed - Proximity Issues','Trial Completed - Pricing Issues','Trial Completed - Currently Travelling','Called - Client out of town/traveling','Shared Pricing & Schedule details on WhatsApp','Called - Did not answer','Sent Introductory Message','Looking for Virtual Classes','Followed up with Trial Participants','Shared Membership Packages And Exclusive Deals','Looking For Virtual Classes','Positive Trial Feedback - Interested in Membership'];
+            var statusOpts = STATUSES.map(function(s){ return '<option value="'+escHtml(s)+'">'+(s||'-- Select Status --')+'</option>'; }).join('');
+            var html = '<div class="msess-bookings-header"><span>Bookings (' + bookings.length + ')</span></div>';
+            html += '<div class="msess-bookings-scroll"><table class="msess-bookings-table"><thead><tr>';
+            html += '<th>#</th><th>Member</th><th>Email</th><th>Phone</th><th>Checked In</th><th>Tickets</th><th>Status</th><th>Comment</th>';
+            html += '</tr></thead><tbody>';
+            bookings.forEach(function(b, i) {
+              var m = b.member || {};
+              var name = ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || '\u2014';
+              var isCancelled = !!b.cancelledAt;
+              var isCheckedIn = !!b.checkedIn;
+              html += '<tr' + (isCancelled ? ' class="msess-row-cancelled"' : '') + '>';
+              html += '<td class="msess-td-num">' + (i + 1) + '</td>';
+              html += '<td class="msess-td-name">';
+              if (m.pictureUrl) html += '<img src="' + escHtml(m.pictureUrl) + '" class="msess-member-avatar" alt="">';
+              html += escHtml(name);
+              if (isCancelled) html += ' <span class="msess-cancelled-badge">Cancelled</span>';
+              html += '</td>';
+              html += '<td>' + escHtml(m.email || '\u2014') + '</td>';
+              html += '<td>' + escHtml(m.phoneNumber || '\u2014') + '</td>';
+              html += '<td style="text-align:center">' + (isCheckedIn ? '\u2705' : '\u2014') + '</td>';
+              html += '<td style="text-align:center">' + (b.ticketsBought != null ? b.ticketsBought : '\u2014') + '</td>';
+              html += '<td><select class="form-input msess-booking-status" data-member-id="' + escHtml(String(m.id || i)) + '" data-member-name="' + escHtml(name) + '">' + statusOpts + '</select></td>';
+              html += '<td><textarea class="form-input msess-booking-comment" rows="2" data-member-id="' + escHtml(String(m.id || i)) + '" data-member-name="' + escHtml(name) + '" data-checked-in="' + (isCheckedIn ? '1' : '0') + '" placeholder="' + (isCheckedIn ? 'Required for checked-in members\u2026' : 'Add comment\u2026') + '"' + (isCheckedIn ? ' required' : '') + '></textarea></td>';
+              html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<button type="button" class="msess-save-comments-btn">\ud83d\udcbe Save Comments</button>';
+            bWrap.innerHTML = html;
+            bWrap.querySelector('.msess-save-comments-btn').addEventListener('click', function() {
+              var invalid = false;
+              bWrap.querySelectorAll('.msess-booking-comment').forEach(function(ta) {
+                if (ta.dataset.checkedIn === '1' && !ta.value.trim()) {
+                  ta.style.borderColor = '#ef4444';
+                  invalid = true;
+                } else {
+                  ta.style.borderColor = '';
+                }
+              });
+              if (invalid) {
+                alert('Please add a comment for all checked-in members before saving.');
+                return;
+              }
+              var rows = [];
+              bWrap.querySelectorAll('.msess-booking-comment').forEach(function(ta) {
+                var statusEl = bWrap.querySelector('.msess-booking-status[data-member-id="' + ta.dataset.memberId + '"]');
+                rows.push({ memberId: ta.dataset.memberId, memberName: ta.dataset.memberName, status: statusEl ? statusEl.value : '', comment: ta.value });
+              });
+              var hidEl = wrap.querySelector('[name="' + pfx + '_bookings_json"]');
+              if (hidEl) {
+                hidEl.value = JSON.stringify(rows);
+                hidEl.dispatchEvent(new Event('change', { bubbles: true }));
+              }
+              var btn = bWrap.querySelector('.msess-save-comments-btn');
+              btn.textContent = '\u2705 Comments Saved';
+              setTimeout(function() { btn.textContent = '\ud83d\udcbe Save Comments'; }, 2000);
+            });
+          }
+
           // ── sync hidden field + auto-fill all prefix-named sub-fields ─────
           function syncHidden(wrap, sessions) {
             var pfx  = wrap.dataset.fieldPrefix || '';
@@ -1399,9 +1590,25 @@ function generateMomenceSessionsScript(config: FormConfig): string {
               return sessions.find(function(x){ return String(x.id) === id; });
             }).filter(Boolean);
 
-            // sv() always writes (even '') to clear stale values on deselect
+            // hide session list, show detail fields when a selection is made
+            var list = wrap.querySelector('.msess-list');
+            var grid = wrap.querySelector('.msess-fields-grid');
+            var detailFields = wrap.querySelector('.msess-detail-fields');
+            var detailDivider = wrap.querySelector('.msess-detail-divider');
+            if (ids.length > 0) {
+              if (list) list.style.display = 'none';
+              if (grid) grid.style.display = 'grid';
+              if (detailFields) detailFields.style.display = 'block';
+              if (detailDivider) detailDivider.style.display = 'none';
+            } else {
+              if (list) list.style.display = 'flex';
+              if (grid) grid.style.display = 'none';
+              if (detailFields) detailFields.style.display = 'none';
+            }
+
+            // sv() writes into this wrap's scoped fields
             function sv(name, val) {
-              var el = document.querySelector('[name="' + name + '"]');
+              var el = wrap.querySelector('[name="' + name + '"]');
               if (!el) return;
               el.value = val == null ? '' : String(val);
               el.dispatchEvent(new Event('input',  { bubbles: true }));
@@ -1432,6 +1639,13 @@ function generateMomenceSessionsScript(config: FormConfig): string {
             sv(pfx + '_waitlist_booked',      pick(selected, 'waitlistBookingCount'));
             sv(pfx + '_zoom_link',            pick(selected, 'zoomLink'));
             sv(pfx + '_online_stream_url',    pick(selected, 'onlineStreamUrl'));
+
+            if (ids.length === 1) {
+              loadBookings(wrap, ids[0]);
+            } else {
+              var bWrap = wrap.querySelector('.msess-bookings');
+              if (bWrap) bWrap.innerHTML = '';
+            }
           }
 
           // ── fetch & render ────────────────────────────────────────────────
@@ -1446,17 +1660,33 @@ function generateMomenceSessionsScript(config: FormConfig): string {
             var future = new Date(); future.setDate(today.getDate() + rangeDays);
             var startDate = startEl ? startEl.value : toDateStr(today);
             var endDate   = endEl   ? endEl.value   : toDateStr(future);
+            var typeFilter = wrap.dataset.sessionTypeFilter || '';
 
             if (btn) { btn.disabled = true; btn.classList.add('loading'); }
             list.innerHTML = '<div class="msess-placeholder">Loading sessions…</div>';
 
+            var reqBody = { startDate: startDate, endDate: endDate };
+            if (typeFilter) reqBody.types = typeFilter;
+
             fetch(SESS_URL, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ startDate: startDate, endDate: endDate }),
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': SESS_KEY,
+                'Authorization': 'Bearer ' + SESS_KEY,
+              },
+              body: JSON.stringify(reqBody),
             })
               .then(function (r) { return r.json(); })
-              .then(function (data) { renderSessions(wrap, data.sessions || []); })
+              .then(function (data) { 
+                var normalized = (data.sessions || data.payload || []).map(normalizeSession);
+                renderSessions(wrap, normalized);
+                // hide detail fields until a session is selected
+                var grid = wrap.querySelector('.msess-fields-grid');
+                var detailFields = wrap.querySelector('.msess-detail-fields');
+                if (grid) grid.style.display = 'none';
+                if (detailFields) detailFields.style.display = 'none';
+              })
               .catch(function () {
                 list.innerHTML = '<div class="msess-error">Failed to load sessions — please try again.</div>';
               })
@@ -3976,6 +4206,43 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .msess-field-group > label { font-size: 10px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 4px; }
         .msess-field { background: var(--bg-primary) !important; font-size: 12.5px !important; color: var(--text-secondary) !important; }
         .msess-error { padding: 14px; text-align:center; color:#ef4444; font-size:13px; }
+        /* ── Bookings Table ─────────────────────────────────────────────── */
+        .msess-bookings { padding: 0 16px 16px; }
+        .msess-bookings-loading, .msess-bookings-empty, .msess-bookings-error {
+          padding: 12px 0; font-size: 13px; color: var(--text-secondary); text-align: center;
+        }
+        .msess-bookings-error { color: #ef4444; }
+        .msess-bookings-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 0 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
+          text-transform: uppercase; letter-spacing: 0.06em;
+          border-top: 1px solid var(--border-color); margin-top: 4px;
+        }
+        .msess-bookings-scroll { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); margin-top: 6px; }
+        .msess-bookings-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+        .msess-bookings-table thead th {
+          background: var(--bg-secondary); padding: 8px 10px; text-align: left;
+          font-size: 11px; font-weight: 700; color: var(--text-secondary);
+          text-transform: uppercase; letter-spacing: 0.05em;
+          border-bottom: 1px solid var(--border-color); white-space: nowrap;
+        }
+        .msess-bookings-table tbody tr { border-bottom: 1px solid var(--border-color); }
+        .msess-bookings-table tbody tr:last-child { border-bottom: none; }
+        .msess-bookings-table tbody tr:hover { background: var(--bg-secondary); }
+        .msess-bookings-table tbody td { padding: 7px 10px; vertical-align: middle; color: var(--text-primary); }
+        .msess-td-num { color: var(--text-secondary); font-size: 11px; width: 28px; text-align: center; }
+        .msess-td-name { display: flex; align-items: center; gap: 7px; white-space: nowrap; font-weight: 500; }
+        .msess-member-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .msess-cancelled-badge { font-size: 10px; background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 4px; padding: 1px 5px; font-weight: 600; }
+        .msess-row-cancelled td { opacity: 0.55; }
+        .msess-booking-comment { width: 100%; min-width: 160px; min-height: 60px; resize: vertical; padding: 5px 8px !important; font-size: 12px !important; }
+        .msess-booking-status { min-width: 180px; padding: 4px 8px !important; font-size: 12px !important; }
+        .msess-save-comments-btn {
+          margin-top: 10px; padding: 7px 16px; font-size: 12px; font-weight: 600;
+          background: var(--primary-color); color: #fff; border: none; border-radius: 8px;
+          cursor: pointer; transition: opacity 0.15s;
+        }
+        .msess-save-comments-btn:hover { opacity: 0.88; }
         @media (max-width: 520px) {
           .mmember-fields-grid, .msess-fields-grid { grid-template-columns: 1fr; }
         }
