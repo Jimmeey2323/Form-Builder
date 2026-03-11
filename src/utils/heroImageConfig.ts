@@ -6,6 +6,12 @@ export interface NormalizedHeroImageConfig {
   cropY: number;
   zoom: number;
   height: number;
+  overlayColor?: string;
+  overlayOpacity?: number;
+  brightness?: number;
+  blur?: number;
+  contrast?: number;
+  grayscale?: number;
 }
 
 interface NormalizeHeroOptions {
@@ -73,6 +79,12 @@ export function normalizeHeroImageValue(
     cropY: clamp(cropY ?? fallbackCropY, 0, 100),
     zoom: clamp(zoom ?? DEFAULT_ZOOM, 50, 240),
     height: clamp(height ?? defaultHeight, 180, 1200),
+    overlayColor: value.overlayColor,
+    overlayOpacity: value.overlayOpacity,
+    brightness: value.brightness,
+    blur: value.blur,
+    contrast: value.contrast,
+    grayscale: value.grayscale,
   };
 }
 

@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Template, templateCategories, getTemplatesByCategory } from '@/data/templates';
-import { Search, Sparkles, Plus, Upload, Trash2, Star } from 'lucide-react';
+import { Search, Sparkles, Plus, Upload, Trash2, Star, Link2 } from 'lucide-react';
 
 interface TemplateSelectionDialogProps {
   open: boolean;
@@ -22,6 +22,8 @@ interface TemplateSelectionDialogProps {
   userTemplates?: Template[];
   /** Called when user clicks the "Import CSV" button */
   onImportCsv?: () => void;
+  /** Called when user clicks "Import Fillout URL" */
+  onImportFillout?: () => void;
   /** Called when user deletes a user template */
   onDeleteTemplate?: (id: string) => void;
 }
@@ -33,6 +35,7 @@ export function TemplateSelectionDialog({
   onCreateBlank,
   userTemplates = [],
   onImportCsv,
+  onImportFillout,
   onDeleteTemplate,
 }: TemplateSelectionDialogProps) {
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -69,17 +72,30 @@ export function TemplateSelectionDialog({
                 Start with a pre-built template, import from CSV, or create a blank form
               </DialogDescription>
             </div>
-            {onImportCsv && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onImportCsv}
-                className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50 shrink-0"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Import CSV
-              </Button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {onImportFillout && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onImportFillout}
+                  className="gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+                >
+                  <Link2 className="h-3.5 w-3.5" />
+                  Import Fillout
+                </Button>
+              )}
+              {onImportCsv && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onImportCsv}
+                  className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Import CSV
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 
@@ -183,6 +199,11 @@ export function TemplateSelectionDialog({
                   {onImportCsv && (
                     <Button variant="outline" size="sm" onClick={onImportCsv} className="gap-2">
                       <Upload className="h-3.5 w-3.5" /> Import from CSV
+                    </Button>
+                  )}
+                  {onImportFillout && (
+                    <Button variant="outline" size="sm" onClick={onImportFillout} className="gap-2">
+                      <Link2 className="h-3.5 w-3.5" /> Import Fillout URL
                     </Button>
                   )}
                 </div>

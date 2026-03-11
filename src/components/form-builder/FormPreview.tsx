@@ -46,9 +46,9 @@ export function FormPreview({ form }: FormPreviewProps) {
   const deviceCfg = DEVICE_CONFIG[device];
 
   return (
-    <div className="h-[calc(100vh-168px)] flex flex-col overflow-hidden rounded-xl border border-border/60 bg-slate-50/60 shadow-sm">
+    <div className="premium-surface h-[calc(100vh-168px)] flex flex-col overflow-hidden rounded-[24px]">
       {/* ── Chrome bar ──────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border/50 bg-white/90 backdrop-blur">
+      <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-border/50 bg-white/80 backdrop-blur-md">
         {/* Traffic lights */}
         <div className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-rose-400/80" />
@@ -74,7 +74,7 @@ export function FormPreview({ form }: FormPreviewProps) {
         </div>
 
         {/* Device toggle */}
-        <div className="flex items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 shrink-0">
+        <div className="premium-tabs flex items-center gap-0.5 rounded-lg p-0.5 shrink-0">
           {(Object.keys(DEVICE_CONFIG) as DeviceMode[]).map(mode => (
             <button
               key={mode}
@@ -82,7 +82,7 @@ export function FormPreview({ form }: FormPreviewProps) {
               title={DEVICE_CONFIG[mode].label}
               className={`flex items-center justify-center h-6 w-7 rounded-md transition-all ${
                 device === mode
-                  ? 'bg-white shadow-sm text-indigo-600 border border-slate-200/80'
+                  ? 'bg-white shadow-sm text-cyan-700 border border-slate-200/80'
                   : 'text-slate-400 hover:text-slate-600'
               }`}
             >

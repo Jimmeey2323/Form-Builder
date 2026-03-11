@@ -15,6 +15,30 @@ interface GenerateOptions {
   previewMode?: boolean;
 }
 
+// ── SVG icons for rating fields (fill/stroke handled via currentColor) ────────────────
+function getRatingSvgIcon(iconType: string): string {
+  type IconDef = { d: string; fill?: boolean };
+  const icons: Record<string, IconDef> = {
+    'star':      { d: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', fill: true },
+    'heart':     { d: 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z', fill: true },
+    'thumbs-up': { d: 'M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3' },
+    'flame':     { d: 'M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z' },
+    'smile':     { d: 'M8 14s1.5 2 4 2 4-2 4-2M15.5 9h.01M8.5 9h.01M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z' },
+    'zap':       { d: 'M13 2L3 14h9l-1 8 10-12h-9l1-8', fill: true },
+    'award':     { d: 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM8.21 13.89L7 23l5-3 5 3-1.21-9.12' },
+    'shield':    { d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+    'sun':       { d: 'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42' },
+    'target':    { d: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-4a6 6 0 1 0 0-12 6 6 0 0 0 0 12zm0-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z' },
+    'dumbbell':  { d: 'M6.5 6v12M6.5 6c-1.1 0-2 .9-2 2v2c0 1.1.9 2 2 2M6.5 18c-1.1 0-2-.9-2-2v-2c0-1.1.9-2 2-2M17.5 6v12M17.5 6c1.1 0 2 .9 2 2v2c0 1.1-.9 2-2 2M17.5 18c1.1 0 2-.9 2-2v-2c0-1.1-.9-2-2-2M6.5 10h11M6.5 14h11M2 9h4.5M2 15h4.5M17.5 9H22M17.5 15H22' },
+    'bike':      { d: 'M5 20a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm14 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM12 17l-3-4h5l2-5M5 17l5-6M9 5h4l2 3' },
+    'trophy':    { d: 'M8 21h8M12 21v-6M4 3h16v2a8 8 0 0 1-16 0V3zM4 5H2v4a3 3 0 0 0 3 3h.5M20 5h2v4a3 3 0 0 1-3 3h-.5' },
+    'activity':  { d: 'M22 12h-4l-3 9L9 3l-3 9H2' },
+  };
+  const icon = icons[iconType] || icons['star'];
+  const fillAttr = icon.fill ? 'fill="currentColor" stroke="none"' : 'fill="none" stroke="currentColor" stroke-width="2"';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" ${fillAttr} stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;pointer-events:none"><path d="${icon.d}"/></svg>`;
+}
+
 function generateFormTitle(config: FormConfig): string {
   const title = config.title;
   const theme = config.theme;
@@ -146,39 +170,107 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       </div>`;
       break;
     }
-    case 'select':
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}">
+    case 'select': {
+      const otherInput = field.allowOther
+        ? `\n      <input id="other_${field.id}" type="text" name="${field.name}_other" placeholder="Please specify…" class="form-input form-other-input" style="display:none;margin-top:8px">`
+        : '';
+      const selectOnChange = field.allowOther
+        ? ` onchange="var o=document.getElementById('other_${field.id}');if(o)o.style.display=this.value==='__other__'?'block':'none'"`
+        : '';
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${selectOnChange} class="form-input${cssClass}">
         <option value="" disabled selected>${field.placeholder || 'Select an option'}</option>
         ${(field.options || []).map(o => {
           const condData = getOptionCondData(field, o.value, o.conditionalRule);
           return `<option value="${escapeHtml(o.value)}"${condData}>${escapeHtml(o.label)}</option>`;
-        }).join('\n        ')}
-      </select>`;
+        }).join('\n        ')}${field.allowOther ? '\n        <option value="__other__">Other\u2026</option>' : ''}
+      </select>${otherInput}`;
       break;
-    case 'radio':
+    }
+    case 'radio': {
+      const otherInput = field.allowOther
+        ? `\n        <input id="other_${field.id}" type="text" name="${field.name}_other" placeholder="Please specify…" class="form-input form-other-input" style="display:none;margin-top:6px">`
+        : '';
+      const otherRadio = field.allowOther
+        ? `\n        <label class="radio-option radio-option-other"><input type="radio" name="${field.name}" value="__other__"${required}${disabled} onchange="var o=document.getElementById('other_${field.id}');if(o)o.style.display=this.checked?'block':'none'"> Other\u2026</label>`
+        : '';
       inputHtml = `<div class="radio-group${cssClass}"${condAttrs}>
         ${(field.options || []).map(o => {
           const condData = getOptionCondData(field, o.value, o.conditionalRule);
           return `<label class="radio-option"${condData}><input type="radio" name="${field.name}" value="${escapeHtml(o.value)}"${required}${disabled}> ${escapeHtml(o.label)}</label>`;
-        }).join('\n        ')}
+        }).join('\n        ')}${otherRadio}${otherInput}
       </div>`;
       break;
-    case 'checkbox':
+    }
+    case 'checkbox': {
+      const otherInputCb = field.allowOther && (field.options || []).length > 0
+        ? `\n        <input id="other_${field.id}" type="text" name="${field.name}_other" placeholder="Please specify…" class="form-input form-other-input" style="display:none;margin-top:6px">`
+        : '';
+      const otherCheckbox = field.allowOther && (field.options || []).length > 0
+        ? `\n        <label class="checkbox-option checkbox-option-other"><input type="checkbox" name="${field.name}" value="__other__"${disabled} onchange="var o=document.getElementById('other_${field.id}');if(o)o.style.display=this.checked?'block':'none'"> Other\u2026</label>`
+        : '';
       inputHtml = `<div class="checkbox-group${cssClass}"${condAttrs}>
         ${(field.options || []).map(o => {
           const condData = getOptionCondData(field, o.value, o.conditionalRule);
           return `<label class="checkbox-option"${condData}><input type="checkbox" name="${field.name}" value="${escapeHtml(o.value)}"${disabled}> ${escapeHtml(o.label)}</label>`;
-        }).join('\n        ')}
+        }).join('\n        ')}${otherCheckbox}${otherInputCb}
       </div>`;
       break;
+    }
+    case 'checkboxes':
+    case 'multiple-choice': {
+      const otherInputMC = field.allowOther
+        ? `\n        <input id="other_${field.id}" type="text" name="${field.name}_other" placeholder="Please specify…" class="form-input form-other-input" style="display:none;margin-top:6px">`
+        : '';
+      const otherMC = field.allowOther
+        ? `\n        <label class="checkbox-option checkbox-option-other"><input type="checkbox" name="${field.name}" value="__other__"${disabled} onchange="var o=document.getElementById('other_${field.id}');if(o)o.style.display=this.checked?'block':'none'"> Other\u2026</label>`
+        : '';
+      inputHtml = `<div class="checkbox-group${cssClass}"${condAttrs}>
+        ${(field.options || []).map(o => {
+          const condData = getOptionCondData(field, o.value, o.conditionalRule);
+          return `<label class="checkbox-option"${condData}><input type="checkbox" name="${field.name}" value="${escapeHtml(o.value)}"${disabled}> ${escapeHtml(o.label)}</label>`;
+        }).join('\n        ')}${otherMC}${otherInputMC}
+      </div>`;
+      break;
+    }
     case 'hidden':
       return `    <input type="hidden" id="${field.id}" name="${field.name}"${defaultVal}${condAttrs}>`;
-    case 'rating':
-      const max = field.max || 5;
-      inputHtml = `<div class="rating-group${cssClass}"${condAttrs}>
-        ${Array.from({ length: max }, (_, i) => `<label class="rating-star"><input type="radio" name="${field.name}" value="${i + 1}"${required}> ★</label>`).join('\n        ')}
+    case 'rating': {
+      const rMax = field.max || 5;
+      const rIcon = (field as any).ratingIcon || 'star';
+      const rDefault = field.defaultValue ? Number(field.defaultValue) : undefined;
+      inputHtml = `<div class="rating-group${cssClass}"${condAttrs}>\n    ${Array.from({ length: rMax }, (_, i) => rMax - i).map(val =>
+        `<label class="rating-star" data-value="${val}"><input type="radio" name="${field.name}" value="${val}"${required}${Number.isFinite(rDefault) && rDefault === val ? ' checked' : ''}>${getRatingSvgIcon(rIcon)}</label>`
+      ).join('\n    ')}\n  </div>`;
+      break;
+    }
+    case 'range': {
+      const rMin = field.min ?? 0;
+      const rMax = field.max ?? 100;
+      const rStep = field.step ?? 1;
+      const rVal = field.defaultValue ? Number(field.defaultValue) : Math.round((rMin + rMax) / 2);
+      const showVal = field.rangeShowValue !== false;
+      const suffix = escapeHtml(field.rangeValueSuffix || '');
+      inputHtml = `<div class="range-group${cssClass}"${condAttrs}>
+        <input type="range" id="${field.id}" name="${field.name}" min="${rMin}" max="${rMax}" step="${rStep}" value="${Number.isFinite(rVal) ? rVal : rMin}"${required}${disabled} class="range-input">
+        ${showVal ? `<div class="range-meta">
+          <span class="range-min">${rMin}${suffix}</span>
+          <span class="range-value" data-suffix="${suffix}">${Number.isFinite(rVal) ? rVal : rMin}${suffix}</span>
+          <span class="range-max">${rMax}${suffix}</span>
+        </div>` : ''}
       </div>`;
       break;
+    }
+    case 'password': {
+      if (field.passwordReveal) {
+        inputHtml = `<div class="password-group${cssClass}"${condAttrs}>
+          <input type="password" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${pattern}${autocomplete}${defaultVal} class="form-input password-input">
+          <button type="button" class="password-toggle" onclick="togglePassword('${field.id}')">Show</button>
+        </div>`;
+      } else {
+        inputHtml = `<input type="password" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${pattern}${autocomplete}${defaultVal} class="form-input${cssClass}">`;
+      }
+      break;
+    }
     case 'lookup':
       inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="form-input${cssClass}" data-lookup="true">
         <option value="" disabled selected>Select...</option>
@@ -312,7 +404,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         </div>` : ''}
         <div class="msess-list"><div class="msess-placeholder">Click <em>Load Sessions</em> to fetch available sessions.</div></div>
         <input type="hidden" id="${field.id}" name="${escapeHtml(field.name)}">
-        <div class="msess-detail-fields">
+        <div class="msess-detail-fields" style="display:none">
           <div class="msess-detail-divider" style="cursor:pointer" onclick="var g=this.nextElementSibling;var c=this.querySelector('.msess-chevron');var open=g.style.display==='grid';g.style.display=open?'none':'grid';c.style.transform=open?'':'rotate(180deg)'">
             <span>Session Details</span>
             <div style="display:flex;align-items:center;gap:6px">
@@ -370,6 +462,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       <div class="msess-section${cssClass}"${condAttrs}
         data-momence-sessions="true"
         data-session-type-filter="private"
+        data-manual-load="true"
         data-range-days="${hRangeDays}"
         data-allow-multiple="${hAllowMultiple}"
         data-field-prefix="${pfxH}">
@@ -392,7 +485,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         </div>` : ''}
         <div class="msess-list"><div class="msess-placeholder">Click <em>Load Sessions</em> to fetch available sessions.</div></div>
         <input type="hidden" id="${field.id}" name="${escapeHtml(field.name)}">
-        <div class="msess-detail-fields">
+        <div class="msess-detail-fields" style="display:none">
           <div class="msess-detail-divider" style="cursor:pointer" onclick="var g=this.nextElementSibling;var c=this.querySelector('.msess-chevron');var open=g.style.display==='grid';g.style.display=open?'none':'grid';c.style.transform=open?'':'rotate(180deg)'">
             <span>Session Details</span>
             <div style="display:flex;align-items:center;gap:6px">
@@ -547,12 +640,30 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       break;
     }
     case 'conditional':
-    case 'dependent':
       inputHtml = `<input type="text" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${condAttrs}${defaultVal} class="form-input${cssClass}">`;
       break;
+    case 'dependent': {
+      const depSource = field.dependentOptionsConfig?.sourceFieldId;
+      const depPlaceholder = field.placeholder || (depSource ? `Select (depends on ${depSource})` : 'Select an option');
+      const depOptions = (field.options && field.options.length > 0)
+        ? field.options
+        : [
+            { label: 'Option A', value: 'option_a' },
+            { label: 'Option B', value: 'option_b' },
+          ];
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}">
+        <option value="" disabled selected>${escapeHtml(depPlaceholder)}</option>
+        ${depOptions.map(o => {
+          const condData = getOptionCondData(field, o.value, o.conditionalRule);
+          return `<option value="${escapeHtml(o.value)}"${condData}>${escapeHtml(o.label)}</option>`;
+        }).join('\n        ')}
+      </select>`;
+      break;
+    }
     case 'signature':
+      const sigHeight = field.signatureHeight ?? 200;
       inputHtml = `<div class="signature-pad${cssClass}"${condAttrs}>
-        <canvas id="sig_${field.id}" width="400" height="200" style="touch-action:none;"></canvas>
+        <canvas id="sig_${field.id}" width="400" height="${sigHeight}" style="touch-action:none;"></canvas>
         <input type="hidden" id="${field.id}" name="${field.name}"${required}>
         <div class="sig-controls">
           <button type="button" class="clear-sig" onclick="clearSignature('${field.id}')">Clear</button>
@@ -665,18 +776,37 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         <input type="number" id="${field.id}" name="${field.name}"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || '0.00')}"${minVal}${maxVal}${stepVal}${autocomplete} class="form-input currency-input">
       </div>`;
       break;
+    case 'choice-matrix': {
+      const cmMax = field.max || 5;
+      const cols = Array.from({ length: cmMax }).map((_, i) => i + 1);
+      const rows = field.options || [];
+      inputHtml = `<div class="choice-matrix-group${cssClass}"${condAttrs}>
+        <div class="choice-matrix-grid" style="display:grid;grid-template-columns:repeat(${cols.length + 1}, minmax(0,1fr));gap:6px;align-items:center;">
+          <div></div>
+          ${cols.map(c => `<div class="choice-matrix-col">${c}</div>`).join('')}
+          ${rows.map(r => `
+            <div class="choice-matrix-row">${escapeHtml(r.label)}</div>
+            ${cols.map(c => `<div class="choice-matrix-cell"><input type="radio" name="${field.name}_${escapeHtml(r.value)}" value="${c}"${required}></div>`).join('')}
+          `).join('')}
+        </div>
+      </div>`;
+      break;
+    }
     case 'ranking':
       inputHtml = `<div class="ranking-group${cssClass}"${condAttrs}>
         ${(field.options || []).map((o, i) => `<div class="ranking-item" data-value="${i + 1}"><span class="ranking-number">${i + 1}.</span> <span class="ranking-label">${escapeHtml(o.label)}</span></div>`).join('\n        ')}
         <input type="hidden" id="${field.id}" name="${field.name}">
       </div>`;
       break;
-    case 'star-rating':
-      const starMax = field.max || 5;
-      inputHtml = `<div class="star-rating-group${cssClass}"${condAttrs}>
-        ${Array.from({ length: starMax }, (_, i) => `<label class="star-rating-star"><input type="radio" name="${field.name}" value="${i + 1}"${required}> ★</label>`).join('\n        ')}
-      </div>`;
+    case 'star-rating': {
+      const srMax = field.max || 5;
+      const srIcon = (field as any).ratingIcon || 'star';
+      const srDefault = field.defaultValue ? Number(field.defaultValue) : undefined;
+      inputHtml = `<div class="rating-group${cssClass}"${condAttrs}>\n    ${Array.from({ length: srMax }, (_, i) => srMax - i).map(val =>
+        `<label class="rating-star" data-value="${val}"><input type="radio" name="${field.name}" value="${val}"${required}${Number.isFinite(srDefault) && srDefault === val ? ' checked' : ''}>${getRatingSvgIcon(srIcon)}</label>`
+      ).join('\n    ')}\n  </div>`;
       break;
+    }
     case 'opinion-scale':
       const scaleMin = field.min || 1;
       const scaleMax = field.max || 10;
@@ -698,52 +828,221 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         <input type="hidden" id="${field.id}" name="${field.name}">
       </div>`;
       break;
-    case 'picture-choice':
+    case 'picture-choice': {
+      const picOptions = (field.options && field.options.length > 0)
+        ? field.options
+        : [
+            { label: 'Option A', value: 'option_a' },
+            { label: 'Option B', value: 'option_b' },
+          ];
       inputHtml = `<div class="picture-choice-group${cssClass}"${condAttrs}>
-        ${(field.options || []).map(o => `<label class="picture-choice-option"><input type="radio" name="${field.name}" value="${escapeHtml(o.value)}"${required}><img src="${escapeHtml(o.label)}" alt="Option" class="picture-choice-image"></label>`).join('\n        ')}
+        ${picOptions.map(o => {
+          const label = escapeHtml(o.label || '');
+          const imgSrc = (o.imageUrl || (o.label && (o.label.startsWith('http') || o.label.startsWith('data:image')) ? o.label : '')) || '';
+          return `<label class="picture-choice-option">
+            <input type="radio" name="${field.name}" value="${escapeHtml(o.value)}"${required}>
+            ${imgSrc ? `<img src="${escapeHtml(imgSrc)}" alt="${label}" class="picture-choice-image">` : `<div class="picture-choice-placeholder">${label || 'Option'}</div>`}
+            ${label ? `<div class="picture-choice-label">${label}</div>` : ''}
+          </label>`;
+        }).join('\n        ')}
       </div>`;
       break;
-    case 'multiselect':
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}" multiple>
+    }
+    case 'multiselect': {
+      const msOtherInput = field.allowOther
+        ? `\n      <input id="other_${field.id}" type="text" name="${field.name}_other" placeholder="Please specify…" class="form-input form-other-input" style="display:none;margin-top:8px">`
+        : '';
+      const msOnChange = field.allowOther
+        ? ` onchange="var o=document.getElementById('other_${field.id}');if(o){var sel=Array.from(this.selectedOptions).map(x=>x.value);o.style.display=sel.includes('__other__')?'block':'none';}"`
+        : '';
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${msOnChange} class="form-input${cssClass}" multiple>
         ${(field.options || []).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('\n        ')}
-      </select>`;
+        ${field.allowOther ? '<option value="__other__">Other…</option>' : ''}
+      </select>${msOtherInput}`;
       break;
-    case 'switch':
+    }
+    case 'likert-table': {
+      const ltCfg = field.likertTableConfig || { rows: [], columns: [] };
+      const rows = ltCfg.rows || [];
+      const cols = ltCfg.columns || [];
+      if (rows.length === 0 || cols.length === 0) {
+        inputHtml = `<div class="likert-empty${cssClass}"${condAttrs}>No rows or columns configured.</div>`;
+        break;
+      }
+
+      // Build a flat list of header cells and a per-row cell renderer.
+      // Radio/checkbox columns are "spread" — each option becomes its own sub-column.
+      interface LikertHeaderCell { label: string; colSpan?: number; subOf?: string; }
+      const headerCells: LikertHeaderCell[] = [];
+      // We also need a function that, given a row, produces the <td> cells for that column slot.
+      type RowCellFn = (row: (typeof rows)[0]) => string;
+      const cellFns: RowCellFn[] = [];
+
+      cols.forEach(col => {
+        const opts = col.options || [];
+        if ((col.type === 'radio' || col.type === 'checkbox') && opts.length > 0) {
+          // Group label spanning all options
+          headerCells.push({ label: col.label, colSpan: opts.length });
+          opts.forEach(opt => {
+            headerCells.push({ label: escapeHtml(opt.label), subOf: col.id });
+            const inputName = `${escapeHtml(field.name)}_ROW_${escapeHtml(col.id)}`;
+            const reqAttr = col.required ? ' required' : '';
+            const inputType = col.type === 'checkbox' ? 'checkbox' : 'radio';
+            const nameAttr = col.type === 'checkbox'
+              ? `${escapeHtml(field.name)}_ROW_${escapeHtml(col.id)}[]`
+              : `${escapeHtml(field.name)}_ROW_${escapeHtml(col.id)}`;
+            cellFns.push(row => {
+              const rn = nameAttr.replace('ROW', escapeHtml(row.id));
+              return `<td class="likert-cell likert-spread-cell"><input type="${inputType}" name="${rn}"${reqAttr} value="${escapeHtml(opt.value)}" class="likert-spread-input"></td>`;
+            });
+          });
+        } else {
+          // Non-spread column — single header, single cell
+          headerCells.push({ label: escapeHtml(col.label) });
+          cellFns.push(row => {
+            const inputName = `${escapeHtml(field.name)}_${escapeHtml(row.id)}_${escapeHtml(col.id)}`;
+            const req = col.required ? ' required' : '';
+            let cell = '';
+            switch (col.type) {
+              case 'select': {
+                const optHtml = opts.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+                cell = `<select name="${inputName}"${req} class="form-input likert-cell-select"><option value="">—</option>${optHtml}</select>`;
+                break;
+              }
+              case 'number':
+                cell = `<input type="number" name="${inputName}"${req} class="form-input likert-cell-input" placeholder="${escapeHtml(col.placeholder || '')}">`;
+                break;
+              case 'date':
+                cell = `<input type="date" name="${inputName}"${req} class="form-input likert-cell-input">`;
+                break;
+              case 'rating': {
+                const max = col.max || 5;
+                const stars = Array.from({ length: max }, (_, i) =>
+                  `<label class="likert-star-opt"><input type="radio" name="${inputName}"${req} value="${i + 1}"><span>★</span></label>`
+                ).join('');
+                cell = `<div class="likert-star-group">${stars}</div>`;
+                break;
+              }
+              default:
+                cell = `<input type="text" name="${inputName}"${req} class="form-input likert-cell-input" placeholder="${escapeHtml(col.placeholder || '')}">`;
+            }
+            return `<td class="likert-cell">${cell}</td>`;
+          });
+        }
+      });
+
+      // Build the two-row header: group labels (row 1) + option labels (row 2) if any spreads exist
+      const hasSpreads = cols.some(c => (c.type === 'radio' || c.type === 'checkbox') && (c.options || []).length > 0);
+      let theadHtml = '';
+      if (hasSpreads) {
+        // Row 1: group labels
+        const groupCells = cols.map(col => {
+          const opts = col.options || [];
+          if ((col.type === 'radio' || col.type === 'checkbox') && opts.length > 0) {
+            return `<th class="likert-col-hdr" colspan="${opts.length}">${escapeHtml(col.label)}</th>`;
+          }
+          return `<th class="likert-col-hdr" rowspan="2">${escapeHtml(col.label)}</th>`;
+        });
+        // Row 2: individual option labels
+        const optionCells = cols.flatMap(col => {
+          const opts = col.options || [];
+          if ((col.type === 'radio' || col.type === 'checkbox') && opts.length > 0) {
+            return opts.map(o => `<th class="likert-opt-hdr">${escapeHtml(o.label)}</th>`);
+          }
+          return []; // rowspan="2" covers this
+        });
+        theadHtml = `
+          <tr>
+            <th class="likert-row-hdr" rowspan="2"></th>
+            ${groupCells.join('')}
+          </tr>
+          <tr>${optionCells.join('')}</tr>`;
+      } else {
+        const singleHeaders = cols.map(col => `<th class="likert-col-hdr" style="min-width:${escapeHtml(col.minWidth || '100px')}">${escapeHtml(col.label)}</th>`).join('');
+        theadHtml = `<tr><th class="likert-row-hdr"></th>${singleHeaders}</tr>`;
+      }
+
+      const tableRows = rows.map(row => {
+        const cells = cellFns.map(fn => fn(row)).join('');
+        return `<tr class="likert-row"><td class="likert-row-lbl">${escapeHtml(row.label)}</td>${cells}</tr>`;
+      }).join('\n        ');
+
+      inputHtml = `<div class="likert-wrap${cssClass}"${condAttrs}>
+      <div class="likert-scroll">
+        <table class="likert-table">
+          <thead>${theadHtml}
+          </thead>
+          <tbody>
+        ${tableRows}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+      break;
+    }
+    case 'switch': {
+      const swChecked = field.switchDefaultOn ? ' checked' : '';
+      const swOnLabel  = escapeHtml(field.switchOnLabel  || '');
+      const swOffLabel = escapeHtml(field.switchOffLabel || '');
+      const swLabels = (swOnLabel || swOffLabel)
+        ? `\n        <span class="switch-state-labels"><span class="switch-off-lbl">${swOffLabel}</span><span class="switch-on-lbl">${swOnLabel}</span></span>`
+        : '';
       inputHtml = `<label class="switch-group${cssClass}"${condAttrs}>
-        <input type="checkbox" id="${field.id}" name="${field.name}"${required}${disabled}>
+        <input type="checkbox" id="${field.id}" name="${field.name}"${required}${disabled}${swChecked}>
         <span class="switch-slider"></span>
-        <span class="switch-label">${escapeHtml(field.label)}</span>
+        <span class="switch-label">${escapeHtml(field.label)}</span>${swLabels}
       </label>`;
       break;
-    case 'subform':
-      inputHtml = `<div class="subform-group${cssClass}"${condAttrs}>
-        <div class="subform-placeholder">Nested form fields will be rendered here</div>
+    }
+    case 'subform': {
+      const subId = field.subformTemplateId || '';
+      const subAttr = subId ? ` data-subform-id="${escapeHtml(subId)}"` : '';
+      inputHtml = `<div class="subform-group${cssClass}"${condAttrs}${subAttr}>
+        <div class="subform-placeholder">
+          <div class="subform-title">Nested form fields will be rendered here</div>
+          <div class="subform-meta">${subId ? `Template ID: ${escapeHtml(subId)}` : 'No template linked'}</div>
+        </div>
       </div>`;
       break;
+    }
     case 'section-collapse':
-      inputHtml = `<div class="section-collapse-group${cssClass}"${condAttrs}>
-        <button type="button" class="collapse-toggle" onclick="toggleCollapse('${field.id}')">▶ ${escapeHtml(field.label)}</button>
-        <div class="collapse-content" id="${field.id}_content" style="display:none;">
-          <!-- Nested fields go here -->
+      const isOpen = field.collapseDefaultOpen ? 'true' : 'false';
+      const collapseDesc = field.collapseDescription || field.helpText || '';
+      inputHtml = `<div class="section-collapse-group${cssClass}" data-open="${isOpen}"${condAttrs}>
+        <button type="button" class="collapse-toggle" onclick="toggleCollapse('${field.id}')">
+          <span class="collapse-chevron">▶</span>
+          <span class="collapse-label">${escapeHtml(field.label || 'Collapsible Section')}</span>
+        </button>
+        <div class="collapse-content" id="${field.id}_content" style="display:${field.collapseDefaultOpen ? 'block' : 'none'};">
+          ${collapseDesc ? `<div class="collapse-description">${escapeHtml(collapseDesc)}</div>` : '<!-- Nested fields go here -->'}
         </div>
       </div>`;
       break;
     case 'divider':
-      inputHtml = `<hr class="form-divider${cssClass}"${condAttrs}>`;
+      const divStyle = field.dividerStyle || 'solid';
+      const divThick = field.dividerThickness ?? 1;
+      inputHtml = `<hr class="form-divider${cssClass}"${condAttrs} style="border-top:${divThick}px ${divStyle} var(--border-color);">`;
       break;
     case 'spacer':
-      const spacerHeight = field.helpText || '20px';
-      inputHtml = `<div class="form-spacer${cssClass}" style="height: ${spacerHeight};"${condAttrs}></div>`;
+      const spacerHeight = field.spacerHeight || field.helpText || '20px';
+      inputHtml = `<div class="form-spacer${cssClass}" style="height: ${escapeHtml(spacerHeight)};"${condAttrs}></div>`;
       break;
     case 'html-snippet':
-      inputHtml = `<div class="html-snippet${cssClass}"${condAttrs}>${field.helpText || '<p>Custom HTML content</p>'}</div>`;
+      inputHtml = `<div class="html-snippet${cssClass}"${condAttrs}>${field.htmlContent || field.helpText || '<p>Custom HTML content</p>'}</div>`;
       break;
-    case 'submission-picker':
+    case 'submission-picker': {
+      const subOptions = (field.options && field.options.length > 0)
+        ? field.options
+        : [
+            { label: 'Submission 1', value: 'submission_1' },
+            { label: 'Submission 2', value: 'submission_2' },
+          ];
       inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="form-input${cssClass}">
-        <option value="" disabled selected>Select from previous submissions</option>
-        <!-- Options populated dynamically -->
+        <option value="" disabled selected>${field.placeholder || 'Select a submission'}</option>
+        ${subOptions.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('\n        ')}
       </select>`;
       break;
+    }
     case 'rich-text':
       inputHtml = `<div class="rich-text-editor${cssClass}"${condAttrs}>
         <div class="rte-toolbar">
@@ -1523,60 +1822,275 @@ function generateMomenceSessionsScript(config: FormConfig): string {
             }
             var STATUSES = ["","Trial Scheduled","Not Interested - Other","Trial Completed","Shared Pricing & Schedule Details","Membership Sold","Client Unresponsive","New Enquiry","Sent Introductory message","Shared Class Descriptions and Benefits","Post Trial Follow Up","Not Interested - Proximity Issues","Will get back to us at a later date","Lead Dropped or Lost","Called - Did Not Answer","Called - Asked to Call back later","Language Barrier - Couldn't comprehend or speak the language","Called - Invalid Contact No","Not Interested - Timings not suitable","Not Interested - Pricing Issues","Trial Rescheduled","Not Interested - Health Issues","Initial Contact","No Response after Trial","Trial Completed - Other Issues","Trial Completed - Unresponsive","Will come back once I exhaust my current gym membership","Trial Completed - Proximity Issues","Trial Completed - Pricing Issues","Trial Completed - Currently Travelling","Called - Client out of town/traveling","Shared Pricing & Schedule details on WhatsApp","Called - Did not answer","Sent Introductory Message","Looking for Virtual Classes","Followed up with Trial Participants","Shared Membership Packages And Exclusive Deals","Looking For Virtual Classes","Positive Trial Feedback - Interested in Membership"];
             var statusOpts = STATUSES.map(function(s){ return '<option value="'+escHtml(s)+'">'+(s||'-- Select Status --')+'</option>'; }).join('');
-            var html = '<div class="msess-bookings-header"><span>Bookings (' + bookings.length + ')</span></div>';
+            var checkinCount = bookings.filter(function(b){ return !!b.checkedIn; }).length;
+            var cancelCount  = bookings.filter(function(b){ return !!b.cancelledAt; }).length;
+            var safeId = pfx.replace(/[^a-z0-9]/gi, '_') || 'x';
+
+            // ── Toolbar ─────────────────────────────────────────────────────────
+            var html = '<div class="msess-bk-toolbar"><div class="msess-bk-toolbar-left">';
+            html += '<span class="msess-bk-title">Bookings</span>';
+            html += '<span class="msess-bk-count-badge">' + bookings.length + ' total</span>';
+            if (checkinCount) html += '<span class="msess-bk-checkin-badge">\u2713 ' + checkinCount + ' checked in</span>';
+            if (cancelCount)  html += '<span class="msess-bk-cancel-badge">\u00d7 ' + cancelCount + ' cancelled</span>';
+            html += '</div></div>';
+
+            // ── Table ────────────────────────────────────────────────────────────
             html += '<div class="msess-bookings-scroll"><table class="msess-bookings-table"><thead><tr>';
-            html += '<th>#</th><th>Member</th><th>Email</th><th>Phone</th><th>Checked In</th><th>Tickets</th><th>Status</th><th>Comment</th>';
+            html += '<th class="msess-th-c" style="width:36px">#</th>';
+            html += '<th class="msess-th-str" style="min-width:130px">Name</th>';
+            html += '<th class="msess-th-str" style="min-width:155px">Email</th>';
+            html += '<th class="msess-th-str" style="min-width:115px">Phone</th>';
+            html += '<th class="msess-th-str" style="min-width:95px">Attendance</th>';
+            html += '<th class="msess-th-c" style="width:52px">Tickets</th>';
+            html += '<th class="msess-th-c" style="width:46px" title="Arrived Late">Late</th>';
+            html += '<th class="msess-th-c" style="width:58px" title="From Vicinity">Vicinity</th>';
+            html += '<th class="msess-th-c" style="width:66px" title="No Intent">No Intent</th>';
+            html += '<th class="msess-th-str" style="min-width:160px">Notes</th>';
             html += '</tr></thead><tbody>';
+
             bookings.forEach(function(b, i) {
               var m = b.member || {};
+              var mid = escHtml(String(m.id !== undefined ? m.id : i));
               var name = ((m.firstName || '') + ' ' + (m.lastName || '')).trim() || '\u2014';
+              var email = m.email || '';
+              var phone = m.phoneNumber || '';
               var isCancelled = !!b.cancelledAt;
               var isCheckedIn = !!b.checkedIn;
-              html += '<tr' + (isCancelled ? ' class="msess-row-cancelled"' : '') + '>';
-              html += '<td class="msess-td-num">' + (i + 1) + '</td>';
-              html += '<td class="msess-td-name">';
-              if (m.pictureUrl) html += '<img src="' + escHtml(m.pictureUrl) + '" class="msess-member-avatar" alt="">';
-              html += escHtml(name);
-              if (isCancelled) html += ' <span class="msess-cancelled-badge">Cancelled</span>';
+              var tickets = b.ticketsBought != null ? String(b.ticketsBought) : '\u2014';
+
+              var attBadge = isCheckedIn
+                ? '<span class="msess-badge msess-badge-checkin">\u2713 Checked In</span>'
+                : isCancelled
+                  ? '<span class="msess-badge msess-badge-cancelled">\u00d7 Cancelled</span>'
+                  : '<span class="msess-badge msess-badge-pending">Pending</span>';
+
+              html += '<tr class="msess-bk-row' + (isCancelled ? ' msess-row-cancelled' : '') + '"';
+              html += ' data-mid="' + mid + '"';
+              html += ' data-name="' + escHtml(name) + '"';
+              html += ' data-email="' + escHtml(email) + '"';
+              html += ' data-phone="' + escHtml(phone) + '"';
+              html += ' data-tickets="' + escHtml(tickets) + '"';
+              html += ' data-checkedin="' + (isCheckedIn ? '1' : '0') + '"';
+              html += ' data-status="" data-notes="" data-late="0" data-vicinity="0" data-noint="0">';
+
+              html += '<td class="msess-bk-td msess-td-c">' + (i + 1) + '</td>';
+              html += '<td class="msess-bk-td"><strong>' + escHtml(name) + '</strong></td>';
+              html += '<td class="msess-bk-td msess-td-dim">' + escHtml(email) + '</td>';
+              html += '<td class="msess-bk-td msess-td-dim">' + escHtml(phone) + '</td>';
+              html += '<td class="msess-bk-td">' + attBadge + '</td>';
+              html += '<td class="msess-bk-td msess-td-c msess-td-dim">' + escHtml(tickets) + '</td>';
+
+              html += '<td class="msess-bk-td msess-td-c" onclick="event.stopPropagation()">';
+              html += '<input type="checkbox" class="msess-flag-cb-inline" data-flag="late" aria-label="Arrived Late">';
               html += '</td>';
-              html += '<td>' + escHtml(m.email || '\u2014') + '</td>';
-              html += '<td>' + escHtml(m.phoneNumber || '\u2014') + '</td>';
-              html += '<td style="text-align:center">' + (isCheckedIn ? '\u2705' : '\u2014') + '</td>';
-              html += '<td style="text-align:center">' + (b.ticketsBought != null ? b.ticketsBought : '\u2014') + '</td>';
-              html += '<td><select class="form-input msess-booking-status" data-member-id="' + escHtml(String(m.id || i)) + '" data-member-name="' + escHtml(name) + '">' + statusOpts + '</select></td>';
-              html += '<td><textarea class="form-input msess-booking-comment" rows="2" data-member-id="' + escHtml(String(m.id || i)) + '" data-member-name="' + escHtml(name) + '" data-checked-in="' + (isCheckedIn ? '1' : '0') + '" placeholder="' + (isCheckedIn ? 'Required for checked-in members\u2026' : 'Add comment\u2026') + '"' + (isCheckedIn ? ' required' : '') + '></textarea></td>';
+              html += '<td class="msess-bk-td msess-td-c" onclick="event.stopPropagation()">';
+              html += '<input type="checkbox" class="msess-flag-cb-inline" data-flag="vicinity" aria-label="From Vicinity">';
+              html += '</td>';
+              html += '<td class="msess-bk-td msess-td-c" onclick="event.stopPropagation()">';
+              html += '<input type="checkbox" class="msess-flag-cb-inline" data-flag="noint" aria-label="No Intent">';
+              html += '</td>';
+              html += '<td class="msess-bk-td msess-td-notes" onclick="event.stopPropagation()">';
+              html += '<textarea class="msess-inline-notes-ta" rows="1" placeholder="Add notes\u2026"></textarea>';
+              html += '</td>';
+
               html += '</tr>';
             });
+
             html += '</tbody></table></div>';
-            html += '<button type="button" class="msess-save-comments-btn">\ud83d\udcbe Save Comments</button>';
+            html += '<div class="msess-bk-footer"><button type="button" class="msess-save-comments-btn">Save All</button></div>';
             bWrap.innerHTML = html;
+
+            // ── localStorage key & persist helper ────────────────────────────────
+            var storageKey = (pfx || 'bk') + '_bk_data';
+            function persistAll() {
+              var rows = [];
+              bWrap.querySelectorAll('.msess-bk-row').forEach(function(r) {
+                rows.push({ memberId: r.dataset.mid, memberName: r.dataset.name, status: r.dataset.status || '', arrivedLate: r.dataset.late === '1', fromVicinity: r.dataset.vicinity === '1', noIntent: r.dataset.noint === '1', notes: r.dataset.notes || '' });
+              });
+              try { localStorage.setItem(storageKey, JSON.stringify(rows)); } catch(e) {}
+            }
+
+            // ── Restore persisted data from localStorage ──────────────────────────
+            var savedData = null;
+            try { savedData = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch(e) {}
+            if (savedData) {
+              bWrap.querySelectorAll('.msess-bk-row').forEach(function(row) {
+                var savedRow = null;
+                for (var _si = 0; _si < savedData.length; _si++) {
+                  if (String(savedData[_si].memberId) === row.dataset.mid) { savedRow = savedData[_si]; break; }
+                }
+                if (!savedRow) return;
+                row.dataset.status   = savedRow.status   || '';
+                row.dataset.notes    = savedRow.notes    || '';
+                row.dataset.late     = savedRow.arrivedLate  ? '1' : '0';
+                row.dataset.vicinity = savedRow.fromVicinity ? '1' : '0';
+                row.dataset.noint    = savedRow.noIntent     ? '1' : '0';
+                var lCb = row.querySelector('.msess-flag-cb-inline[data-flag="late"]');
+                var vCb = row.querySelector('.msess-flag-cb-inline[data-flag="vicinity"]');
+                var nCb = row.querySelector('.msess-flag-cb-inline[data-flag="noint"]');
+                if (lCb) lCb.checked = !!savedRow.arrivedLate;
+                if (vCb) vCb.checked = !!savedRow.fromVicinity;
+                if (nCb) nCb.checked = !!savedRow.noIntent;
+                var ta = row.querySelector('.msess-inline-notes-ta');
+                if (ta && savedRow.notes) { ta.value = savedRow.notes; ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+              });
+            }
+
+            // ── Row-click modal (appended to body for correct overlay) ───────────
+            var existingMo = document.getElementById('msess-mo-' + safeId);
+            if (existingMo) existingMo.remove();
+
+            var overlay = document.createElement('div');
+            overlay.id = 'msess-mo-' + safeId;
+            overlay.className = 'msess-bk-modal-overlay';
+            overlay.innerHTML =
+              '<div class="msess-bk-modal">' +
+                '<div class="msess-bk-modal-hdr">' +
+                  '<span class="msess-bk-modal-title">Booking Detail</span>' +
+                  '<button type="button" class="msess-bk-modal-close" aria-label="Close">&times;</button>' +
+                '</div>' +
+                '<div class="msess-bk-modal-body">' +
+                  '<div class="msess-bk-modal-info" id="msess-mo-info-' + safeId + '"></div>' +
+                  '<div class="msess-bk-modal-fields">' +
+                    '<div class="msess-bk-modal-field">' +
+                      '<label class="msess-modal-lbl" for="msess-mo-status-' + safeId + '">Status</label>' +
+                      '<select class="form-input msess-bk-modal-select" id="msess-mo-status-' + safeId + '">' + statusOpts + '</select>' +
+                    '</div>' +
+                    '<div class="msess-bk-modal-field">' +
+                      '<label class="msess-modal-lbl" for="msess-mo-notes-' + safeId + '">Notes</label>' +
+                      '<textarea class="form-input msess-bk-modal-notes" id="msess-mo-notes-' + safeId + '" rows="3" placeholder="Add notes\u2026"></textarea>' +
+                    '</div>' +
+                    '<div class="msess-bk-modal-flags">' +
+                      '<label class="msess-modal-flag-item"><input type="checkbox" id="msess-mo-late-' + safeId + '"><span>Arrived Late</span></label>' +
+                      '<label class="msess-modal-flag-item"><input type="checkbox" id="msess-mo-vic-' + safeId + '"><span>From Vicinity</span></label>' +
+                      '<label class="msess-modal-flag-item"><input type="checkbox" id="msess-mo-noint-' + safeId + '"><span>No Intent</span></label>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="msess-bk-modal-ftr">' +
+                  '<button type="button" class="msess-bk-modal-cancel">Cancel</button>' +
+                  '<button type="button" class="msess-bk-modal-save">Save</button>' +
+                '</div>' +
+              '</div>';
+            document.body.appendChild(overlay);
+
+            var moInfo   = document.getElementById('msess-mo-info-' + safeId);
+            var moStatus = document.getElementById('msess-mo-status-' + safeId);
+            var moNotes  = document.getElementById('msess-mo-notes-' + safeId);
+            var moLate   = document.getElementById('msess-mo-late-' + safeId);
+            var moVic    = document.getElementById('msess-mo-vic-' + safeId);
+            var moNoint  = document.getElementById('msess-mo-noint-' + safeId);
+            var currentRow = null;
+
+            function openModal(row) {
+              currentRow = row;
+              moInfo.innerHTML = '';
+              var nd = document.createElement('div'); nd.className = 'msess-modal-name'; nd.textContent = row.dataset.name || '\u2014'; moInfo.appendChild(nd);
+              if (row.dataset.email) { var ed = document.createElement('div'); ed.className = 'msess-modal-meta'; ed.textContent = row.dataset.email; moInfo.appendChild(ed); }
+              if (row.dataset.phone) { var pd = document.createElement('div'); pd.className = 'msess-modal-meta'; pd.textContent = row.dataset.phone; moInfo.appendChild(pd); }
+              if (row.dataset.tickets && row.dataset.tickets !== '\u2014') { var tkd = document.createElement('div'); tkd.className = 'msess-modal-meta'; tkd.textContent = 'Tickets: ' + row.dataset.tickets; moInfo.appendChild(tkd); }
+              moStatus.value  = row.dataset.status || '';
+              moNotes.value   = row.dataset.notes  || '';
+              moLate.checked  = row.dataset.late     === '1';
+              moVic.checked   = row.dataset.vicinity === '1';
+              moNoint.checked = row.dataset.noint    === '1';
+              moNotes.style.borderColor = '';
+              overlay.style.display = 'flex';
+              document.body.style.overflow = 'hidden';
+            }
+
+            function closeModal() {
+              overlay.style.display = 'none';
+              document.body.style.overflow = '';
+              currentRow = null;
+            }
+
+            function saveModal() {
+              if (!currentRow) return;
+              if (currentRow.dataset.checkedin === '1' && !moNotes.value.trim()) {
+                moNotes.style.borderColor = '#ef4444';
+                moNotes.focus();
+                return;
+              }
+              currentRow.dataset.status   = moStatus.value;
+              currentRow.dataset.notes    = moNotes.value;
+              currentRow.dataset.late     = moLate.checked  ? '1' : '0';
+              currentRow.dataset.vicinity = moVic.checked   ? '1' : '0';
+              currentRow.dataset.noint    = moNoint.checked ? '1' : '0';
+              var lCb = currentRow.querySelector('.msess-flag-cb-inline[data-flag="late"]');
+              var vCb = currentRow.querySelector('.msess-flag-cb-inline[data-flag="vicinity"]');
+              var nCb = currentRow.querySelector('.msess-flag-cb-inline[data-flag="noint"]');
+              if (lCb) lCb.checked = moLate.checked;
+              if (vCb) vCb.checked = moVic.checked;
+              if (nCb) nCb.checked = moNoint.checked;
+              var inlineTa = currentRow.querySelector('.msess-inline-notes-ta');
+              if (inlineTa) { inlineTa.value = moNotes.value; inlineTa.style.height = 'auto'; inlineTa.style.height = inlineTa.scrollHeight + 'px'; }
+              persistAll();
+              closeModal();
+            }
+
+            // Row clicks
+            bWrap.querySelectorAll('.msess-bk-row').forEach(function(row) {
+              row.addEventListener('click', function(e) {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                openModal(row);
+              });
+              row.querySelectorAll('.msess-flag-cb-inline').forEach(function(cb) {
+                cb.addEventListener('change', function() {
+                  if (cb.dataset.flag === 'late')     row.dataset.late     = cb.checked ? '1' : '0';
+                  if (cb.dataset.flag === 'vicinity') row.dataset.vicinity = cb.checked ? '1' : '0';
+                  if (cb.dataset.flag === 'noint')    row.dataset.noint    = cb.checked ? '1' : '0';
+                  persistAll();
+                });
+              });
+              var ta = row.querySelector('.msess-inline-notes-ta');
+              if (ta) {
+                ta.addEventListener('input', function() {
+                  row.dataset.notes = ta.value;
+                  ta.style.height = 'auto';
+                  ta.style.height = ta.scrollHeight + 'px';
+                });
+                ta.addEventListener('blur', function() {
+                  row.dataset.notes = ta.value;
+                  persistAll();
+                });
+              }
+            });
+
+            overlay.addEventListener('click', function(e) { if (e.target === overlay) closeModal(); });
+            overlay.querySelector('.msess-bk-modal-close').addEventListener('click', closeModal);
+            overlay.querySelector('.msess-bk-modal-cancel').addEventListener('click', closeModal);
+            overlay.querySelector('.msess-bk-modal-save').addEventListener('click', saveModal);
+
+            // Save All
             bWrap.querySelector('.msess-save-comments-btn').addEventListener('click', function() {
               var invalid = false;
-              bWrap.querySelectorAll('.msess-booking-comment').forEach(function(ta) {
-                if (ta.dataset.checkedIn === '1' && !ta.value.trim()) {
-                  ta.style.borderColor = '#ef4444';
-                  invalid = true;
-                } else {
-                  ta.style.borderColor = '';
-                }
+              bWrap.querySelectorAll('.msess-bk-row').forEach(function(row) {
+                if (row.dataset.checkedin === '1' && !row.dataset.notes) invalid = true;
               });
               if (invalid) {
-                alert('Please add a comment for all checked-in members before saving.');
+                alert('Please open checked-in members and add notes before saving.');
                 return;
               }
               var rows = [];
-              bWrap.querySelectorAll('.msess-booking-comment').forEach(function(ta) {
-                var statusEl = bWrap.querySelector('.msess-booking-status[data-member-id="' + ta.dataset.memberId + '"]');
-                rows.push({ memberId: ta.dataset.memberId, memberName: ta.dataset.memberName, status: statusEl ? statusEl.value : '', comment: ta.value });
+              bWrap.querySelectorAll('.msess-bk-row').forEach(function(row) {
+                rows.push({
+                  memberId:     row.dataset.mid,
+                  memberName:   row.dataset.name,
+                  status:       row.dataset.status   || '',
+                  arrivedLate:  row.dataset.late     === '1',
+                  fromVicinity: row.dataset.vicinity === '1',
+                  noIntent:     row.dataset.noint    === '1',
+                  notes:        row.dataset.notes    || '',
+                });
               });
               var hidEl = wrap.querySelector('[name="' + pfx + '_bookings_json"]');
-              if (hidEl) {
-                hidEl.value = JSON.stringify(rows);
-                hidEl.dispatchEvent(new Event('change', { bubbles: true }));
-              }
+              if (hidEl) { hidEl.value = JSON.stringify(rows); hidEl.dispatchEvent(new Event('change', { bubbles: true })); }
+              try { localStorage.setItem(storageKey, JSON.stringify(rows)); } catch(e) {}
               var btn = bWrap.querySelector('.msess-save-comments-btn');
-              btn.textContent = '\u2705 Comments Saved';
-              setTimeout(function() { btn.textContent = '\ud83d\udcbe Save Comments'; }, 2000);
+              btn.textContent = '\u2713 Saved';
+              btn.style.background = '#10b981';
+              setTimeout(function() { btn.textContent = 'Save All'; btn.style.background = ''; }, 2500);
             });
           }
 
@@ -1721,8 +2235,10 @@ function generateMomenceSessionsScript(config: FormConfig): string {
               var btn = wrap.querySelector('.msess-load-btn');
               if (btn) btn.addEventListener('click', function () { loadSessions(wrap); });
 
-              // Auto-load on page ready
-              loadSessions(wrap);
+              // Auto-load only for momence-sessions; hosted-class requires manual load
+              if (!wrap.dataset.manualLoad) {
+                loadSessions(wrap);
+              }
             });
           });
         })();`;}
@@ -3212,10 +3728,11 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .form-page { display: none; }
         .form-page.active { display: block; }
         .page-nav { display: flex; gap: 12px; margin-top: 20px; }
-        .page-nav button { flex: 1; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-        .page-nav button:hover { border-color: var(--primary-color); color: var(--primary-color); }
-        .page-nav .btn-next { background: var(--primary-gradient); color: white; border: none; }
-        .page-nav .btn-next:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .page-nav button { flex: 1; padding: var(--btn-padding-y) var(--btn-padding-x); border: 2px solid; border-radius: var(--btn-radius); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .page-nav .btn-prev { background: var(--back-btn-bg); color: var(--back-btn-text); border-color: var(--back-btn-border); }
+        .page-nav .btn-prev:hover { background: var(--back-btn-hover-bg, color-mix(in srgb, var(--back-btn-bg) 88%, #000)); filter: brightness(0.93); transform: translateY(-1px); }
+        .page-nav .btn-next { background: var(--next-btn-bg); color: var(--next-btn-text); border-color: var(--next-btn-border); }
+        .page-nav .btn-next:hover { background: var(--next-btn-hover-bg, var(--next-btn-bg)); filter: brightness(0.92); transform: translateY(-1px); box-shadow: var(--shadow-md); }
         .page-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
         .page-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-color); transition: all 0.3s; }
         .page-dot.active { background: var(--primary-color); transform: scale(1.2); }
@@ -3243,7 +3760,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     : (() => {
         return `
                 ${wrapFields(sortedFields)}
-                <div style="margin-top: 20px;">
+                <div style="margin-top: 20px; text-align: ${theme.submitButtonAlign || 'center'};">
                     <button type="submit" class="submit-btn">${escapeHtml(config.submitButtonText)}</button>
                 </div>`;
       })();
@@ -3301,7 +3818,13 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
                     cropX: Number(val.cropX ?? _LAYOUT_POS_X),
                     cropY: Number(val.cropY ?? _LAYOUT_POS_Y),
                     zoom: Number(val.zoom ?? 100),
-                    height: Number(val.height ?? _LAYOUT_DEFAULT_HEIGHT)
+                    height: Number(val.height ?? _LAYOUT_DEFAULT_HEIGHT),
+                    brightness: val.brightness,
+                    contrast: val.contrast,
+                    blur: val.blur,
+                    grayscale: val.grayscale,
+                    overlayColor: val.overlayColor,
+                    overlayOpacity: val.overlayOpacity,
                 };
             }
             if (_LAYOUT_IMG_DEFAULT) {
@@ -3314,6 +3837,31 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
                 };
             }
             return null;
+        }
+        function _buildHeroFilter(hero) {
+            var parts = [];
+            if (hero.brightness != null && hero.brightness !== 100) parts.push('brightness(' + (hero.brightness / 100) + ')');
+            if (hero.contrast != null && hero.contrast !== 100) parts.push('contrast(' + (hero.contrast / 100) + ')');
+            if (hero.blur != null && hero.blur > 0) parts.push('blur(' + hero.blur + 'px)');
+            if (hero.grayscale != null && hero.grayscale > 0) parts.push('grayscale(' + hero.grayscale + '%)');
+            return parts.join(' ');
+        }
+        function _applyHeroOverlay(panel, hero) {
+            var overlay = panel.querySelector('._hero-overlay');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.className = '_hero-overlay';
+                overlay.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:1;';
+                panel.style.position = 'relative';
+                panel.insertBefore(overlay, panel.firstChild);
+            }
+            if (hero.overlayColor && hero.overlayOpacity > 0) {
+                overlay.style.backgroundColor = hero.overlayColor;
+                overlay.style.opacity = hero.overlayOpacity / 100;
+                overlay.style.display = 'block';
+            } else {
+                overlay.style.display = 'none';
+            }
         }
         function _applyPageHero(pageIndex) {
             var panel = document.querySelector('.layout-image-panel') ||
@@ -3330,6 +3878,9 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             panel.style.backgroundPosition = hero.cropX + '% ' + hero.cropY + '%';
             panel.style.backgroundSize = fit.size;
             panel.style.backgroundRepeat = fit.repeat;
+            var filterStr = _buildHeroFilter(hero);
+            panel.style.filter = filterStr || '';
+            _applyHeroOverlay(panel, hero);
             if (panel.classList.contains('layout-image-panel') || panel.classList.contains('layout-banner')) {
                 var heroHeight = Math.max(180, Math.min(1200, Number(hero.height || _LAYOUT_DEFAULT_HEIGHT)));
                 panel.style.minHeight = heroHeight + 'px';
@@ -3354,6 +3905,20 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         }` : '';
 
   const logoSrc = options?.logoBase64 || (theme.logoUrl ? escapeHtml(theme.logoUrl) : '');
+
+  // Compute static (page 0) hero panel HTML with effects
+  const _staticHero = getHeroForPage(config, 0, { defaultHeight: defaultHeroHeight });
+  const _heroFilterParts: string[] = [];
+  if (_staticHero?.brightness != null && _staticHero.brightness !== 100) _heroFilterParts.push(`brightness(${_staticHero.brightness / 100})`);
+  if (_staticHero?.contrast != null && _staticHero.contrast !== 100) _heroFilterParts.push(`contrast(${_staticHero.contrast / 100})`);
+  if (_staticHero?.blur != null && _staticHero.blur > 0) _heroFilterParts.push(`blur(${_staticHero.blur}px)`);
+  if (_staticHero?.grayscale != null && _staticHero.grayscale > 0) _heroFilterParts.push(`grayscale(${_staticHero.grayscale}%)`);
+  const _heroFilterAttr = _heroFilterParts.length ? ` style="filter:${_heroFilterParts.join(' ')}"` : '';
+  const _heroOverlayHtml = (_staticHero?.overlayColor && (_staticHero.overlayOpacity ?? 0) > 0)
+    ? `<div class="_hero-overlay" style="position:absolute;inset:0;pointer-events:none;z-index:1;background-color:${_staticHero.overlayColor};opacity:${(_staticHero.overlayOpacity ?? 0) / 100}"></div>`
+    : '<div class="layout-image-overlay"></div>';
+  const _splitLayouts = ['split-left','split-right','editorial-left','editorial-right'];
+  const _heroPanelHtml = _splitLayouts.includes(config.layout ?? '') ? `<div class="layout-image-panel"${_heroFilterAttr}>${_heroOverlayHtml}</div>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -3381,6 +3946,29 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
             --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
             --radius: ${theme.borderRadius};
+            --form-border-width: ${theme.formBorderWidth || '1px'};
+            --form-border-color: ${theme.formBorderColor || theme.inputBorderColor};
+            --submit-btn-bg: ${theme.submitButtonBackground || 'var(--primary-gradient)'};
+            --submit-btn-hover-bg: ${theme.submitButtonHoverBackground || ''};
+            --submit-btn-border: ${theme.submitButtonBorderColor || 'transparent'};
+            --submit-btn-hover-text: ${theme.submitButtonHoverTextColor || ''};
+            --nav-btn-bg: ${theme.navButtonBackground || 'var(--bg-primary)'};
+            --nav-btn-text: ${theme.navButtonTextColor || 'var(--text-primary)'};
+            --nav-btn-border: ${theme.navButtonBorderColor || 'var(--border-color)'};
+            --back-btn-bg: ${theme.backButtonBackground || theme.navButtonBackground || 'var(--bg-primary)'};
+            --back-btn-text: ${theme.backButtonTextColor || theme.navButtonTextColor || 'var(--text-primary)'};
+            --back-btn-border: ${theme.backButtonBorderColor || theme.navButtonBorderColor || 'var(--border-color)'};
+            --back-btn-hover-bg: ${theme.backButtonHoverBackground || ''};
+            --next-btn-bg: ${theme.nextButtonBackground || theme.submitButtonBackground || 'var(--primary-gradient)'};
+            --next-btn-text: ${theme.nextButtonTextColor || 'var(--button-text-color)'};
+            --next-btn-border: ${theme.nextButtonBorderColor || 'transparent'};
+            --next-btn-hover-bg: ${theme.nextButtonHoverBackground || ''};
+            --btn-radius: ${theme.buttonRadius || '8px'};
+            --btn-padding-y: ${theme.buttonPaddingY || '12px'};
+            --btn-padding-x: ${theme.buttonPaddingX || '14px'};
+            --submit-btn-font-size: ${theme.submitButtonFontSize || '15px'};
+            --submit-btn-font-weight: ${theme.submitButtonFontWeight || '600'};
+            --submit-btn-width: ${theme.submitButtonWidth || '100%'};
             --preview-mode: ${previewMode ? 1 : 0};
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -3397,9 +3985,11 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .form-container {
             background: var(--bg-primary);
             border-radius: var(--radius);
+            border: var(--form-border-width) solid var(--form-border-color);
             box-shadow: ${formShadow};
             width: ${theme.formWidth};
             max-width: ${theme.formMaxWidth};
+            min-height: ${theme.formMinHeight || 'auto'};
             position: relative;
             overflow: hidden;
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
@@ -3521,7 +4111,35 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             padding-right: 40px;
         }
         textarea.form-input { resize: vertical; min-height: 100px; }
+        .form-other-input { animation: fadeIn 0.15s ease; margin-top: 8px !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
         .help-text { display: block; font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .likert-wrap { width: 100%; }
+        .likert-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .likert-table { border-collapse: collapse; width: 100%; min-width: 400px; font-size: 14px; }
+        .likert-table th, .likert-table td { border: 1px solid var(--border-color); padding: 10px 12px; text-align: center; vertical-align: middle; }
+        .likert-row-hdr { text-align: left !important; min-width: 140px; background: var(--bg-secondary, #f8fafc); }
+        .likert-col-hdr { background: var(--bg-secondary, #f8fafc); font-weight: 600; color: var(--text-primary); }
+        .likert-row-lbl { text-align: left !important; font-weight: 500; color: var(--text-primary); background: var(--bg-secondary, #f8fafc); }
+        .likert-row:nth-child(even) td { background: rgba(0,0,0,0.02); }
+        .likert-cell { white-space: nowrap; }
+        .likert-radio-group, .likert-cb-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+        .likert-radio-opt, .likert-cb-opt { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+        .likert-cell-input { min-width: 80px; padding: 6px 10px !important; font-size: 13px; }
+        .likert-cell-select { min-width: 90px; padding: 6px 30px 6px 10px !important; font-size: 13px; }
+        .likert-star-group { display: flex; gap: 2px; justify-content: center; }
+        .likert-star-opt input { display: none; }
+        .likert-star-opt span { font-size: 22px; color: #d1d5db; cursor: pointer; transition: color 0.1s; }
+        .likert-star-opt input:checked ~ span, .likert-star-opt:hover span { color: #f59e0b; }
+        .likert-spread-cell { text-align: center; }
+        .likert-spread-input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); }
+        .likert-opt-hdr { font-size: 12px; font-weight: 500; padding: 6px 10px !important; color: var(--text-secondary); background: var(--bg-secondary, #f8fafc); }
+        .likert-empty { color: var(--text-secondary); font-size: 13px; padding: 12px 0; }
+        .switch-state-labels { display: flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 13px; color: var(--text-secondary); }
+        .switch-on-lbl, .switch-off-lbl { transition: opacity 0.2s, color 0.2s; }
+        .switch-group input:not(:checked) ~ .switch-state-labels .switch-on-lbl  { opacity: 0.35; }
+        .switch-group input:checked     ~ .switch-state-labels .switch-off-lbl { opacity: 0.35; }
+        .switch-group input:checked     ~ .switch-state-labels .switch-on-lbl  { color: var(--primary-color); font-weight: 600; }
         .radio-group, .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
         .radio-option, .checkbox-option {
             display: flex; align-items: center; gap: 8px;
@@ -3530,10 +4148,40 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             transition: all 0.15s ease;
         }
         .radio-option:hover, .checkbox-option:hover { border-color: var(--border-focus); background: var(--bg-secondary); }
-        .rating-group { display: flex; gap: 4px; font-size: 28px; }
-        .rating-star { cursor: pointer; color: var(--border-color); transition: color 0.15s; }
-        .rating-star:hover, .rating-star:has(input:checked) { color: #f59e0b; }
-        .rating-star input { display: none; }
+        .rating-group { display: flex; flex-direction: row-reverse; justify-content: flex-end; gap: 6px; }
+        .rating-star { cursor: pointer; color: #d1d5db; transition: color 0.15s; user-select: none; display: inline-flex; align-items: center; }
+        .rating-star input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+        .rating-star svg { width: 28px; height: 28px; transition: color 0.15s, transform 0.1s; display: block; }
+        .rating-star:hover svg, .rating-star:hover ~ .rating-star svg { transform: scale(1.15); }
+        .rating-star:hover, .rating-star:hover ~ .rating-star,
+        .rating-star:has(input:checked), .rating-star:has(input:checked) ~ .rating-star,
+        .rating-star.is-active { color: #f59e0b; }
+        .range-group { display: flex; flex-direction: column; gap: 10px; }
+        .range-input { width: 100%; accent-color: var(--primary-color); }
+        .range-meta { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+        .range-value { padding: 2px 8px; border-radius: 6px; background: rgba(99,102,241,0.1); color: var(--primary-color); border: 1px solid rgba(99,102,241,0.2); font-weight: 700; }
+        .password-group { display: flex; align-items: center; gap: 8px; }
+        .password-toggle { padding: 8px 10px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-secondary); cursor: pointer; }
+        .password-toggle:hover { border-color: var(--border-focus); }
+        .section-collapse-group { border: 1px solid var(--border-color); border-radius: 10px; overflow: hidden; }
+        .collapse-toggle { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg-secondary); border: none; text-align: left; font-weight: 600; cursor: pointer; }
+        .collapse-chevron { display: inline-block; transition: transform 0.2s; }
+        .section-collapse-group[data-open="true"] .collapse-chevron { transform: rotate(90deg); }
+        .collapse-content { padding: 10px 14px; border-top: 1px solid var(--border-color); background: var(--bg-primary); }
+        .collapse-description { font-size: 12px; color: var(--text-secondary); }
+        .picture-choice-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+        .picture-choice-option { display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 10px; border: 2px solid var(--border-color); border-radius: 12px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+        .picture-choice-option input { display: none; }
+        .picture-choice-option:has(input:checked) { border-color: var(--primary-color); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
+        .picture-choice-image { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 8px; display: block; background: var(--bg-secondary); }
+        .picture-choice-placeholder { width: 100%; aspect-ratio: 1 / 1; border: 1px dashed var(--border-color); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--text-secondary); }
+        .picture-choice-label { font-size: 12px; color: var(--text-secondary); text-align: center; }
+        .subform-group { border: 2px dashed var(--border-color); border-radius: 12px; padding: 14px; background: var(--bg-secondary); }
+        .subform-title { font-size: 13px; font-weight: 600; color: var(--text-primary); text-align: center; }
+        .subform-meta { font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 4px; }
+        .choice-matrix-col { text-align: center; font-size: 12px; color: var(--text-secondary); }
+        .choice-matrix-row { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+        .choice-matrix-cell { display: flex; justify-content: center; }
         .section-break {
             margin: 8px 0;
             padding-bottom: 8px;
@@ -4017,15 +4665,15 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         }
 
         .submit-btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            background: var(--primary-gradient);
+            width: var(--submit-btn-width);
+            padding: var(--btn-padding-y) var(--btn-padding-x);
+            border: 2px solid transparent;
+            border-radius: var(--btn-radius);
+            background: var(--submit-btn-bg);
             color: var(--button-text-color) !important;
             font-family: inherit;
-            font-size: 15px;
-            font-weight: 600;
+            font-size: var(--submit-btn-font-size);
+            font-weight: var(--submit-btn-font-weight);
             cursor: pointer;
             transition: all 0.2s ease;
             box-shadow: var(--shadow-md);
@@ -4043,7 +4691,8 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             pointer-events: none;
         }
         .submit-btn:hover {
-            color: var(--button-text-color) !important;
+            background: var(--submit-btn-hover-bg, var(--submit-btn-bg));
+            color: var(--submit-btn-hover-text, var(--button-text-color)) !important;
             transform: translateY(-2px);
             box-shadow: var(--shadow-lg);
         }
@@ -4093,6 +4742,13 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             .email-otp-row { flex-direction: column; }
         }
         ${theme.customCss || ''}
+        ${theme.inputBorderStyle === 'bottom-only' ? `
+        .form-input { border: none !important; border-bottom: 2px solid var(--border-color) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; padding-left: 0 !important; padding-right: 0 !important; }
+        select.form-input { padding-left: 0 !important; }
+        ` : theme.inputBorderStyle === 'none' ? `
+        .form-input { border: none !important; background: transparent !important; box-shadow: none !important; }
+        ` : ''}
+        ${theme.buttonStyle === 'pill' ? '.submit-btn, .page-nav button { border-radius: 9999px !important; }' : theme.buttonStyle === 'square' ? '.submit-btn, .page-nav button { border-radius: 0 !important; }' : ''}
         ${generateAnimationCss(config)}
         ${generateLayoutCss(config)}
 
@@ -4276,102 +4932,75 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
           line-height: 1.6;
         }
         .msess-bookings-error { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
-        /* Toolbar */
-        .msess-bk-toolbar {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 12px 0 10px; border-top: 2px solid var(--border-color); margin-top: 10px; gap: 8px;
-        }
-        .msess-bk-toolbar-left { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-        .msess-bk-title { font-size: 11.5px; font-weight: 800; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
-        .msess-bk-count-badge { font-size: 11px; font-weight: 600; background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 20px; padding: 2px 9px; }
-        .msess-bk-checkin-badge { font-size: 11px; font-weight: 700; background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; border-radius: 20px; padding: 2px 9px; }
-        .msess-bk-cancel-badge { font-size: 11px; font-weight: 700; background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 20px; padding: 2px 9px; }
-        /* Scroll container */
-        .msess-bookings-scroll { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-        .msess-bookings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        /* Header row */
-        .msess-bookings-table thead tr { background: linear-gradient(to bottom, #f8fafc, #f1f5f9); }
-        .msess-bookings-table thead th {
-          padding: 11px 13px; text-align: left;
-          font-size: 10.5px; font-weight: 800; color: var(--text-secondary);
-          text-transform: uppercase; letter-spacing: 0.08em;
-          border-bottom: 2px solid var(--border-color); white-space: nowrap;
-        }
-        .msess-th-num { width: 40px; text-align: center; }
-        .msess-th-tickets { width: 70px; text-align: center; }
-        .msess-th-status { min-width: 185px; }
-        .msess-th-notes { min-width: 175px; }
-        /* Body rows */
-        .msess-bk-row { border-bottom: 1px solid var(--border-color); transition: background 0.12s; }
-        .msess-bk-row:last-child { border-bottom: none; }
-        .msess-bk-row:nth-child(even) { background: #fafbfc; }
-        .msess-bk-row:hover { background: rgba(99,102,241,0.04) !important; }
-        .msess-bk-row.msess-row-cancelled { opacity: 0.6; }
-        .msess-bk-row.msess-row-checkedin { background: rgba(16,185,129,0.04) !important; }
-        .msess-bookings-table tbody td { padding: 10px 13px; vertical-align: top; color: var(--text-primary); }
-        /* Row number */
-        .msess-td-num { color: var(--text-secondary); font-size: 11px; text-align: center; vertical-align: middle !important; font-weight: 700; }
-        /* Member cell */
-        .msess-td-member { display: flex !important; align-items: flex-start !important; gap: 10px !important; vertical-align: middle !important; min-width: 160px; }
-        .msess-member-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; border: 2px solid var(--border-color); }
-        .msess-member-avatar-placeholder {
-          width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
-          background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-          color: #fff; font-size: 12px; font-weight: 700;
-          display: flex; align-items: center; justify-content: center;
-        }
-        .msess-member-info { display: flex; flex-direction: column; gap: 2px; }
-        .msess-member-name { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
-        .msess-member-secondary { font-size: 11px; color: var(--text-secondary); }
-        /* Attendance badges */
-        .msess-td-attendance { vertical-align: middle !important; white-space: nowrap; }
-        .msess-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; border-radius: 20px; padding: 3px 10px; }
-        .msess-badge-checkin { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
-        .msess-badge-cancelled { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
-        .msess-badge-pending { background: var(--bg-secondary); color: var(--text-secondary); border: 1px solid var(--border-color); }
-        /* Tickets */
-        .msess-td-tickets { text-align: center; vertical-align: middle !important; }
-        .msess-tickets-val { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 28px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px; font-weight: 700; color: var(--text-primary); padding: 0 6px; }
-        .msess-td-empty { color: var(--text-light); }
-        /* Status dropdown */
-        .msess-td-status { vertical-align: top; }
-        .msess-booking-status {
-          width: 100%; min-width: 160px; padding: 7px 28px 7px 10px !important;
-          font-size: 12px !important; border: 1.5px solid var(--border-color) !important;
-          border-radius: 8px !important; background: var(--bg-primary) !important;
-          color: var(--text-primary) !important; cursor: pointer; appearance: none;
-          background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
-          background-position: right 8px center !important; background-repeat: no-repeat !important; background-size: 14px !important;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .msess-booking-status:focus { outline: none; border-color: var(--primary-color) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
-        /* Notes textarea */
-        .msess-td-notes { vertical-align: top; }
-        .msess-booking-comment {
-          width: 100%; min-width: 150px; min-height: 58px; resize: vertical;
-          padding: 7px 10px !important; font-size: 12px !important; line-height: 1.45;
-          border: 1.5px solid var(--border-color) !important; border-radius: 8px !important;
-          background: var(--bg-primary) !important; color: var(--text-primary) !important;
-          font-family: inherit; transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .msess-booking-comment:focus { outline: none; border-color: var(--primary-color) !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.1) !important; }
-        .msess-booking-comment[required] { border-color: #f59e0b !important; background: #fffdf5 !important; }
-        /* Footer / save button */
-        .msess-bk-footer { display: flex; justify-content: flex-end; padding: 12px 0 0; }
-        .msess-save-comments-btn {
-          display: inline-flex; align-items: center; gap: 6px;
-          padding: 9px 20px; font-size: 12.5px; font-weight: 700;
-          background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-          color: #fff; border: none; border-radius: 10px;
-          cursor: pointer; transition: opacity 0.15s, transform 0.1s;
-          box-shadow: 0 3px 10px rgba(99,102,241,0.28);
-        }
-        .msess-save-comments-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-        .msess-save-comments-btn:active { transform: translateY(0); }
+        /* ── Bookings table: toolbar ──────────────────────────────────────── */
+        .msess-bk-toolbar { display:flex; align-items:center; justify-content:space-between; padding:12px 0 10px; border-top:1px solid var(--border-color); margin-top:10px; gap:8px; flex-wrap:wrap; }
+        .msess-bk-toolbar-left { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+        .msess-bk-title { font-size:11px; font-weight:800; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.08em; }
+        .msess-bk-count-badge { font-size:11px; font-weight:600; background:var(--bg-secondary); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:20px; padding:2px 9px; }
+        .msess-bk-checkin-badge { font-size:11px; font-weight:600; color:#16a34a; border:1px solid var(--border-color); border-radius:20px; padding:2px 9px; }
+        .msess-bk-cancel-badge  { font-size:11px; font-weight:600; color:#dc2626; border:1px solid var(--border-color); border-radius:20px; padding:2px 9px; }
+        /* ── Scroll + table ─────────────────────────────────────────────────── */
+        .msess-bookings-scroll { overflow-x:auto; border-radius:10px; border:1px solid var(--border-color); margin-top:8px; }
+        .msess-bookings-table { width:100%; border-collapse:collapse; font-size:13px; table-layout:auto; }
+        .msess-bookings-table thead tr { background:var(--bg-secondary,#f8fafc); }
+        .msess-bookings-table thead th { padding:0 12px; height:36px; text-align:left; font-size:10.5px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em; border-bottom:1px solid var(--border-color); white-space:nowrap; }
+        .msess-th-c { text-align:center !important; }
+        .msess-th-str { }
+        /* ── Body rows ──────────────────────────────────────────────────────── */
+        .msess-bk-row { border-bottom:1px solid var(--border-color); height:40px; cursor:pointer; transition:background 0.1s; }
+        .msess-bk-row:last-child { border-bottom:none; }
+        .msess-bk-row:hover { background:var(--bg-secondary,#f8fafc) !important; }
+        .msess-bk-row.msess-row-cancelled { opacity:0.5; }
+        /* ── Cells ──────────────────────────────────────────────────────────── */
+        .msess-bk-td { padding:0 12px; height:40px; vertical-align:middle; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:0; }
+        .msess-td-c { text-align:center; font-size:12px; color:var(--text-secondary); max-width:none; overflow:visible; }
+        .msess-td-dim { color:var(--text-secondary); font-size:12px; }
+        /* ── Attendance badges ──────────────────────────────────────────────── */
+        .msess-badge { display:inline-flex; align-items:center; font-size:11px; font-weight:600; border-radius:6px; padding:2px 8px; background:var(--bg-secondary); border:1px solid var(--border-color); color:var(--text-secondary); }
+        .msess-badge-checkin  { color:#16a34a; border-color:currentColor; background:transparent; }
+        .msess-badge-cancelled { color:#dc2626; border-color:currentColor; background:transparent; }
+        .msess-badge-pending { }
+        /* ── Inline flag checkboxes ─────────────────────────────────────────── */
+        .msess-flag-cb-inline { width:15px; height:15px; cursor:pointer; accent-color:var(--primary-color); vertical-align:middle; }
+        /* ── Footer ─────────────────────────────────────────────────────────── */
+        .msess-bk-footer { display:flex; justify-content:flex-end; padding:12px 0 0; }
+        .msess-save-comments-btn { display:inline-flex; align-items:center; gap:6px; padding:8px 18px; font-size:13px; font-weight:600; background:var(--primary-color); color:#fff; border:none; border-radius:8px; cursor:pointer; transition:opacity 0.15s; }
+        .msess-save-comments-btn:hover { opacity:0.85; }
+        .msess-td-notes { vertical-align:middle; padding:4px 8px !important; }
+        .msess-inline-notes-ta { width:100%; min-width:130px; max-width:220px; padding:4px 8px; border:1px solid #e2e8f0; border-radius:6px; font-family:inherit; font-size:12px; line-height:1.4; resize:none; overflow:hidden; background:#f8fafc; color:inherit; transition:border-color 0.15s,box-shadow 0.15s; vertical-align:middle; height:30px; box-sizing:border-box; }
+        .msess-inline-notes-ta:focus { outline:none; border-color:var(--primary-color,#6366f1); box-shadow:0 0 0 2px rgba(99,102,241,0.15); background:#fff; }
+        .msess-inline-notes-ta::placeholder { color:#94a3b8; }
+        /* ── Row-detail modal ───────────────────────────────────────────────── */
+        .msess-bk-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:99999; display:none; align-items:center; justify-content:center; padding:20px; }
+        .msess-bk-modal { background:var(--bg-primary,#fff); border-radius:14px; width:100%; max-width:440px; box-shadow:0 24px 60px rgba(0,0,0,0.22); display:flex; flex-direction:column; overflow:hidden; }
+        .msess-bk-modal-hdr { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border-color); }
+        .msess-bk-modal-title { font-size:15px; font-weight:700; color:var(--text-primary); }
+        .msess-bk-modal-close { background:none; border:none; font-size:22px; cursor:pointer; color:var(--text-secondary); line-height:1; padding:0 2px; }
+        .msess-bk-modal-close:hover { color:var(--text-primary); }
+        .msess-bk-modal-body { padding:20px; overflow-y:auto; max-height:65vh; }
+        .msess-bk-modal-fields { display:grid; gap:14px; margin-top:14px; }
+        .msess-bk-modal-field { display:grid; gap:6px; }
+        .msess-bk-modal-info { padding-bottom:14px; border-bottom:1px solid var(--border-color); }
+        .msess-modal-name { font-size:16px; font-weight:700; color:var(--text-primary); margin-bottom:4px; }
+        .msess-modal-meta { font-size:13px; color:var(--text-secondary); }
+        .msess-modal-lbl { font-size:11px; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.06em; }
+        .msess-bk-modal-flags { display:flex; gap:18px; flex-wrap:wrap; padding-top:2px; }
+        .msess-modal-flag-item { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-primary); cursor:pointer; }
+        .msess-modal-flag-item input { width:16px; height:16px; cursor:pointer; accent-color:var(--primary-color); }
+        .msess-bk-modal-select { width:100%; padding:8px 30px 8px 10px !important; font-size:13px !important; border:1.5px solid var(--border-color) !important; border-radius:8px !important; background:var(--bg-primary) !important; color:var(--text-primary) !important; appearance:none; cursor:pointer; background-image:url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8l4 4 4-4'/%3e%3c/svg%3e") !important; background-position:right 8px center !important; background-repeat:no-repeat !important; background-size:14px !important; }
+        .msess-bk-modal-select:focus { outline:none; border-color:var(--primary-color) !important; box-shadow:0 0 0 3px rgba(99,102,241,0.1) !important; }
+        .msess-bk-modal-notes { width:100%; min-height:80px; resize:vertical; padding:8px 10px !important; font-size:13px !important; line-height:1.5; border:1.5px solid var(--border-color) !important; border-radius:8px !important; background:var(--bg-primary) !important; color:var(--text-primary) !important; font-family:inherit; }
+        .msess-bk-modal-notes:focus { outline:none; border-color:var(--primary-color) !important; box-shadow:0 0 0 3px rgba(99,102,241,0.1) !important; }
+        .msess-bk-modal-ftr { display:flex; gap:10px; justify-content:flex-end; padding:14px 20px; border-top:1px solid var(--border-color); }
+        .msess-bk-modal-cancel { padding:8px 18px; font-size:13px; font-weight:600; background:var(--bg-secondary); color:var(--text-secondary); border:1px solid var(--border-color); border-radius:8px; cursor:pointer; }
+        .msess-bk-modal-cancel:hover { background:var(--border-color); }
+        .msess-bk-modal-save { padding:8px 18px; font-size:13px; font-weight:600; background:var(--primary-color); color:#fff; border:none; border-radius:8px; cursor:pointer; }
+        .msess-bk-modal-save:hover { opacity:0.88; }
         @media (max-width: 520px) {
           .mmember-fields-grid, .msess-fields-grid { grid-template-columns: 1fr; }
           .msess-bookings-scroll { border-radius: 8px; }
-          .msess-bk-toolbar { flex-wrap: wrap; }
+          .msess-bk-modal { max-width:100%; border-radius:12px 12px 0 0; }
+          .msess-bk-modal-overlay { align-items:flex-end; padding:0; }
         }
     </style>
     <script>
@@ -4444,7 +5073,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
     </script>
 </head>
 <body${config.layout && config.layout !== 'classic' ? ` class="layout-${config.layout}"` : ''}>
-    ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? `<div class="layout-image-panel"><div class="layout-image-overlay"></div></div>` : ''}
+    ${_heroPanelHtml}
     ${['banner-top','showcase-banner'].includes(config.layout ?? '') ? `<div class="layout-banner"></div>` : ''}
     ${config.layout === 'floating' ? `<div class="layout-backdrop"></div>` : ''}
     ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? '<div class="layout-form-panel">' : ''}
@@ -4488,6 +5117,62 @@ ${pagesHtml}
                 hiddenInput.value = num ? codeSelect.value + num : '';
             }
         }
+
+        // Section collapse toggle
+        function toggleCollapse(id) {
+            var content = document.getElementById(id + '_content');
+            if (!content) return;
+            var parent = content.parentElement;
+            var open = parent && parent.getAttribute('data-open') === 'true';
+            if (parent) parent.setAttribute('data-open', open ? 'false' : 'true');
+            content.style.display = open ? 'none' : 'block';
+        }
+
+        // Password reveal toggle
+        function togglePassword(id) {
+            var input = document.getElementById(id);
+            if (!input) return;
+            var btn = input.parentElement ? input.parentElement.querySelector('.password-toggle') : null;
+            var isHidden = input.getAttribute('type') === 'password';
+            input.setAttribute('type', isHidden ? 'text' : 'password');
+            if (btn) btn.textContent = isHidden ? 'Hide' : 'Show';
+        }
+
+        // Range value display
+        (function() {
+            var groups = document.querySelectorAll('.range-group');
+            groups.forEach(function(group) {
+                var input = group.querySelector('input[type="range"]');
+                var valueEl = group.querySelector('.range-value');
+                if (!input || !valueEl) return;
+                var suffix = valueEl.getAttribute('data-suffix') || '';
+                var update = function() {
+                    valueEl.textContent = input.value + suffix;
+                };
+                input.addEventListener('input', update);
+                update();
+            });
+        })();
+
+        // Rating highlight fallback for browsers without :has
+        (function() {
+            var groups = document.querySelectorAll('.rating-group');
+            groups.forEach(function(group) {
+                var labels = Array.from(group.querySelectorAll('.rating-star'));
+                var inputs = group.querySelectorAll('input[type="radio"]');
+                var update = function() {
+                    var checked = group.querySelector('input[type="radio"]:checked');
+                    var val = checked ? Number(checked.value) : 0;
+                    labels.forEach(function(lbl) {
+                        var v = Number(lbl.getAttribute('data-value') || '0');
+                        if (v && val && v <= val) lbl.classList.add('is-active');
+                        else lbl.classList.remove('is-active');
+                    });
+                };
+                inputs.forEach(function(inp) { inp.addEventListener('change', update); });
+                update();
+            });
+        })();
 
         // Indian pincode validation
         (function() {

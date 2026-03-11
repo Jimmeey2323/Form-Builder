@@ -55,13 +55,16 @@ export type FieldType =
   | 'member-search'
   | 'momence-sessions'
   | 'hosted-class'
-  | 'appointment-slots';
+  | 'appointment-slots'
+  | 'likert-table';
 
 export interface FieldOption {
   label: string;
   value: string;
   /** Full address to display below the form when this option is selected */
   address?: string;
+  /** Optional image URL for picture-choice options */
+  imageUrl?: string;
   /** Optional rule to conditionally show/hide this option */
   conditionalRule?: {
     fieldId: string;
@@ -352,6 +355,36 @@ export interface AppointmentSlotsConfig {
   slots?: AppointmentSlot[];
 }
 
+/** A single row (statement/question) in a Likert table */
+export interface LikertRow {
+  id: string;
+  label: string;
+}
+
+/** Supported input types for a Likert table column */
+export type LikertColumnType = 'radio' | 'checkbox' | 'text' | 'number' | 'select' | 'date' | 'rating';
+
+/** A single column definition in a Likert table */
+export interface LikertColumn {
+  id: string;
+  label: string;
+  type: LikertColumnType;
+  /** Options for radio / checkbox / select column types */
+  options?: FieldOption[];
+  required?: boolean;
+  placeholder?: string;
+  /** Max value for rating columns (default 5) */
+  max?: number;
+  /** Minimum width hint (e.g. '120px') */
+  minWidth?: string;
+}
+
+/** Config for the likert-table field type */
+export interface LikertTableConfig {
+  rows: LikertRow[];
+  columns: LikertColumn[];
+}
+
 export interface EmailOtpConfig {
   fromName?: string;
   fromEmail?: string;
@@ -389,7 +422,9 @@ export interface FormField {
   
   // Options (for select, radio, checkbox)
   options?: FieldOption[];
-  
+  /** When true, appends an "Other…" option that reveals a free-text input */
+  allowOther?: boolean;
+
   // Advanced
   conditionalRules?: ConditionalRule[];
   lookupConfig?: LookupConfig;
@@ -398,6 +433,7 @@ export interface FormField {
   momenceSessionsConfig?: MomenceSessionsConfig;
   appointmentSlotsConfig?: AppointmentSlotsConfig;
   emailOtpConfig?: EmailOtpConfig;
+  likertTableConfig?: LikertTableConfig;
   dependsOnFieldId?: string;
   /** Filters the visible options of this select/radio/checkbox based on another field's value */
   dependentOptionsConfig?: DependentOptionsConfig;
@@ -411,6 +447,31 @@ export interface FormField {
   
   // Order
   order: number;
+  // Rating
+  ratingIcon?: string;
+  // Range/Slider
+  rangeShowValue?: boolean;
+  rangeValueSuffix?: string;
+  // Switch
+  switchDefaultOn?: boolean;
+  switchOnLabel?: string;
+  switchOffLabel?: string;
+  // Password
+  passwordReveal?: boolean;
+  // Section Collapse
+  collapseDefaultOpen?: boolean;
+  collapseDescription?: string;
+  // Divider
+  dividerStyle?: 'solid' | 'dashed' | 'dotted';
+  dividerThickness?: number;
+  // Spacer
+  spacerHeight?: string;
+  // Signature
+  signatureHeight?: number;
+  // Subform
+  subformTemplateId?: string;
+  // Content
+  htmlContent?: string;
 }
 
 // Email notification configuration
@@ -523,7 +584,62 @@ export interface FormTheme {
   fieldGap?: string;
   /** Line height for form text (e.g. '1.5', '1.8') */
   lineHeight?: string;
+  /** Minimum visual height for the form card (e.g. '640px') */
+  formMinHeight?: string;
+  /** Outer border width of the form card (e.g. '1px', '2px') */
+  formBorderWidth?: string;
+  /** Outer border color of the form card */
+  formBorderColor?: string;
   customCss?: string;
+  /** Control the border style of input fields */
+  inputBorderStyle?: 'solid' | 'bottom-only' | 'none';
+  /** Shape of the submit button */
+  buttonStyle?: 'rounded' | 'pill' | 'square';
+  /** Submit button background (hex/rgb/gradient CSS string) */
+  submitButtonBackground?: string;
+  /** Next/Back button background */
+  navButtonBackground?: string;
+  /** Next/Back button text color */
+  navButtonTextColor?: string;
+  /** Next/Back button border color */
+  navButtonBorderColor?: string;
+  // ── Per-button-type overrides ──────────────────────────────────────────
+  /** Back button background (overrides navButtonBackground for Back only) */
+  backButtonBackground?: string;
+  /** Back button text color */
+  backButtonTextColor?: string;
+  /** Back button border color */
+  backButtonBorderColor?: string;
+  /** Back button hover background */
+  backButtonHoverBackground?: string;
+  /** Next button background (overrides navButtonBackground for Next only) */
+  nextButtonBackground?: string;
+  /** Next button text color */
+  nextButtonTextColor?: string;
+  /** Next button border color */
+  nextButtonBorderColor?: string;
+  /** Next button hover background */
+  nextButtonHoverBackground?: string;
+  /** Submit button hover background */
+  submitButtonHoverBackground?: string;
+  /** Submit button border color */
+  submitButtonBorderColor?: string;
+  /** Submit button hover text color */
+  submitButtonHoverTextColor?: string;
+  /** Radius for submit/next/back buttons (e.g. '10px') */
+  buttonRadius?: string;
+  /** Button vertical padding (e.g. '12px') */
+  buttonPaddingY?: string;
+  /** Button horizontal padding (e.g. '14px') */
+  buttonPaddingX?: string;
+  /** Submit button font size (e.g. '15px') */
+  submitButtonFontSize?: string;
+  /** Submit button font weight (e.g. '600') */
+  submitButtonFontWeight?: string;
+  /** Submit button width: 'full' = 100%, 'auto' = fit content, or a custom value like '200px' */
+  submitButtonWidth?: string;
+  /** Alignment of the submit button container when not full-width */
+  submitButtonAlign?: 'left' | 'center' | 'right';
 }
 
 /** Animation configuration per element on the generated form */
@@ -559,6 +675,18 @@ export interface HeroImageConfig {
   zoom?: number;
   /** Hero/image panel height in px */
   height?: number;
+  /** Colour overlay hex (e.g. '#000000') */
+  overlayColor?: string;
+  /** Overlay opacity 0–80 */
+  overlayOpacity?: number;
+  /** Brightness 30–170 (100 = normal) */
+  brightness?: number;
+  /** Gaussian blur in px 0–20 */
+  blur?: number;
+  /** Contrast 30–200 (100 = normal) */
+  contrast?: number;
+  /** Grayscale 0–100 */
+  grayscale?: number;
 }
 
 export type PageHeroImageValue = string | HeroImageConfig;
@@ -660,6 +788,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   'momence-sessions': 'Sessions Picker (Momence)',
   'hosted-class': 'Hosted Class',
   'appointment-slots': 'Appointment Time Slots',
+  'likert-table': 'Likert Table',
   'section-break': 'Section Break',
   'section-collapse': 'Section Collapse',
   divider: 'Divider',
@@ -678,7 +807,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
 export const FIELD_TYPE_CATEGORIES: Record<string, FieldType[]> = {
   'Display Text': ['heading', 'paragraph', 'banner'],
   'Text': ['text', 'textarea', 'rich-text'],
-  'Choices': ['select', 'picture-choice', 'multiselect', 'switch', 'multiple-choice', 'checkbox', 'checkboxes', 'choice-matrix'],
+  'Choices': ['select', 'picture-choice', 'multiselect', 'switch', 'multiple-choice', 'checkbox', 'checkboxes', 'choice-matrix', 'likert-table'],
   'Time': ['date', 'datetime-local', 'time', 'date-range', 'appointment-slots'],
   'Rating & Ranking': ['rating', 'ranking', 'star-rating', 'range', 'opinion-scale'],
   'Contact Info': ['email', 'email-otp', 'tel', 'address'],
@@ -706,7 +835,7 @@ export function createDefaultField(type: FieldType, order: number): FormField {
     order,
   };
 
-  const optionTypes: FieldType[] = ['select', 'radio', 'multiple-choice', 'picture-choice', 'multiselect', 'choice-matrix', 'checkbox', 'checkboxes', 'switch'];
+  const optionTypes: FieldType[] = ['select', 'radio', 'multiple-choice', 'picture-choice', 'multiselect', 'choice-matrix', 'checkbox', 'checkboxes', 'switch', 'ranking', 'submission-picker', 'dependent'];
   if (optionTypes.includes(type)) {
     base.options = [
       { label: 'Option 1', value: 'option_1' },
@@ -717,12 +846,15 @@ export function createDefaultField(type: FieldType, order: number): FormField {
   if (['rating', 'ranking', 'star-rating'].includes(type)) {
     base.max = 5;
     base.min = 1;
+    base.ratingIcon = 'star';
   }
 
   if (type === 'range' || type === 'opinion-scale') {
     base.min = 0;
     base.max = 10;
     base.step = 1;
+    base.rangeShowValue = true;
+    base.rangeValueSuffix = '';
   }
 
   if (type === 'currency') {
@@ -736,6 +868,8 @@ export function createDefaultField(type: FieldType, order: number): FormField {
 
   if (type === 'subform' || type === 'section-collapse') {
     base.helpText = 'Drop your nested fields here';
+    base.collapseDefaultOpen = false;
+    base.collapseDescription = 'Content area — fields placed here will toggle visibility';
   }
 
   if (type === 'momence-sessions' || type === 'hosted-class') {
@@ -809,7 +943,48 @@ export function createDefaultField(type: FieldType, order: number): FormField {
 
   if (type === 'spacer') {
     base.label = 'Empty Space';
-    base.helpText = '20px'; // Default spacer height
+    base.helpText = '20px'; // Backward-compatible height
+    base.spacerHeight = '20px';
+  }
+
+  if (type === 'divider') {
+    base.dividerStyle = 'solid';
+    base.dividerThickness = 1;
+  }
+
+  if (type === 'password') {
+    base.placeholder = 'Enter password';
+    base.passwordReveal = true;
+  }
+
+  if (type === 'likert-table') {
+    base.label = 'Likert Table';
+    base.likertTableConfig = {
+      rows: [
+        { id: `lrow_${Date.now()}_1`, label: 'Statement 1' },
+        { id: `lrow_${Date.now()}_2`, label: 'Statement 2' },
+        { id: `lrow_${Date.now()}_3`, label: 'Statement 3' },
+      ],
+      columns: [
+        {
+          id: `lcol_${Date.now()}_1`,
+          label: 'Agreement',
+          type: 'radio',
+          options: [
+            { label: 'Strongly Agree', value: 'strongly_agree' },
+            { label: 'Agree', value: 'agree' },
+            { label: 'Neutral', value: 'neutral' },
+            { label: 'Disagree', value: 'disagree' },
+            { label: 'Strongly Disagree', value: 'strongly_disagree' },
+          ],
+          required: false,
+        },
+      ],
+    };
+  }
+
+  if (type === 'signature') {
+    base.signatureHeight = 200;
   }
 
   return base;

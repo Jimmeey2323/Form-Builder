@@ -1,4 +1,4 @@
-import { useState, useCallback, Fragment } from 'react';
+import { useState, useCallback, Fragment, useEffect, MouseEvent } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -19,7 +19,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { FormConfig, FormField, FieldType, FIELD_TYPE_LABELS } from '@/types/formField';
+import { FormConfig, FormField, FieldType, FIELD_TYPE_LABELS, LikertColumn } from '@/types/formField';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
@@ -35,13 +35,31 @@ import {
   GripVertical, Pencil, Trash2, Copy,
   ChevronDown, Star, Calendar,
   FileUp, Plus, Lock, BookOpen, SplitSquareVertical,
+  Heart, ThumbsUp, Flame, Smile, Award, Sun, Zap, Shield, Target, Code2,
+  Dumbbell, Bike, Trophy, Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { generateFormHtml } from '@/utils/htmlGenerator';
 import { getHeroForPage, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
 
-
+// ── Rating icon map ───────────────────────────────────────────────────────────────
+const RATING_ICON_MAP: Record<string, typeof Star> = {
+  star: Star,
+  heart: Heart,
+  'thumbs-up': ThumbsUp,
+  flame: Flame,
+  smile: Smile,
+  zap: Zap,
+  award: Award,
+  shield: Shield,
+  sun: Sun,
+  target: Target,
+  dumbbell: Dumbbell,
+  bike: Bike,
+  trophy: Trophy,
+  activity: Activity,
+};
 
 // ── Real field input preview ───────────────────────────────────────────────────────
 function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: { 
@@ -51,6 +69,25 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
   onDuplicate: (fieldId: string) => void;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [ratingValue, setRatingValue] = useState<number>(() => {
+    const v = Number(field.defaultValue);
+    return Number.isFinite(v) ? v : 0;
+  });
+  const [rangeValue, setRangeValue] = useState<number | null>(null);
+  const [collapseOpen, setCollapseOpen] = useState<boolean>(field.collapseDefaultOpen ?? false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
+  useEffect(() => {
+    const v = Number(field.defaultValue);
+    if (field.type === 'star-rating') {
+      setRatingValue(Number.isFinite(v) ? v : (field.max || 5));
+    } else {
+      setRatingValue(Number.isFinite(v) ? v : 0);
+    }
+    setRangeValue(null);
+    setCollapseOpen(field.collapseDefaultOpen ?? false);
+    setPasswordVisible(false);
+  }, [field.id, field.defaultValue, field.collapseDefaultOpen, field.type, field.max]);
 
   const renderFieldInput = () => {
     const baseClasses = "form-input";
@@ -95,12 +132,18 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
 
       case 'select':
         return (
-          <select className={baseClasses} required={required} defaultValue="">
-            <option value="" disabled>{placeholder || 'Select an option'}</option>
-            {(field.options || []).map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <div className="space-y-1.5">
+            <select className={baseClasses} required={required} defaultValue="">
+              <option value="" disabled>{placeholder || 'Select an option'}</option>
+              {(field.options || []).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+              {field.allowOther && <option value="__other__">Other…</option>}
+            </select>
+            {field.allowOther && (
+              <input type="text" className={`${baseClasses} text-muted-foreground`} placeholder="Specify other…" disabled />
+            )}
+          </div>
         );
 
       case 'radio':
@@ -114,6 +157,12 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
             ))}
             {(field.options?.length ?? 0) > 3 && (
               <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
+            )}
+            {field.allowOther && (
+              <label className="radio-option">
+                <input type="radio" name={field.id} value="__other__" />
+                <span className="flex items-center gap-2">Other… <input type="text" className="form-input text-xs py-1 px-2 h-7" placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
+              </label>
             )}
           </div>
         );
@@ -142,25 +191,80 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
           );
         }
 
-      case 'rating':
+      case 'checkboxes':
         return (
-          <div className="flex gap-1">
-            {Array.from({ length: field.max || 5 }).map((_, i) => (
-              <Star key={i} className="h-5 w-5 text-muted-foreground/40 hover:text-yellow-400 cursor-pointer transition-colors" />
+          <div className="checkbox-group">
+            {(field.options || []).slice(0, 3).map(o => (
+              <label key={o.value} className="checkbox-option">
+                <input type="checkbox" name={field.id} value={o.value} />
+                <span>{o.label}</span>
+              </label>
             ))}
+            {(field.options?.length ?? 0) > 3 && (
+              <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
+            )}
+            {field.allowOther && (
+              <label className="checkbox-option">
+                <input type="checkbox" name={field.id} value="__other__" />
+                <span className="flex items-center gap-2">Other… <input type="text" className="form-input text-xs py-1 px-2 h-7" placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
+              </label>
+            )}
           </div>
         );
 
-      case 'range':
+      case 'rating': {
+        const count = field.max || 5;
+        const IconComp = RATING_ICON_MAP[field.ratingIcon || 'star'] || Star;
         return (
-          <div className="space-y-2">
-            <input type="range" className="w-full h-2 bg-border rounded-lg appearance-none cursor-pointer" min={field.min || 0} max={field.max || 100} />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{field.min || 0}</span>
-              <span>{field.max || 100}</span>
-            </div>
+          <div className="flex gap-1.5 items-center">
+            {Array.from({ length: count }).map((_, i) => {
+              const val = i + 1;
+              const active = ratingValue >= val;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setRatingValue(val)}
+                  className="p-0.5"
+                  aria-label={`Set rating to ${val}`}
+                >
+                  <IconComp className={`h-6 w-6 transition-colors ${active ? 'text-yellow-400' : 'text-muted-foreground/25'}`} />
+                </button>
+              );
+            })}
           </div>
         );
+      }
+
+      case 'range': {
+        const minR = field.min ?? 0;
+        const maxR = field.max ?? 100;
+        const midVal = Math.round((minR + maxR) / 2);
+        const parsedDefault = Number(field.defaultValue);
+        const initialVal = Number.isFinite(parsedDefault) ? parsedDefault : midVal;
+        const currentVal = rangeValue ?? initialVal;
+        const suffix = field.rangeValueSuffix || '';
+        return (
+          <div className="space-y-2.5">
+            <input
+              type="range"
+              className="w-full h-2 rounded-full appearance-none cursor-pointer accent-primary"
+              min={minR}
+              max={maxR}
+              value={currentVal}
+              step={field.step || 1}
+              onChange={e => setRangeValue(Number(e.target.value))}
+            />
+            {field.rangeShowValue !== false && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground font-mono">{minR}{suffix}</span>
+                <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold border border-primary/20">{currentVal}{suffix}</span>
+                <span className="text-muted-foreground font-mono">{maxR}{suffix}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
 
       case 'color':
         return (
@@ -179,9 +283,25 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'signature':
+        const sigHeight = field.signatureHeight ?? 200;
         return (
-          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20" style={{ height: sigHeight }}>
             <div className="text-sm text-muted-foreground italic">Signature area</div>
+          </div>
+        );
+      case 'password':
+        return (
+          <div className="flex items-center gap-2">
+            <input type={passwordVisible ? 'text' : 'password'} className={`${baseClasses} flex-1`} placeholder={placeholder || 'Enter password'} required={required} />
+            {(field.passwordReveal ?? true) && (
+              <button
+                type="button"
+                onClick={() => setPasswordVisible(v => !v)}
+                className="px-2.5 py-2 text-xs rounded-md border border-border bg-muted hover:bg-muted/70"
+              >
+                {passwordVisible ? 'Hide' : 'Show'}
+              </button>
+            )}
           </div>
         );
 
@@ -203,27 +323,68 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'image':
+        const imgSrc = field.defaultValue || field.placeholder || '';
+        const imgAlt = field.helpText || field.label || 'Image';
         return (
-          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
-            <div className="text-2xl mb-2">📷</div>
-            <div className="text-sm text-muted-foreground">Image Upload</div>
-          </div>
+          imgSrc ? (
+            <div className="border border-border rounded-md overflow-hidden bg-muted/10">
+              <img src={imgSrc} alt={imgAlt} className="w-full h-auto block" />
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+              <div className="text-2xl mb-2">📷</div>
+              <div className="text-sm text-muted-foreground">Image URL not set</div>
+            </div>
+          )
         );
 
       case 'video':
+        const vidSrc = field.defaultValue || field.placeholder || '';
+        const isYoutube = vidSrc.includes('youtube.com') || vidSrc.includes('youtu.be');
+        const isVimeo = vidSrc.includes('vimeo.com');
+        let embedUrl = vidSrc;
+        if (isYoutube) {
+          const match = vidSrc.match(/(?:v=|youtu\.be\/)([^&?#]+)/);
+          if (match) embedUrl = `https://www.youtube.com/embed/${match[1]}`;
+        } else if (isVimeo) {
+          const match = vidSrc.match(/vimeo\.com\/(\d+)/);
+          if (match) embedUrl = `https://player.vimeo.com/video/${match[1]}`;
+        }
         return (
-          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
-            <div className="text-2xl mb-2">🎥</div>
-            <div className="text-sm text-muted-foreground">Video Upload</div>
-          </div>
+          vidSrc ? (
+            <div className="border border-border rounded-md overflow-hidden bg-muted/10">
+              {isYoutube || isVimeo ? (
+                <iframe
+                  src={embedUrl}
+                  className="w-full aspect-video"
+                  allowFullScreen
+                  title={field.label}
+                />
+              ) : (
+                <video src={vidSrc} controls className="w-full" />
+              )}
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+              <div className="text-2xl mb-2">🎥</div>
+              <div className="text-sm text-muted-foreground">Video URL not set</div>
+            </div>
+          )
         );
 
       case 'pdf-viewer':
+        const pdfSrc = field.defaultValue || field.placeholder || '';
         return (
-          <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
-            <div className="text-2xl mb-2">📄</div>
-            <div className="text-sm text-muted-foreground">PDF Viewer</div>
-          </div>
+          pdfSrc ? (
+            <div className="border border-border rounded-md overflow-hidden bg-muted/10">
+              <iframe src={pdfSrc} className="w-full h-64" title={field.label} />
+            </div>
+          ) : (
+            <div className="border-2 border-dashed border-border rounded-md p-6 text-center bg-muted/20">
+              <div className="text-2xl mb-2">📄</div>
+              <div className="text-sm text-muted-foreground">PDF URL not set</div>
+            </div>
+          )
         );
 
       case 'voice-recording':
@@ -258,33 +419,51 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'ranking':
+        const rankOptions = (field.options && field.options.length > 0)
+          ? field.options
+          : [
+              { label: 'Option A', value: 'option_a' },
+              { label: 'Option B', value: 'option_b' },
+              { label: 'Option C', value: 'option_c' },
+            ];
         return (
           <div className="space-y-1">
-            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
-              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">1</span>
-              Option A
-            </div>
-            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
-              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">2</span>
-              Option B
-            </div>
-            <div className="flex items-center gap-2 p-2 border border-border rounded text-sm">
-              <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">3</span>
-              Option C
-            </div>
-          </div>
-        );
-
-      case 'star-rating':
-        return (
-          <div className="flex gap-1">
-            {Array.from({ length: field.max || 5 }).map((_, i) => (
-              <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+            {rankOptions.slice(0, 4).map((opt, i) => (
+              <div key={opt.value} className="flex items-center gap-2 p-2 border border-border rounded text-sm">
+                <span className="w-6 h-6 rounded bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">{i + 1}</span>
+                {opt.label}
+              </div>
             ))}
           </div>
         );
 
+      case 'star-rating': {
+        const count = field.max || 5;
+        const IconComp = RATING_ICON_MAP[field.ratingIcon || 'star'] || Star;
+        return (
+          <div className="flex gap-1.5 items-center">
+            {Array.from({ length: count }).map((_, i) => {
+              const val = i + 1;
+              const active = ratingValue >= val;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setRatingValue(val)}
+                  className="p-0.5"
+                  aria-label={`Set rating to ${val}`}
+                >
+                  <IconComp className={`h-6 w-6 ${active ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/25'}`} />
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
+
       case 'opinion-scale':
+        const scaleMin = field.min ?? 1;
+        const scaleMax = field.max ?? 10;
         return (
           <div className="space-y-3">
             <div className="flex justify-between text-xs text-muted-foreground">
@@ -292,9 +471,9 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
               <span>Strongly Agree</span>
             </div>
             <div className="flex justify-between gap-1">
-              {Array.from({ length: 10 }).map((_, i) => (
+              {Array.from({ length: scaleMax - scaleMin + 1 }).map((_, i) => (
                 <button key={i} className="w-8 h-8 rounded-full border border-border hover:border-primary hover:bg-primary/10 text-xs font-medium transition-colors">
-                  {i + 1}
+                  {scaleMin + i}
                 </button>
               ))}
             </div>
@@ -310,60 +489,98 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'picture-choice':
+        const picOptions = (field.options && field.options.length > 0)
+          ? field.options
+          : [
+              { label: 'Option A', value: 'option_a' },
+              { label: 'Option B', value: 'option_b' },
+            ];
+        const isImgUrl = (val?: string) => !!val && (val.startsWith('http') || val.startsWith('data:image'));
         return (
           <div className="grid grid-cols-2 gap-2">
-            <div className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer">
-              <div className="text-center">
-                <div className="text-lg mb-1">📷</div>
-                <div className="text-xs text-muted-foreground">Option A</div>
-              </div>
-            </div>
-            <div className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer">
-              <div className="text-center">
-                <div className="text-lg mb-1">📷</div>
-                <div className="text-xs text-muted-foreground">Option B</div>
-              </div>
-            </div>
+            {picOptions.slice(0, 4).map(opt => {
+              const src = opt.imageUrl || (isImgUrl(opt.label) ? opt.label : '');
+              return (
+                <div key={opt.value} className="relative aspect-square border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center bg-muted/20 hover:border-primary/50 transition-colors cursor-pointer overflow-hidden">
+                  {src ? (
+                    <>
+                      <img src={src} alt={opt.label} className="w-full h-full object-cover" />
+                      {opt.label && !isImgUrl(opt.label) && (
+                        <div className="absolute bottom-1 left-1 right-1 text-[10px] text-white bg-black/40 rounded px-1 py-0.5 text-center">
+                          {opt.label}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center px-2">
+                      <div className="text-lg mb-1">📷</div>
+                      <div className="text-xs text-muted-foreground">{opt.label}</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
 
       case 'choice-matrix':
+        const cmCols = Array.from({ length: field.max || 5 }).map((_, i) => i + 1);
+        const cmRows = field.options && field.options.length > 0 ? field.options : [
+          { label: 'Row 1', value: 'row1' },
+          { label: 'Row 2', value: 'row2' },
+        ];
         return (
           <div className="space-y-2">
             <div className="text-xs text-muted-foreground mb-2">Rate each option:</div>
-            <div className="grid grid-cols-6 gap-1 text-xs">
+            <div
+              className="grid gap-1 text-xs"
+              style={{ gridTemplateColumns: `repeat(${cmCols.length + 1}, minmax(0, 1fr))` }}
+            >
               <div></div>
-              <div className="text-center">1</div>
-              <div className="text-center">2</div>
-              <div className="text-center">3</div>
-              <div className="text-center">4</div>
-              <div className="text-center">5</div>
-              <div className="py-1">Row 1</div>
-              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
-              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
-              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
-              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
-              <div className="flex justify-center"><input type="radio" name="row1" className="w-3 h-3" /></div>
+              {cmCols.map(c => (
+                <div key={`cmc_${c}`} className="text-center">{c}</div>
+              ))}
+              {cmRows.map(row => (
+                <Fragment key={row.value}>
+                  <div className="py-1">{row.label}</div>
+                  {cmCols.map(c => (
+                    <div key={`${row.value}_${c}`} className="flex justify-center">
+                      <input type="radio" name={row.value} className="w-3 h-3" />
+                    </div>
+                  ))}
+                </Fragment>
+              ))}
             </div>
           </div>
         );
 
       case 'multiselect':
         return (
-          <select className="form-input" multiple size={4} required={required}>
-            {(field.options || []).map(o => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <div className="space-y-1.5">
+            <select className="form-input" multiple size={Math.min((field.options?.length ?? 0) + (field.allowOther ? 1 : 0), 5) || 4} required={required}>
+              {(field.options || []).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+              {field.allowOther && <option value="__other__">Other…</option>}
+            </select>
+            {field.allowOther && (
+              <input type="text" className={`${baseClasses} text-muted-foreground`} placeholder="Specify other…" disabled />
+            )}
+          </div>
         );
 
       case 'switch':
         return (
           <div className="flex items-center gap-3">
-            <div className="w-10 h-5 bg-border rounded-full relative">
-              <div className="w-4 h-4 bg-white rounded-full absolute left-0.5 top-0.5 transition-transform"></div>
+            <div className={`w-10 h-5 rounded-full relative transition-colors ${field.switchDefaultOn ? 'bg-primary' : 'bg-border'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform shadow-sm ${field.switchDefaultOn ? 'translate-x-5' : 'left-0.5'}`}></div>
             </div>
             <span className="text-sm text-foreground">{field.label}</span>
+            {(field.switchOnLabel || field.switchOffLabel) && (
+              <span className="text-xs text-muted-foreground ml-1">
+                {field.switchDefaultOn ? (field.switchOnLabel || '') : (field.switchOffLabel || '')}
+              </span>
+            )}
           </div>
         );
 
@@ -379,42 +596,87 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
             {(field.options?.length ?? 0) > 3 && (
               <div className="help-text">+{(field.options?.length ?? 0) - 3} more options</div>
             )}
+            {field.allowOther && (
+              <label className="checkbox-option">
+                <input type="checkbox" name={field.id} value="__other__" />
+                <span className="flex items-center gap-2">Other… <input type="text" className="form-input text-xs py-1 px-2 h-7" placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
+              </label>
+            )}
           </div>
         );
 
       case 'subform':
+        const subformId = field.subformTemplateId;
         return (
           <div className="border border-border rounded-md p-4 bg-muted/20">
             <div className="text-sm text-muted-foreground text-center">Subform: {field.label}</div>
+            <div className="text-[11px] text-muted-foreground/70 text-center mt-1">
+              {subformId ? `Template ID: ${subformId}` : 'No template linked'}
+            </div>
           </div>
         );
 
       case 'section-collapse':
         return (
-          <div className="border border-border rounded-md">
-            <div className="flex items-center justify-between p-3 bg-muted/50 cursor-pointer">
-              <span className="font-medium text-sm">{field.label}</span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </div>
+          <div className="border border-border rounded-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setCollapseOpen(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/50 cursor-pointer hover:bg-muted/70 transition-colors"
+            >
+              <span className="text-sm font-semibold text-foreground">{field.label || 'Collapsible Section'}</span>
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${collapseOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {collapseOpen && (
+              <div className="px-3 py-2.5 border-t border-border bg-muted/10">
+                <p className="text-xs text-muted-foreground italic">{field.collapseDescription || field.helpText || 'Content area — fields placed here will toggle visibility'}</p>
+              </div>
+            )}
           </div>
         );
 
       case 'divider':
-        return <div className="border-t border-border my-4"></div>;
+        return (
+          <div
+            className="my-4"
+            style={{
+              borderTop: `${field.dividerThickness ?? 1}px ${field.dividerStyle ?? 'solid'} hsl(var(--border))`,
+            }}
+          />
+        );
+
+      case 'spacer': {
+        const height = field.spacerHeight || field.helpText || '20px';
+        return <div style={{ height }} />;
+      }
 
       case 'html-snippet':
         return (
-          <div className="border border-border rounded-md p-4 bg-muted/20">
-            <div className="text-sm text-muted-foreground text-center">Custom HTML: {field.label}</div>
+          <div className="border border-border rounded-md overflow-hidden text-xs">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800">
+              <Code2 className="h-3 w-3 text-slate-400" />
+              <span className="font-mono font-semibold text-slate-400 text-[10px]">HTML · {field.label}</span>
+            </div>
+            <pre className="p-3 font-mono text-green-400/90 bg-slate-900 overflow-auto max-h-[90px] leading-relaxed whitespace-pre-wrap break-all">
+              {field.htmlContent || '<div>\n  <!-- Your HTML here -->\n</div>'}
+            </pre>
           </div>
         );
 
       case 'submission-picker':
         return (
           <select className="form-input" required={required} defaultValue="">
-            <option value="" disabled>Select a submission</option>
-            <option value="sub1">Submission 1</option>
-            <option value="sub2">Submission 2</option>
+            <option value="" disabled>{field.placeholder || 'Select a submission'}</option>
+            {(field.options || []).length > 0 ? (
+              (field.options || []).map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))
+            ) : (
+              <>
+                <option value="sub1">Submission 1</option>
+                <option value="sub2">Submission 2</option>
+              </>
+            )}
           </select>
         );
 
@@ -499,8 +761,22 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
 
       case 'rich-text':
         return (
-          <div className="border border-border rounded-md p-3 bg-background min-h-[100px]">
-            <div className="text-sm text-muted-foreground">Rich text editor content area</div>
+          <div className="border border-border rounded-md overflow-hidden bg-background">
+            <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-muted/40 flex-wrap">
+              {['B', 'I', 'U', 'S'].map(fmt => (
+                <button key={fmt} className="h-6 w-6 rounded text-[11px] font-bold text-muted-foreground hover:bg-muted transition-colors">{fmt}</button>
+              ))}
+              <div className="w-px h-4 bg-border/60 mx-1" />
+              {['H1', 'H2', 'P'].map(fmt => (
+                <button key={fmt} className="h-6 px-1.5 rounded text-[10px] font-semibold text-muted-foreground hover:bg-muted transition-colors">{fmt}</button>
+              ))}
+              <div className="w-px h-4 bg-border/60 mx-1" />
+              <button className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:bg-muted transition-colors">≡</button>
+              <button className="h-6 px-1.5 rounded text-xs text-muted-foreground hover:bg-muted transition-colors">⊞</button>
+            </div>
+            <div className="p-3 min-h-[72px] flex items-center">
+              <p className="text-sm text-muted-foreground/50 italic">Rich text content area…</p>
+            </div>
           </div>
         );
 
@@ -517,6 +793,171 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
             {field.helpText && <div className="text-sm text-primary/80 mt-1">{field.helpText}</div>}
           </div>
         );
+
+      case 'member-search':
+        return (
+          <div className="space-y-1">
+            <input type="search" className={baseClasses} placeholder="Search members by name or email…" />
+            <div className="border border-border rounded-md divide-y divide-border overflow-hidden shadow-sm mt-1">
+              {[{ initials: 'AS', name: 'Aditi Sharma' }, { initials: 'RV', name: 'Rahul Verma' }].map(m => (
+                <div key={m.name} className="flex items-center gap-2 p-2 text-xs hover:bg-muted/30 cursor-pointer">
+                  <span className="h-6 w-6 rounded-full bg-primary/10 text-primary font-bold text-[11px] flex items-center justify-center shrink-0">{m.initials}</span>
+                  <span className="text-foreground/80">{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'lookup':
+        return (
+          <div className="space-y-1.5">
+            <input type="text" className={baseClasses} readOnly placeholder="Auto-filled from lookup source" />
+            <div className="text-[11px] text-muted-foreground/70 flex items-center gap-1.5 px-0.5">
+              <span className="font-mono font-bold text-indigo-500/80">↪</span>
+              <span>Lookup: <span className="font-mono text-indigo-600/80">{field.lookupConfig?.sourceFieldId || 'source field'}</span></span>
+            </div>
+          </div>
+        );
+
+      case 'formula':
+        return (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border rounded-md">
+              <span className="text-muted-foreground/60 text-base font-bold italic">ƒ</span>
+              <code className="text-indigo-600/90 text-xs flex-1 font-mono">{field.formulaConfig?.expression || 'field1 + field2'}</code>
+            </div>
+            <div className="text-[11px] text-muted-foreground px-0.5">Computed automatically — read-only output</div>
+          </div>
+        );
+
+      case 'conditional':
+        return (
+          <div className="flex items-center gap-2.5 p-2.5 rounded-md border border-dashed border-amber-300/70 bg-amber-50/60">
+            <div className="h-6 w-6 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 font-bold text-sm text-amber-600">?</div>
+            <div>
+              <div className="text-xs font-semibold text-amber-800">Conditional Branch</div>
+              <div className="text-[11px] text-amber-600/80">Value evaluated based on conditions</div>
+            </div>
+          </div>
+        );
+
+      case 'dependent':
+        const depOptions = (field.options && field.options.length > 0)
+          ? field.options
+          : [
+              { label: 'Option A', value: 'option_a' },
+              { label: 'Option B', value: 'option_b' },
+            ];
+        const depSource = field.dependentOptionsConfig?.sourceFieldId;
+        return (
+          <div className="space-y-1.5">
+            <select className={baseClasses} defaultValue="">
+              <option value="" disabled>
+                {field.placeholder || (depSource ? `Select (depends on ${depSource})` : 'Select an option')}
+              </option>
+              {depOptions.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <div className="text-[11px] text-muted-foreground px-0.5">
+              {depSource ? `Depends on: ${depSource}` : 'Options can be filtered based on another field'}
+            </div>
+          </div>
+        );
+
+      case 'likert-table': {
+        const lcfg = field.likertTableConfig;
+        const lRows = lcfg?.rows?.length ? lcfg.rows : [{ id: 'r1', label: 'Statement 1' }, { id: 'r2', label: 'Statement 2' }];
+        const lCols = lcfg?.columns?.length ? lcfg.columns : [{ id: 'c1', label: 'Agreement', type: 'radio' as const, options: [{ label: 'Agree', value: 'agree' }, { label: 'Neutral', value: 'neutral' }, { label: 'Disagree', value: 'disagree' }] }];
+
+        // Build flat column descriptor for spread layout
+        interface SpreadCol { key: string; label: string; colIdx: number; optValue?: string; inputType?: string; colDef: LikertColumn; }
+        const spreadCols: SpreadCol[] = [];
+        lCols.forEach((col: LikertColumn, ci: number) => {
+          const opts = col.options || [];
+          if ((col.type === 'radio' || col.type === 'checkbox') && opts.length > 0) {
+            opts.forEach(o => spreadCols.push({ key: `${col.id}_${o.value}`, label: o.label, colIdx: ci, optValue: o.value, inputType: col.type, colDef: col }));
+          } else {
+            spreadCols.push({ key: col.id, label: col.label, colIdx: ci, colDef: col });
+          }
+        });
+
+        const hasSpreads = lCols.some((c: LikertColumn) => (c.type === 'radio' || c.type === 'checkbox') && (c.options || []).length > 0);
+
+        return (
+          <div className="overflow-x-auto rounded-lg border border-border text-xs">
+            <table className="w-full border-collapse">
+              <thead>
+                {hasSpreads && (
+                  <tr className="bg-muted/60">
+                    <th className="px-2 py-1.5 text-left font-semibold text-muted-foreground border-r border-border min-w-[110px]"></th>
+                    {lCols.map((col: LikertColumn) => {
+                      const opts = col.options || [];
+                      if ((col.type === 'radio' || col.type === 'checkbox') && opts.length > 0) {
+                        return (
+                          <th key={col.id} colSpan={opts.length} className="px-2 py-1.5 text-center font-semibold text-muted-foreground border-r border-border last:border-r-0 border-b border-border">
+                            {col.label}{col.required && <span className="text-destructive ml-0.5">*</span>}
+                          </th>
+                        );
+                      }
+                      return (
+                        <th key={col.id} rowSpan={2} className="px-2 py-1.5 text-center font-semibold text-muted-foreground border-r border-border last:border-r-0">
+                          {col.label}{col.required && <span className="text-destructive ml-0.5">*</span>}
+                          <span className="block font-normal text-[10px] opacity-60 capitalize">{col.type}</span>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                )}
+                <tr className="bg-muted/40">
+                  {!hasSpreads && <th className="px-3 py-2 text-left font-semibold text-muted-foreground min-w-[130px] border-r border-border">Statement</th>}
+                  {spreadCols.map(sc => (
+                    <th key={sc.key} className="px-2 py-1.5 text-center font-medium text-muted-foreground border-r border-border last:border-r-0 whitespace-nowrap">
+                      {sc.optValue !== undefined ? sc.label : (
+                        <>
+                          {sc.label}
+                          {sc.colDef.required && <span className="text-destructive ml-0.5">*</span>}
+                          <span className="block font-normal text-[10px] opacity-60 capitalize">{sc.colDef.type}</span>
+                        </>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lRows.map((row, ri) => (
+                  <tr key={row.id} className={ri % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
+                    <td className="px-3 py-2 font-medium text-foreground border-r border-border">{row.label}</td>
+                    {spreadCols.map(sc => (
+                      <td key={sc.key} className="px-2 py-2 text-center border-r border-border last:border-r-0">
+                        {sc.optValue !== undefined ? (
+                          <input type={sc.inputType} name={`lk_${field.id}_${row.id}_${sc.colDef.id}`} value={sc.optValue} className="w-3.5 h-3.5 cursor-pointer" />
+                        ) : sc.colDef.type === 'select' ? (
+                          <select className="text-xs py-0.5 px-1 border border-border rounded w-full max-w-[100px]">
+                            <option value="">—</option>
+                            {(sc.colDef.options || []).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        ) : sc.colDef.type === 'rating' ? (
+                          <div className="flex justify-center gap-0.5">
+                            {Array.from({ length: sc.colDef.max || 5 }).map((_, si) => (
+                              <Star key={si} className="h-3 w-3 text-yellow-400" />
+                            ))}
+                          </div>
+                        ) : sc.colDef.type === 'date' ? (
+                          <input type="date" className="text-xs py-0.5 px-1 border border-border rounded" />
+                        ) : (
+                          <input type={sc.colDef.type === 'number' ? 'number' : 'text'} className="text-xs py-0.5 px-1 border border-border rounded w-16" placeholder={sc.colDef.placeholder || '…'} />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
 
       default:
         return <input type="text" className="form-input" placeholder={placeholder} required={required} />;
@@ -645,6 +1086,12 @@ function CanvasField({
   const colSpan = fieldColSpan(field, formLayout);
   const isPageBreak = field.type === 'page-break';
   const isSectionBreak = field.type === 'section-break';
+  const handleOpenField = (e: MouseEvent<HTMLElement>) => {
+    if (isLocked) return;
+    const target = e.target as HTMLElement;
+    if (target.closest('button, input, select, textarea, a, [role="button"]')) return;
+    onEdit(field);
+  };
 
   // ── Page-break: dramatic horizontal divider ───────────────────────────
   if (isPageBreak) {
@@ -655,6 +1102,7 @@ function CanvasField({
         className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onClick={handleOpenField}
       >
         <div className="py-1.5">
           <div className="flex items-center gap-3">
@@ -707,6 +1155,7 @@ function CanvasField({
         className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        onClick={handleOpenField}
       >
         <div className="pt-2 pb-1 group">
           <div className="flex items-center gap-3">
@@ -750,7 +1199,7 @@ function CanvasField({
         hovered
           ? 'border-indigo-200/80 shadow-[0_4px_20px_rgba(99,102,241,0.09)] bg-white'
           : 'border-slate-200/80 shadow-sm bg-white'
-      }`}>
+      }`} onClick={handleOpenField}>
         {/* Card header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50/70">
           <div
@@ -865,9 +1314,11 @@ interface FormCanvasProps {
   onAdd: (type: FieldType, options?: { openEditor?: boolean; source?: 'drop' | 'click' }) => void;
   onReorder: (orderedIds: string[]) => void;
   isLocked?: boolean;
+  onBulkFieldWidth?: (width: string) => void;
+  onUpdateTheme?: (updates: Partial<FormConfig['theme']>) => void;
 }
 
-export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReorder, isLocked }: FormCanvasProps) {
+export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReorder, isLocked, onBulkFieldWidth, onUpdateTheme }: FormCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -929,15 +1380,27 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   const activeField = activeId ? sortedFields.find(f => f.id === activeId) : null;
 
   const fieldGap = form.theme.fieldGap || '16px';
-  const gridClass = (() => {
+  const gridTemplateColumns = (() => {
     switch (form.theme.formLayout) {
-      case 'two-column':   return 'grid grid-cols-12 gap-x-3';
-      case 'three-column': return 'grid grid-cols-12 gap-x-3';
-      default:             return 'grid grid-cols-12';
+      case 'two-column':
+        return 'repeat(2, minmax(0, 1fr))';
+      case 'three-column':
+        return 'repeat(3, minmax(0, 1fr))';
+      case 'custom':
+        return 'repeat(12, minmax(0, 1fr))';
+      default:
+        return '1fr';
     }
   })();
 
   const primaryGradient = `linear-gradient(135deg, ${form.theme.primaryColor} 0%, ${form.theme.secondaryColor} 100%)`;
+  const submitButtonBackground = form.theme.submitButtonBackground || primaryGradient;
+  const formCardStyle = {
+    ...(isSplitLayout ? { gridTemplateColumns: splitCols } : {}),
+    borderWidth: form.theme.formBorderWidth || '1px',
+    borderColor: form.theme.formBorderColor || form.theme.inputBorderColor,
+    minHeight: form.theme.formMinHeight || undefined,
+  } as const;
 
   // CSS for matching preview styling
   const formCss = `
@@ -958,6 +1421,10 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1);
       --radius: ${form.theme.borderRadius};
       --form-padding: ${form.theme.formPadding || '32px'};
+      --btn-radius: ${form.theme.buttonRadius || '8px'};
+      --btn-padding-y: ${form.theme.buttonPaddingY || '12px'};
+      --btn-padding-x: ${form.theme.buttonPaddingX || '14px'};
+      --submit-btn-bg: ${submitButtonBackground};
     }
     .form-canvas-wrapper * { box-sizing: border-box; }
     .form-canvas-wrapper .form-group {
@@ -969,7 +1436,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
     }
     .form-canvas-wrapper .form-fields-grid {
       display: grid;
-      ${form.theme.formLayout === 'two-column' ? 'grid-template-columns: repeat(2, 1fr);' : form.theme.formLayout === 'three-column' ? 'grid-template-columns: repeat(3, 1fr);' : 'grid-template-columns: 1fr;'}
+      grid-template-columns: ${gridTemplateColumns};
       gap: ${form.theme.fieldGap || '16px'};
     }
     .form-canvas-wrapper .form-group label {
@@ -1031,10 +1498,10 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
     .form-canvas-wrapper .section-break h3 { font-size: 16px; font-weight: 600; }
     .form-canvas-wrapper .submit-btn {
       width: 100%;
-      padding: 14px;
+      padding: var(--btn-padding-y) var(--btn-padding-x);
       border: none;
-      border-radius: 8px;
-      background: var(--primary-gradient);
+      border-radius: var(--btn-radius);
+      background: var(--submit-btn-bg);
       color: ${form.theme.buttonTextColor};
       font-family: inherit;
       font-size: 15px;
@@ -1057,15 +1524,65 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
   return (
     <>
     <style>{formCss}</style>
-    <div className="h-[calc(100vh-168px)] overflow-hidden rounded-xl border border-border/60 shadow-sm bg-background">
+    <div className="premium-surface h-[calc(100vh-168px)] overflow-hidden rounded-[24px]">
 
       {/* ── Canvas Area ────────────────────────────────────────────────────── */}
-      <div className="h-full overflow-hidden flex flex-col bg-muted/30">
-        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between bg-background/80">
+      <div className="h-full overflow-hidden flex flex-col bg-gradient-to-b from-slate-50/65 via-white/55 to-slate-50/40">
+        <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between bg-white/70 backdrop-blur-md">
           <p className="text-[11px] font-semibold text-muted-foreground">
             Canvas — <span className="text-foreground">{form.title}</span>
           </p>
           <div className="flex items-center gap-2">
+            {!isLocked && onUpdateTheme && (
+              <div className="flex items-center gap-1 border-r border-border/30 mr-1 pr-2">
+                <span className="text-[9px] font-semibold text-muted-foreground/50 uppercase tracking-wider">Grid:</span>
+                {([
+                  { value: 'single', label: '1' },
+                  { value: 'two-column', label: '2' },
+                  { value: 'three-column', label: '3' },
+                  { value: 'custom', label: '12' },
+                ] as const).map(layout => (
+                  <button
+                    key={layout.value}
+                    onClick={() => onUpdateTheme({ formLayout: layout.value })}
+                    className={`h-6 px-1.5 rounded text-[10px] font-bold transition-colors border ${
+                      (form.theme.formLayout || 'single') === layout.value
+                        ? 'text-cyan-700 border-cyan-300 bg-cyan-50'
+                        : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 border-border/40'
+                    }`}
+                    title={`Set grid to ${layout.value}`}
+                  >
+                    {layout.label}
+                  </button>
+                ))}
+                <input
+                  value={fieldGap}
+                  onChange={e => onUpdateTheme({ fieldGap: e.target.value })}
+                  className="h-6 w-[62px] rounded border border-border/40 bg-white px-1.5 text-[10px] font-mono text-muted-foreground"
+                  placeholder="16px"
+                  title="Grid gap (e.g., 12px)"
+                />
+              </div>
+            )}
+            {!isLocked && onBulkFieldWidth && (
+              <div className="flex items-center gap-1 border-r border-border/30 mr-1 pr-2">
+                <span className="text-[9px] font-semibold text-muted-foreground/50 uppercase tracking-wider">Width:</span>
+                {([
+                  {w:'100',label:'Full'},
+                  {w:'75',label:'¾'},
+                  {w:'66',label:'⅔'},
+                  {w:'50',label:'½'},
+                  {w:'33',label:'⅓'},
+                  {w:'25',label:'¼'},
+                ] as {w:string,label:string}[]).map(({w,label}) => (
+                  <button key={w} onClick={() => onBulkFieldWidth(w)}
+                    className="h-6 px-1.5 rounded text-[10px] font-bold text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors border border-border/40"
+                    title={`Set all fields to ${label} width`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             {isLocked && (
               <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
                 <Lock className="h-2.5 w-2.5" /> Locked — read only
@@ -1086,14 +1603,13 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
           <div className="p-4">
             {/* Form card */}
             <div
-              className={`w-full rounded-xl overflow-hidden bg-card shadow-xl ${isSplitLayout ? 'md:grid' : ''}`}
-              style={isSplitLayout ? { gridTemplateColumns: splitCols, minHeight: `${splitPanelHeight}px` } : undefined}
+              className={`w-full rounded-2xl overflow-hidden bg-card shadow-[0_20px_38px_hsl(220_38%_12%_/_0.12)] ring-1 ring-border/45 ${isSplitLayout ? 'md:grid' : ''}`}
+              style={formCardStyle}
             >
               {isSplitLayout && (
                 <div
                   className="min-h-[320px] bg-slate-200"
                   style={{
-                    minHeight: `${splitPanelHeight}px`,
                     backgroundImage: panelHero?.url ? `url(${panelHero.url})` : undefined,
                     backgroundSize: panelHeroBg.size,
                     backgroundPosition: `${panelHero?.cropX ?? form.layoutImagePositionX ?? '50'}% ${panelHero?.cropY ?? form.layoutImagePositionY ?? '50'}%`,
@@ -1106,7 +1622,6 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                 style={{
                   maxWidth: isSplitLayout ? '100%' : form.theme.formMaxWidth || '100%',
                   lineHeight: form.theme.lineHeight || '1.6',
-                  minHeight: isSplitLayout ? `${splitPanelHeight}px` : undefined,
                 }}
                 onDragOver={e => {
                   if (isLocked) return;
@@ -1168,7 +1683,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                           <Fragment key={field.id}>
                             {showPageHeader && (
                               <div className="col-span-12 flex items-center gap-3 pt-2 pb-0.5">
-                                <div className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white rounded-full px-3 py-1 shadow-sm shadow-indigo-500/20">
+                                <div className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-sky-700 text-white rounded-full px-3 py-1 shadow-sm shadow-cyan-700/30">
                                   <BookOpen className="h-3 w-3" />
                                   <span className="text-[10px] font-bold uppercase tracking-widest">Page {pageNum}</span>
                                 </div>
@@ -1211,8 +1726,12 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
               <div style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: 'var(--form-padding)', paddingTop: '8px' }}>
                 <button
                   type="button"
-                  className="w-full rounded-lg py-3 px-6 text-sm font-semibold text-white cursor-default leading-snug transition-all hover:opacity-90"
-                  style={{ background: primaryGradient }}
+                  className="w-full text-sm font-semibold text-white cursor-default leading-snug transition-all hover:opacity-90"
+                  style={{
+                    background: submitButtonBackground,
+                    borderRadius: form.theme.buttonRadius || '8px',
+                    padding: `${form.theme.buttonPaddingY || '12px'} ${form.theme.buttonPaddingX || '14px'}`,
+                  }}
                 >
                   {form.submitButtonText}
                 </button>

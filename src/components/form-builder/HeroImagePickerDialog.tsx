@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Check, Trash2, ImageIcon, ScanSearch } from 'lucide-react';
+import { Check, Trash2, ImageIcon, ScanSearch, Upload, Link } from 'lucide-react';
 import { heroImages } from '@/data/heroImages';
 import { PageHeroImageValue } from '@/types/formField';
 import { hasHeroImage, normalizeHeroImageValue, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
@@ -146,6 +146,12 @@ export function HeroImagePickerDialog({
                   backgroundSize: previewBg.size,
                   backgroundPosition: `${currentHero.cropX}% ${currentHero.cropY}%`,
                   backgroundRepeat: previewBg.repeat,
+                  filter: [
+                    (currentHero.brightness ?? 100) !== 100 ? `brightness(${(currentHero.brightness ?? 100) / 100})` : '',
+                    (currentHero.contrast ?? 100) !== 100 ? `contrast(${(currentHero.contrast ?? 100) / 100})` : '',
+                    (currentHero.blur ?? 0) > 0 ? `blur(${currentHero.blur}px)` : '',
+                    (currentHero.grayscale ?? 0) > 0 ? `grayscale(${currentHero.grayscale}%)` : '',
+                  ].filter(Boolean).join(' ') || undefined,
                 }}
                 onClick={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
@@ -154,6 +160,12 @@ export function HeroImagePickerDialog({
                   updateCurrentHero({ cropX: Math.round(x), cropY: Math.round(y) });
                 }}
               />
+              {(currentHero.overlayColor) && (currentHero.overlayOpacity ?? 0) > 0 && (
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ backgroundColor: currentHero.overlayColor, opacity: (currentHero.overlayOpacity ?? 0) / 100 }}
+                />
+              )}
               <div
                 className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow bg-primary/80 pointer-events-none"
                 style={{ left: `${currentHero.cropX}%`, top: `${currentHero.cropY}%` }}
@@ -202,6 +214,56 @@ export function HeroImagePickerDialog({
                 <Slider value={[currentHero.height]} min={180} max={1200} step={10} onValueChange={(v) => updateCurrentHero({ height: v[0] })} />
               </div>
             </div>
+
+            {/* Image Effects */}
+            <div className="space-y-2 pt-1 border-t border-border/30">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Image Effects</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-3">
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Brightness</span><span>{currentHero.brightness ?? 100}%</span>
+                  </div>
+                  <Slider value={[currentHero.brightness ?? 100]} min={30} max={170} step={1} onValueChange={(v) => updateCurrentHero({ brightness: v[0] })} />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Contrast</span><span>{currentHero.contrast ?? 100}%</span>
+                  </div>
+                  <Slider value={[currentHero.contrast ?? 100]} min={30} max={200} step={1} onValueChange={(v) => updateCurrentHero({ contrast: v[0] })} />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Blur</span><span>{currentHero.blur ?? 0}px</span>
+                  </div>
+                  <Slider value={[currentHero.blur ?? 0]} min={0} max={20} step={0.5} onValueChange={(v) => updateCurrentHero({ blur: v[0] })} />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Grayscale</span><span>{currentHero.grayscale ?? 0}%</span>
+                  </div>
+                  <Slider value={[currentHero.grayscale ?? 0]} min={0} max={100} step={1} onValueChange={(v) => updateCurrentHero({ grayscale: v[0] })} />
+                </div>
+              </div>
+            </div>
+
+            {/* Colour Overlay */}
+            <div className="space-y-2 pt-1 border-t border-border/30">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Colour Overlay</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={currentHero.overlayColor || '#000000'}
+                  onChange={e => updateCurrentHero({ overlayColor: e.target.value })}
+                  className="w-8 h-8 rounded-lg border border-border/50 cursor-pointer shrink-0"
+                />
+                <div className="flex-1 space-y-1">
+                  <div className="flex justify-between text-[11px] font-medium text-muted-foreground">
+                    <span>Opacity</span><span>{currentHero.overlayOpacity ?? 0}%</span>
+                  </div>
+                  <Slider value={[currentHero.overlayOpacity ?? 0]} min={0} max={80} step={1} onValueChange={(v) => updateCurrentHero({ overlayOpacity: v[0] })} />
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="mx-6 mt-4 rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-3">
@@ -211,6 +273,40 @@ export function HeroImagePickerDialog({
 
         {/* Image grid */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
+          {/* Upload from device / paste URL */}
+          <div className="mb-4 flex items-center gap-2">
+            <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 text-[11px] font-medium text-muted-foreground cursor-pointer transition-colors whitespace-nowrap">
+              <Upload className="h-3 w-3" />
+              Upload from device
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (ev) => pickImage(ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            <div className="flex-1 flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-2.5 py-1.5">
+              <Link className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+              <input
+                type="url"
+                placeholder="Paste image URL…"
+                className="flex-1 bg-transparent text-[11px] outline-none text-foreground placeholder:text-muted-foreground/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const url = (e.target as HTMLInputElement).value.trim();
+                    if (url) { pickImage(url); (e.target as HTMLInputElement).value = ''; }
+                  }
+                }}
+              />
+            </div>
+          </div>
           <p className="text-xs text-muted-foreground mb-3">
             Showing {LIBRARY.length} curated fitness &amp; studio images. Click to select.
           </p>

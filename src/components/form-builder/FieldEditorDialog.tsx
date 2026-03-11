@@ -21,8 +21,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig, AppointmentService, AppointmentAvailableDate } from '@/types/formField';
-import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin } from 'lucide-react';
+import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig, AppointmentService, AppointmentAvailableDate, LikertColumn, LikertColumnType, LikertRow } from '@/types/formField';
+import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin, Star, Heart, ThumbsUp, Flame, Smile, Award, Sun, Zap, Shield, Target, Dumbbell, Bike, Trophy, Activity, Image as ImageIcon, List, Table2 } from 'lucide-react';
+
+const RATING_ICON_OPTIONS: { key: string; label: string; icon: typeof Star }[] = [
+  { key: 'star',      label: 'Star',      icon: Star },
+  { key: 'heart',     label: 'Heart',     icon: Heart },
+  { key: 'thumbs-up', label: 'Thumbs',    icon: ThumbsUp },
+  { key: 'flame',     label: 'Flame',     icon: Flame },
+  { key: 'smile',     label: 'Smile',     icon: Smile },
+  { key: 'zap',       label: 'Bolt',      icon: Zap },
+  { key: 'award',     label: 'Award',     icon: Award },
+  { key: 'shield',    label: 'Shield',    icon: Shield },
+  { key: 'sun',       label: 'Sun',       icon: Sun },
+  { key: 'target',    label: 'Target',    icon: Target },
+  { key: 'dumbbell',  label: 'Dumbbell',  icon: Dumbbell },
+  { key: 'bike',      label: 'Bike',      icon: Bike },
+  { key: 'trophy',    label: 'Trophy',    icon: Trophy },
+  { key: 'activity',  label: 'Activity',  icon: Activity },
+];
 
 interface FieldEditorDialogProps {
   field: FormField | null;
@@ -30,11 +47,16 @@ interface FieldEditorDialogProps {
   onClose: () => void;
   onSave: (updates: Partial<FormField>) => void;
   allFields: FormField[];
+  initialTab?: string;
 }
 
-export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: FieldEditorDialogProps) {
+export function FieldEditorDialog({ field, open, onClose, onSave, allFields, initialTab }: FieldEditorDialogProps) {
   const [draft, setDraft] = useState<Partial<FormField>>({});
   const [expandedOptionIndex, setExpandedOptionIndex] = useState<number | null>(null);
+  const [showBulkPaste, setShowBulkPaste] = useState(false);
+  const [bulkPasteText, setBulkPasteText] = useState('');
+  const [expandedLikertColIndex, setExpandedLikertColIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('basic');
   const [newCustomSrcVal, setNewCustomSrcVal] = useState('');
   const [newIntervalFrom, setNewIntervalFrom] = useState('09:00');
   const [newIntervalTo, setNewIntervalTo] = useState('17:00');
@@ -67,12 +89,32 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
     setDraft(prev => ({ ...prev, [key]: value }));
   };
 
-  const hasOptions = ['select', 'radio', 'checkbox'].includes(draft.type || field.type);
-  const isAdvanced = ['lookup', 'formula', 'conditional', 'dependent'].includes(draft.type || field.type);
+  const optionTypes: FieldType[] = ['select', 'radio', 'checkbox', 'checkboxes', 'multiple-choice', 'multiselect', 'picture-choice', 'choice-matrix', 'ranking', 'submission-picker', 'dependent'];
+  const hasOptions = optionTypes.includes((draft.type || field.type) as FieldType);
+  const isAdvanced = ['lookup', 'formula'].includes(draft.type || field.type);
+  const isSwitch = (draft.type || field.type) === 'switch';
   const isMomenceSearch  = (draft.type || field.type) === 'member-search';
   const isMomenceSession = (draft.type || field.type) === 'momence-sessions';
   const isAppointmentSlots = (draft.type || field.type) === 'appointment-slots';
   const isEmailOtp = (draft.type || field.type) === 'email-otp';
+  const hasLikert  = (draft.type || field.type) === 'likert-table';
+  const allowOtherTypes: FieldType[] = ['select', 'radio', 'checkbox', 'checkboxes', 'multiple-choice', 'multiselect'];
+
+  const getDefaultTab = (type: FieldType) => {
+    if (type === 'conditional') return 'conditions';
+    if (optionTypes.includes(type)) return 'options';
+    if (['lookup', 'formula'].includes(type)) return 'advanced';
+    if (type === 'appointment-slots') return 'appt-setup';
+    if (type === 'member-search') return 'momence';
+    if (type === 'momence-sessions') return 'sessions';
+    if (type === 'email-otp') return 'verification';
+    if (type === 'likert-table') return 'likert';
+    return 'basic';
+  };
+
+  useEffect(() => {
+    if (field) setActiveTab(initialTab || getDefaultTab(field.type));
+  }, [field?.id, field?.type, initialTab]);
 
   const updateSession = (key: keyof MomenceSessionsConfig, value: any) => {
     update('momenceSessionsConfig', {
@@ -349,6 +391,99 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
     update('options', opts);
   };
 
+  const addBulkOptions = () => {
+    const parts = bulkPasteText
+      .split(/[\n\r\t,;|]+/)
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    const opts = [...(draft.options || [])];
+    parts.forEach(label => {
+      const value = label
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '') || `option_${opts.length + 1}`;
+      opts.push({ label, value });
+    });
+    update('options', opts);
+    setBulkPasteText('');
+    setShowBulkPaste(false);
+  };
+
+  // ── Likert table helpers ────────────────────────────────────────────────
+  const getLikertCfg = () => draft.likertTableConfig || { rows: [], columns: [] };
+
+  const addLikertRow = () => {
+    const cfg = getLikertCfg();
+    const id = `lrow_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    update('likertTableConfig', { ...cfg, rows: [...cfg.rows, { id, label: `Statement ${cfg.rows.length + 1}` }] });
+  };
+
+  const updateLikertRow = (idx: number, label: string) => {
+    const cfg = getLikertCfg();
+    const rows = cfg.rows.map((r: LikertRow, i: number) => i === idx ? { ...r, label } : r);
+    update('likertTableConfig', { ...cfg, rows });
+  };
+
+  const removeLikertRow = (idx: number) => {
+    const cfg = getLikertCfg();
+    update('likertTableConfig', { ...cfg, rows: cfg.rows.filter((_: LikertRow, i: number) => i !== idx) });
+  };
+
+  const addLikertColumn = () => {
+    const cfg = getLikertCfg();
+    const id = `lcol_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newCol: LikertColumn = {
+      id,
+      label: `Column ${cfg.columns.length + 1}`,
+      type: 'radio',
+      options: [
+        { label: 'Strongly Agree', value: 'strongly_agree' },
+        { label: 'Agree', value: 'agree' },
+        { label: 'Neutral', value: 'neutral' },
+        { label: 'Disagree', value: 'disagree' },
+        { label: 'Strongly Disagree', value: 'strongly_disagree' },
+      ],
+      required: false,
+    };
+    update('likertTableConfig', { ...cfg, columns: [...cfg.columns, newCol] });
+    setExpandedLikertColIndex(cfg.columns.length);
+  };
+
+  const updateLikertColumn = (idx: number, key: keyof LikertColumn, value: unknown) => {
+    const cfg = getLikertCfg();
+    const columns = cfg.columns.map((c: LikertColumn, i: number) => i === idx ? { ...c, [key]: value } : c);
+    update('likertTableConfig', { ...cfg, columns });
+  };
+
+  const removeLikertColumn = (idx: number) => {
+    const cfg = getLikertCfg();
+    update('likertTableConfig', { ...cfg, columns: cfg.columns.filter((_: LikertColumn, i: number) => i !== idx) });
+    setExpandedLikertColIndex(null);
+  };
+
+  const addLikertColOption = (colIdx: number) => {
+    const cfg = getLikertCfg();
+    const col = cfg.columns[colIdx];
+    const opts = [...(col.options || [])];
+    opts.push({ label: `Option ${opts.length + 1}`, value: `option_${opts.length + 1}` });
+    updateLikertColumn(colIdx, 'options', opts);
+  };
+
+  const updateLikertColOption = (colIdx: number, optIdx: number, key: 'label' | 'value', value: string) => {
+    const cfg = getLikertCfg();
+    const col = cfg.columns[colIdx];
+    const opts = (col.options || []).map((o: FieldOption, i: number) => i === optIdx ? { ...o, [key]: value } : o);
+    updateLikertColumn(colIdx, 'options', opts);
+  };
+
+  const removeLikertColOption = (colIdx: number, optIdx: number) => {
+    const cfg = getLikertCfg();
+    const col = cfg.columns[colIdx];
+    const opts = (col.options || []).filter((_: FieldOption, i: number) => i !== optIdx);
+    updateLikertColumn(colIdx, 'options', opts);
+  };
+
   const addConditionalRule = () => {
     const rules: ConditionalRule[] = [...(draft.conditionalRules || [])];
     rules.push({
@@ -380,8 +515,6 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
   };
 
   const otherFields = allFields.filter(f => f.id !== field.id);
-  const sourceField = otherFields.find(f => f.id === (draft.dependsOnFieldId || ''));
-  const sourceHasOptions = !!(sourceField && ['select', 'radio', 'checkbox'].includes(sourceField.type) && (sourceField.options?.length ?? 0) > 0);
 
   // ─── Dependent Options Groups helpers ───────────────────────────────
   const sourceForGroups = draft.dependentOptionsConfig?.sourceFieldId
@@ -448,10 +581,10 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
         <div className="min-h-0 flex-1 overflow-auto bg-muted/20">
           <div className="min-w-[960px] px-6 py-5">
-          <Tabs defaultValue="basic" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <div className="overflow-x-auto pb-2">
             <TabsList className="flex h-auto min-w-max items-center justify-start gap-1.5 rounded-2xl border border-border/60 bg-background/90 p-1 shadow-sm">
-              <TabsTrigger value="basic" className="shrink-0 rounded-xl px-4 py-2">Basic</TabsTrigger>
+              <TabsTrigger value="basic" className="shrink-0 rounded-xl px-4 py-2">Settings</TabsTrigger>
               <TabsTrigger value="validation" className="shrink-0 rounded-xl px-4 py-2">Validation</TabsTrigger>
               {hasOptions && <TabsTrigger value="options" className="shrink-0 rounded-xl px-4 py-2">Options</TabsTrigger>}
               <TabsTrigger value="advanced" className="shrink-0 rounded-xl px-4 py-2">Advanced</TabsTrigger>
@@ -461,6 +594,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
               {isMomenceSession && <TabsTrigger value="sessions" className="shrink-0 rounded-xl px-4 py-2">Sessions</TabsTrigger>}
               {isAppointmentSlots && <TabsTrigger value="appt-setup" className="shrink-0 rounded-xl px-4 py-2">Setup</TabsTrigger>}
               {isEmailOtp && <TabsTrigger value="verification" className="shrink-0 rounded-xl px-4 py-2">Verification</TabsTrigger>}
+              {hasLikert && <TabsTrigger value="likert" className="shrink-0 rounded-xl px-4 py-2 flex items-center gap-1"><Table2 className="h-3.5 w-3.5" />Table</TabsTrigger>}
             </TabsList>
             </div>
 
@@ -527,6 +661,245 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                   <Switch checked={draft.isDisabled ?? false} onCheckedChange={v => update('isDisabled', v)} />
                 </div>
               </div>
+
+              {/* ── Switch settings ──────────────────────────────────────────────────── */}
+              {isSwitch && (
+                <div className="space-y-4 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Switch Settings</Label>
+                  <div className="flex items-center justify-between rounded-lg border border-border/50 bg-background p-3">
+                    <div>
+                      <Label className="text-sm">Default State</Label>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">Start in the ON position</p>
+                    </div>
+                    <Switch checked={draft.switchDefaultOn ?? false} onCheckedChange={v => update('switchDefaultOn', v)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">On Label</Label>
+                      <Input value={draft.switchOnLabel || ''} onChange={e => update('switchOnLabel', e.target.value)} placeholder="Yes" className="h-8 text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Off Label</Label>
+                      <Input value={draft.switchOffLabel || ''} onChange={e => update('switchOffLabel', e.target.value)} placeholder="No" className="h-8 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Rating settings ──────────────────────────────────────────────────── */}
+              {(draft.type === 'rating' || draft.type === 'star-rating') && (
+                <div className="space-y-4 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Rating Settings</Label>
+                  <div className="flex items-center gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Number of icons</Label>
+                      <Input type="number" min={2} max={10} value={draft.max ?? 5} onChange={e => update('max', Number(e.target.value))} className="w-24" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Icon style (14 options)</Label>
+                    <div className="grid grid-cols-7 gap-2">
+                      {RATING_ICON_OPTIONS.map(opt => {
+                        const IconComp = opt.icon;
+                        const isSelected = (draft.ratingIcon || 'star') === opt.key;
+                        return (
+                          <button key={opt.key} type="button" onClick={() => update('ratingIcon', opt.key)}
+                            className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2 transition-all ${
+                              isSelected ? 'border-primary bg-primary/10 shadow-sm shadow-primary/10' : 'border-border hover:border-primary/50 bg-background'
+                            }`}>
+                            <IconComp className={`h-5 w-5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                            <span className="text-[10px] font-medium text-muted-foreground leading-none capitalize">{opt.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Range (slider) settings ──────────────────────────────────────────── */}
+              {draft.type === 'range' && (
+                <div className="space-y-4 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Slider Settings</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Min</Label>
+                      <Input type="number" value={draft.min ?? 0} onChange={e => update('min', Number(e.target.value))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Max</Label>
+                      <Input type="number" value={draft.max ?? 10} onChange={e => update('max', Number(e.target.value))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Step</Label>
+                      <Input type="number" value={draft.step ?? 1} onChange={e => update('step', Number(e.target.value))} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center justify-between rounded-lg border p-3">
+                      <Label className="text-sm">Show current value</Label>
+                      <Switch checked={draft.rangeShowValue ?? true} onCheckedChange={v => update('rangeShowValue', v)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Value suffix</Label>
+                      <Input value={draft.rangeValueSuffix || ''} onChange={e => update('rangeValueSuffix', e.target.value)} placeholder="e.g. %, pts" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Opinion scale settings ──────────────────────────────────────────── */}
+              {draft.type === 'opinion-scale' && (
+                <div className="space-y-4 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Opinion Scale Settings</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Min</Label>
+                      <Input type="number" value={draft.min ?? 1} onChange={e => update('min', Number(e.target.value))} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Max</Label>
+                      <Input type="number" value={draft.max ?? 10} onChange={e => update('max', Number(e.target.value))} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Password settings ───────────────────────────────────────────────── */}
+              {draft.type === 'password' && (
+                <div className="space-y-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Password Settings</Label>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <Label className="text-sm">Allow reveal toggle</Label>
+                    <Switch checked={draft.passwordReveal ?? true} onCheckedChange={v => update('passwordReveal', v)} />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Section Collapse settings ───────────────────────────────────────── */}
+              {draft.type === 'section-collapse' && (
+                <div className="space-y-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Section Collapse Settings</Label>
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <Label className="text-sm">Start expanded</Label>
+                    <Switch checked={draft.collapseDefaultOpen ?? false} onCheckedChange={v => update('collapseDefaultOpen', v)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Section description</Label>
+                    <Textarea
+                      value={draft.collapseDescription || ''}
+                      onChange={e => update('collapseDescription', e.target.value)}
+                      placeholder="Optional helper text shown inside the collapsed area"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Divider settings ────────────────────────────────────────────────── */}
+              {draft.type === 'divider' && (
+                <div className="space-y-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Divider Settings</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Style</Label>
+                      <Select value={draft.dividerStyle || 'solid'} onValueChange={v => update('dividerStyle', v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="solid">Solid</SelectItem>
+                          <SelectItem value="dashed">Dashed</SelectItem>
+                          <SelectItem value="dotted">Dotted</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Thickness (px)</Label>
+                      <Input type="number" min={1} max={8} value={draft.dividerThickness ?? 1} onChange={e => update('dividerThickness', Number(e.target.value))} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Signature settings ─────────────────────────────────────────────── */}
+              {draft.type === 'signature' && (
+                <div className="space-y-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Signature Settings</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Pad height (px)</Label>
+                    <Input
+                      type="number"
+                      min={120}
+                      max={400}
+                      value={draft.signatureHeight ?? 200}
+                      onChange={e => update('signatureHeight', Number(e.target.value))}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Spacer settings ─────────────────────────────────────────────────── */}
+              {draft.type === 'spacer' && (
+                <div className="space-y-3 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Spacer Settings</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Height</Label>
+                    <Input
+                      value={draft.spacerHeight || draft.helpText || ''}
+                      onChange={e => {
+                        update('spacerHeight', e.target.value);
+                        update('helpText', e.target.value);
+                      }}
+                      placeholder="e.g. 20px or 2rem"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Media settings ─────────────────────────────────────────────────── */}
+              {['image', 'video', 'pdf-viewer'].includes(draft.type || '') && (
+                <div className="space-y-2 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Media Settings</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Media URL</Label>
+                    <Input
+                      value={draft.defaultValue || ''}
+                      onChange={e => update('defaultValue', e.target.value)}
+                      placeholder="https://…"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Used to render the media in preview and published forms.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Subform settings ─────────────────────────────────────────────── */}
+              {draft.type === 'subform' && (
+                <div className="space-y-2 rounded-xl border border-border p-4 bg-muted/20">
+                  <Label className="text-sm font-semibold">Subform Settings</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Template/Form ID</Label>
+                    <Input
+                      value={draft.subformTemplateId || ''}
+                      onChange={e => update('subformTemplateId', e.target.value)}
+                      placeholder="e.g. form_123456"
+                    />
+                    <p className="text-[11px] text-muted-foreground">Used to reference a nested form. Leave empty to show a placeholder.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── HTML snippet content ───────────────────────────────────────────── */}
+              {draft.type === 'html-snippet' && (
+                <div className="space-y-2">
+                  <Label>HTML Content</Label>
+                  <Textarea
+                    value={draft.htmlContent || ''}
+                    onChange={e => update('htmlContent', e.target.value)}
+                    placeholder={'<div>\n  <!-- Your HTML here -->\n</div>'}
+                    className="font-mono text-sm min-h-[140px]"
+                  />
+                  <p className="text-xs text-muted-foreground">This HTML will be rendered verbatim in the exported form.</p>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="validation" className="space-y-4 mt-4">
@@ -569,6 +942,15 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 <p className="text-xs text-muted-foreground">
                   Add choices. Optionally, set a condition on each option to show it only when another field has a specific value.
                 </p>
+                {allowOtherTypes.includes((draft.type || field.type) as FieldType) && (
+                  <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium">Allow "Other" option</p>
+                      <p className="text-xs text-muted-foreground">Appends an "Other…" entry that reveals a free-text input when selected</p>
+                    </div>
+                    <Switch checked={!!draft.allowOther} onCheckedChange={v => update('allowOther', v)} />
+                  </div>
+                )}
                 <div className="space-y-3">
                   {(draft.options || []).map((opt, i) => (
                     <div key={i} className="rounded-lg border bg-card overflow-hidden">
@@ -610,6 +992,19 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                           className="text-xs h-7 border-dashed"
                         />
                       </div>
+
+                      {/* Picture-choice image URL */}
+                      {(draft.type === 'picture-choice') && (
+                        <div className="flex items-center gap-2 px-2 pb-2">
+                          <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60 ml-0.5" />
+                          <Input
+                            value={opt.imageUrl || ''}
+                            onChange={e => updateOption(i, 'imageUrl', e.target.value)}
+                            placeholder="Image URL for this option (optional)"
+                            className="text-xs h-7 border-dashed"
+                          />
+                        </div>
+                      )}
 
                       {/* Conditional rule for this option */}
                       {expandedOptionIndex === i && (
@@ -685,9 +1080,42 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                     </div>
                   ))}
                 </div>
-                <Button variant="outline" size="sm" onClick={addOption}>
-                  <Plus className="h-3.5 w-3.5 mr-1" /> Add Option
-                </Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" size="sm" onClick={addOption}>
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Option
+                  </Button>
+                  <Button
+                    variant={showBulkPaste ? 'secondary' : 'outline'}
+                    size="sm"
+                    onClick={() => { setShowBulkPaste(v => !v); setBulkPasteText(''); }}
+                  >
+                    <List className="h-3.5 w-3.5 mr-1" /> Bulk Add
+                  </Button>
+                </div>
+
+                {showBulkPaste && (
+                  <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Paste options separated by commas, newlines, semicolons, tabs, or pipes.
+                    </p>
+                    <Textarea
+                      value={bulkPasteText}
+                      onChange={e => setBulkPasteText(e.target.value)}
+                      placeholder={"Option A, Option B, Option C\nOption D; Option E\nOption F | Option G"}
+                      rows={5}
+                      className="text-sm font-mono"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={addBulkOptions} disabled={!bulkPasteText.trim()}>
+                        <Plus className="h-3.5 w-3.5 mr-1" /> Add Items
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowBulkPaste(false); setBulkPasteText(''); }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* ── Dependent Options Groups ────────────────────────────────── */}
                 <div className="rounded-xl border-2 border-dashed border-primary/25 bg-primary/4 p-3 space-y-3">
@@ -831,119 +1259,15 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                 </div>
               )}
 
-              {(draft.type === 'dependent' || draft.type === 'conditional') && (
-                <div className="space-y-4">
-                  {/* Source field */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Source Field</Label>
-                    <Select value={draft.dependsOnFieldId || ''} onValueChange={v => update('dependsOnFieldId', v)}>
-                      <SelectTrigger><SelectValue placeholder="Select the field to watch…" /></SelectTrigger>
-                      <SelectContent>
-                        {otherFields.map(f => (
-                          <SelectItem key={f.id} value={f.id}>{f.label} <span className="text-muted-foreground">({f.name})</span></SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-[11px] text-muted-foreground">When this field's value changes, rules below are evaluated.</p>
-                  </div>
+              {draft.type === 'dependent' && (
+                <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-4 text-xs text-muted-foreground">
+                  Configure dependent dropdown options and rules in the <strong>Options</strong> tab. Use the Dependent Options panel to map values from another field.
+                </div>
+              )}
 
-                  {/* Value mapping table */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Value Mapping</Label>
-                    <p className="text-[11px] text-muted-foreground">When source = (value), set this field's value to (mapped value).</p>
-                    {Object.entries((draft.lookupConfig?.lookupData) || {}).map(([srcVal, mappedVal], i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-14 shrink-0">When =</span>
-                        {sourceHasOptions ? (
-                          <Select
-                            value={srcVal}
-                            onValueChange={newKey => {
-                              const data = { ...(draft.lookupConfig?.lookupData || {}) };
-                              delete data[srcVal];
-                              data[newKey] = mappedVal;
-                              update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
-                            }}
-                          >
-                            <SelectTrigger className="flex-1 h-8 text-xs"><SelectValue placeholder="Pick option…" /></SelectTrigger>
-                            <SelectContent>
-                              {sourceField!.options!.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <Input
-                            value={srcVal}
-                            onChange={e => {
-                              const data = { ...(draft.lookupConfig?.lookupData || {}) };
-                              delete data[srcVal];
-                              data[e.target.value] = mappedVal;
-                              update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
-                            }}
-                            placeholder="Source value"
-                            className="flex-1 font-mono text-xs"
-                          />
-                        )}
-                        <span className="text-xs text-muted-foreground shrink-0">→</span>
-                        <Input
-                          value={mappedVal}
-                          onChange={e => {
-                            const data = { ...(draft.lookupConfig?.lookupData || {}) };
-                            data[srcVal] = e.target.value;
-                            update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
-                          }}
-                          placeholder="Set value to"
-                          className="flex-1 text-xs"
-                        />
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive shrink-0"
-                          onClick={() => {
-                            const data = { ...(draft.lookupConfig?.lookupData || {}) };
-                            delete data[srcVal];
-                            update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
-                          }}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button variant="outline" size="sm" className="h-7 text-xs"
-                      onClick={() => {
-                        const data = { ...(draft.lookupConfig?.lookupData || {}) };
-                        const key = `value_${Object.keys(data).length + 1}`;
-                        data[key] = '';
-                        update('lookupConfig', { sourceFieldId: draft.dependsOnFieldId || '', lookupData: data });
-                      }}>
-                      <Plus className="h-3 w-3 mr-1" /> Add Mapping
-                    </Button>
-                  </div>
-
-                  {/* Default value when no mapping matches */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Default Value (no match)</Label>
-                    <Input
-                      value={draft.defaultValue || ''}
-                      onChange={e => update('defaultValue', e.target.value)}
-                      placeholder="Shown when no mapping applies"
-                      className="text-sm"
-                    />
-                  </div>
-
-                  {/* Behavior */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">On Change Behavior</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center justify-between rounded-lg border p-2.5">
-                        <Label className="text-xs">Read-only</Label>
-                        <Switch checked={draft.isReadOnly ?? false} onCheckedChange={v => update('isReadOnly', v)} />
-                      </div>
-                      <div className="flex items-center justify-between rounded-lg border p-2.5">
-                        <Label className="text-xs">Auto-clear on change</Label>
-                        <Switch
-                          checked={draft.cssClass?.includes('auto-clear') ?? false}
-                          onCheckedChange={v => update('cssClass', v ? ((draft.cssClass || '') + ' auto-clear').trim() : (draft.cssClass || '').replace('auto-clear', '').trim())}
-                        />
-                      </div>
-                    </div>
-                  </div>
+              {draft.type === 'conditional' && (
+                <div className="rounded-xl border border-dashed border-amber-300/60 bg-amber-50/60 p-4 text-xs text-amber-700/90">
+                  Set visibility logic in the <strong>Conditions</strong> tab to show, hide, or require this field based on other field values.
                 </div>
               )}
 
@@ -1017,7 +1341,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
 
               {!isAdvanced && draft.type !== 'dependent' && draft.type !== 'conditional' && (
                 <p className="text-sm text-muted-foreground py-4">
-                  Switch this field's type to Lookup, Formula, Conditional, or Dependent to see advanced configuration options.
+                  Switch this field's type to Lookup or Formula to see advanced configuration options.
                 </p>
               )}
             </TabsContent>
@@ -1615,6 +1939,184 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields }: F
                       </div>
                     ))}
                   </div>
+                </div>
+              </TabsContent>
+            )}
+
+            {hasLikert && (
+              <TabsContent value="likert" className="space-y-5 mt-4">
+                {/* ── ROWS ──────────────────────────────────────────────── */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-sm">Rows <Badge variant="secondary" className="ml-1">{getLikertCfg().rows.length}</Badge></Label>
+                    <Button size="sm" variant="outline" onClick={addLikertRow}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Row
+                    </Button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {getLikertCfg().rows.map((row: LikertRow, i: number) => (
+                      <div key={row.id} className="flex items-center gap-2">
+                        <span className="w-5 text-center text-xs text-muted-foreground font-mono shrink-0">{i + 1}</span>
+                        <Input
+                          value={row.label}
+                          onChange={e => updateLikertRow(i, e.target.value)}
+                          placeholder={`Statement ${i + 1}`}
+                          className="flex-1 text-sm"
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeLikertRow(i)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    {getLikertCfg().rows.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic text-center py-2">No rows yet — click "Add Row"</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="border-t border-border/50 pt-1" />
+
+                {/* ── COLUMNS ──────────────────────────────────────────── */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-sm">Columns <Badge variant="secondary" className="ml-1">{getLikertCfg().columns.length}</Badge></Label>
+                    <Button size="sm" variant="outline" onClick={addLikertColumn}>
+                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Column
+                    </Button>
+                  </div>
+
+                  {getLikertCfg().columns.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic text-center py-2">No columns yet — click "Add Column"</p>
+                  )}
+
+                  {getLikertCfg().columns.map((col: LikertColumn, ci: number) => {
+                    const isOpen = expandedLikertColIndex === ci;
+                    const hasColOptions = ['radio', 'checkbox', 'select'].includes(col.type);
+                    return (
+                      <div key={col.id} className="rounded-lg border bg-card overflow-hidden">
+                        {/* Column header row */}
+                        <div className="flex items-center gap-2 p-2">
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 shrink-0"
+                            onClick={() => setExpandedLikertColIndex(isOpen ? null : ci)}
+                          >
+                            {isOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </Button>
+                          <Input
+                            value={col.label}
+                            onChange={e => updateLikertColumn(ci, 'label', e.target.value)}
+                            placeholder="Column label"
+                            className="flex-1 text-sm font-medium"
+                          />
+                          <Badge variant="outline" className="text-xs shrink-0 capitalize">{col.type}</Badge>
+                          <div className="flex items-center gap-1 shrink-0 text-xs text-muted-foreground">
+                            <span>Req</span>
+                            <Switch
+                              checked={!!col.required}
+                              onCheckedChange={v => updateLikertColumn(ci, 'required', v)}
+                              className="scale-75 origin-right"
+                            />
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeLikertColumn(ci)}>
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Expanded settings */}
+                        {isOpen && (
+                          <div className="border-t bg-muted/30 p-3 space-y-3">
+                            {/* Type selector */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Input Type</Label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {(['radio', 'checkbox', 'text', 'number', 'select', 'date', 'rating'] as LikertColumnType[]).map(t => (
+                                  <Button
+                                    key={t}
+                                    size="sm"
+                                    variant={col.type === t ? 'default' : 'outline'}
+                                    className="h-7 text-xs capitalize"
+                                    onClick={() => updateLikertColumn(ci, 'type', t)}
+                                  >
+                                    {t === 'radio' ? 'Single Choice' : t === 'checkbox' ? 'Multi-Choice' : t === 'select' ? 'Dropdown' : t === 'rating' ? '★ Rating' : t.charAt(0).toUpperCase() + t.slice(1)}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Options editor — for radio / checkbox / select */}
+                            {hasColOptions && (
+                              <div className="space-y-2">
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Options</Label>
+                                <div className="space-y-1.5">
+                                  {(col.options || []).map((opt: FieldOption, oi: number) => (
+                                    <div key={oi} className="flex items-center gap-2">
+                                      <Input
+                                        value={opt.label}
+                                        onChange={e => updateLikertColOption(ci, oi, 'label', e.target.value)}
+                                        placeholder="Label"
+                                        className="flex-1 text-xs"
+                                      />
+                                      <Input
+                                        value={opt.value}
+                                        onChange={e => updateLikertColOption(ci, oi, 'value', e.target.value)}
+                                        placeholder="Value"
+                                        className="flex-1 text-xs font-mono"
+                                      />
+                                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive" onClick={() => removeLikertColOption(ci, oi)}>
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => addLikertColOption(ci)}>
+                                  <Plus className="h-3 w-3 mr-1" /> Add Option
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Placeholder — for text / number */}
+                            {(col.type === 'text' || col.type === 'number') && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Placeholder</Label>
+                                <Input
+                                  value={col.placeholder || ''}
+                                  onChange={e => updateLikertColumn(ci, 'placeholder', e.target.value)}
+                                  placeholder="e.g. Enter a value…"
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
+
+                            {/* Max — for rating */}
+                            {col.type === 'rating' && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Max Stars</Label>
+                                <Input
+                                  type="number"
+                                  min={2} max={10}
+                                  value={col.max ?? 5}
+                                  onChange={e => updateLikertColumn(ci, 'max', Number(e.target.value) || 5)}
+                                  className="text-sm w-24"
+                                />
+                              </div>
+                            )}
+
+                            {/* Min width */}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Min Column Width</Label>
+                              <Input
+                                value={col.minWidth || ''}
+                                onChange={e => updateLikertColumn(ci, 'minWidth', e.target.value)}
+                                placeholder="e.g. 120px"
+                                className="text-sm w-32"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </TabsContent>
             )}

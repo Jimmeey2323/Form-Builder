@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.appointment-bookings]
 verify_jwt = false
+
+[functions.import-fillout-form]
+verify_jwt = false

@@ -214,6 +214,28 @@ const TYPE_MAP: Record<string, string> = {
   'signature': 'signature',
   'address': 'address',
   'currency': 'currency',
+  'range': 'range', 'slider': 'range', 'range slider': 'range',
+  'opinion scale': 'opinion-scale', 'likert': 'opinion-scale', 'likert scale': 'opinion-scale',
+  'picture choice': 'picture-choice', 'image choice': 'picture-choice', 'photo choice': 'picture-choice',
+  'choice matrix': 'choice-matrix', 'matrix': 'choice-matrix',
+  'ranking': 'ranking', 'rank': 'ranking',
+  'submission picker': 'submission-picker', 'submissions picker': 'submission-picker', 'submission': 'submission-picker',
+  'subform': 'subform', 'sub form': 'subform', 'nested form': 'subform',
+  'html': 'html-snippet', 'html snippet': 'html-snippet', 'embed': 'html-snippet',
+  'section collapse': 'section-collapse', 'collapsible section': 'section-collapse', 'accordion': 'section-collapse',
+  'divider': 'divider', 'separator': 'divider', 'line': 'divider',
+  'spacer': 'spacer', 'space': 'spacer',
+  'page break': 'page-break', 'pagebreak': 'page-break',
+  'section break': 'section-break',
+  'lookup': 'lookup', 'lookup field': 'lookup', 'reference': 'lookup',
+  'formula': 'formula', 'calc': 'formula', 'calculation': 'formula', 'computed': 'formula',
+  'conditional': 'conditional', 'condition': 'conditional', 'logic': 'conditional',
+  'dependent': 'dependent', 'dependent dropdown': 'dependent', 'cascading': 'dependent',
+  'image': 'image', 'photo': 'image',
+  'video': 'video',
+  'pdf': 'pdf-viewer', 'pdf viewer': 'pdf-viewer', 'pdf-viewer': 'pdf-viewer',
+  'rich text': 'rich-text', 'richtext': 'rich-text',
+  'color': 'color', 'colour': 'color',
 };
 
 function mapFieldType(raw: string): string {
@@ -255,7 +277,7 @@ function localParseCsvToTemplates(csvText: string): Template[] {
       const rawType = row['FIELD_TYPE'] || row['FIELD TYPE'] || 'text';
       const type = mapFieldType(rawType);
       const optionsRaw = row['OPTIONS'] || '';
-      const withOpts = ['select','radio','checkbox','checkboxes','multiselect','multiple-choice','picture-choice'].includes(type);
+      const withOpts = ['select','radio','checkbox','checkboxes','multiselect','multiple-choice','picture-choice','choice-matrix','ranking','submission-picker','dependent'].includes(type);
       return {
         id: `field_${slugify(label)}_${idx}`,
         name: label.replace(/\s+(.)/g, (_, c: string) => c.toUpperCase()).replace(/^./, (c: string) => c.toLowerCase()),

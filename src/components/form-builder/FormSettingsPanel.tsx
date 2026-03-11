@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { ThemeSelectionDialog } from '@/components/ThemeSelectionDialog';
 import { HeroImagePickerDialog } from '@/components/form-builder/HeroImagePickerDialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye, Mail } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye, Mail, Upload } from 'lucide-react';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 import { getHeroImageUrl, hasHeroImage, normalizeHeroImageValue } from '@/utils/heroImageConfig';
 import { useState } from 'react';
@@ -60,13 +60,13 @@ function SettingsSection({ title, icon: Icon, children, badge, defaultOpen = tru
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-2xl border border-border/40 bg-card overflow-hidden transition-all">
+    <div className="premium-surface soft-elevate rounded-2xl overflow-hidden transition-all">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/30 transition-colors"
+        className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-muted/35 transition-colors"
       >
-        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary/8 text-primary shrink-0">
+        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary/10 text-primary shrink-0 ring-1 ring-primary/20">
           <Icon className="h-4 w-4" />
         </div>
         <span className="flex-1 text-[13px] font-semibold text-foreground">{title}</span>
@@ -76,7 +76,7 @@ function SettingsSection({ title, icon: Icon, children, badge, defaultOpen = tru
         />
       </button>
       {open && (
-        <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/30">{children}</div>
+        <div className="px-5 pb-5 pt-1 space-y-4 border-t border-border/45 bg-white/35">{children}</div>
       )}
     </div>
   );
@@ -142,15 +142,15 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   return (
     <>
     {/* Tab Navigation - Fillout-style pill tabs */}
-    <div className="flex gap-1 p-1 mb-4 rounded-xl bg-muted/50 border border-border/30">
+    <div className="premium-tabs flex gap-1 p-1 mb-4 rounded-xl">
       {tabs.map(tab => (
         <button
           key={tab.id}
           onClick={() => setSettingsTab(tab.id)}
           className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[12px] font-semibold transition-all duration-150 ${
             settingsTab === tab.id
-              ? 'bg-card shadow-sm text-foreground border border-border/40'
-              : 'text-muted-foreground hover:text-foreground'
+              ? 'bg-white shadow-sm text-foreground border border-border/50'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/55'
           }`}
         >
           <tab.Icon className="h-3.5 w-3.5" />
@@ -159,8 +159,8 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
       ))}
     </div>
 
-    <ScrollArea className="h-[calc(100vh-280px)]">
-    <div className="space-y-3 pr-2">
+    <ScrollArea className="h-[calc(100vh-300px)] md:h-[calc(100vh-280px)]">
+    <div className="space-y-3 pr-2 pb-3">
 
     {/* ══════════════════ CONTENT TAB ══════════════════ */}
     {settingsTab === 'content' && (
@@ -183,6 +183,16 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               <FieldLabel>Success Message</FieldLabel>
               <Input value={form.successMessage} onChange={e => onUpdate({ successMessage: e.target.value })} className="rounded-xl border-border/50 bg-muted/20" />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Redirect URL after submission</FieldLabel>
+            <Input
+              value={form.webhookConfig?.redirectUrl || ''}
+              onChange={e => onUpdate({ webhookConfig: { ...form.webhookConfig, redirectUrl: e.target.value } })}
+              placeholder="https://example.com/thank-you"
+              className="rounded-xl border-border/50 bg-muted/20"
+            />
+            <p className="text-[10px] text-muted-foreground/60">Leave blank to show the success message in-place.</p>
           </div>
         </SettingsSection>
 
@@ -268,6 +278,219 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title="Form Frame" icon={Maximize2}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Form Max Width</FieldLabel>
+              <Input
+                value={form.theme.formMaxWidth || '520px'}
+                onChange={e => updateTheme({ formMaxWidth: e.target.value })}
+                placeholder="520px or 100%"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Form Min Height</FieldLabel>
+              <Input
+                value={form.theme.formMinHeight || '620px'}
+                onChange={e => updateTheme({ formMinHeight: e.target.value })}
+                placeholder="620px"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Padding</FieldLabel>
+              <Input
+                value={form.theme.formPadding || '32px'}
+                onChange={e => updateTheme({ formPadding: e.target.value })}
+                placeholder="32px"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Field Gap</FieldLabel>
+              <Input
+                value={form.theme.fieldGap || '16px'}
+                onChange={e => updateTheme({ fieldGap: e.target.value })}
+                placeholder="16px"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Border Radius</FieldLabel>
+              <Input
+                value={form.theme.borderRadius || '12px'}
+                onChange={e => updateTheme({ borderRadius: e.target.value })}
+                placeholder="12px"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Border Width</FieldLabel>
+              <Input
+                value={form.theme.formBorderWidth || '1px'}
+                onChange={e => updateTheme({ formBorderWidth: e.target.value })}
+                placeholder="1px"
+                className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Form Border Color</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="color"
+                  value={form.theme.formBorderColor || form.theme.inputBorderColor}
+                  onChange={e => updateTheme({ formBorderColor: e.target.value })}
+                  className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0"
+                />
+                <Input
+                  value={form.theme.formBorderColor || form.theme.inputBorderColor}
+                  onChange={e => updateTheme({ formBorderColor: e.target.value })}
+                  className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Shadow</FieldLabel>
+              <Select
+                value={form.theme.formShadow || 'xl'}
+                onValueChange={v => updateTheme({ formShadow: v as FormConfig['theme']['formShadow'] })}
+              >
+                <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {['none', 'sm', 'md', 'lg', 'xl', '2xl'].map(v => (
+                    <SelectItem key={v} value={v} className="text-[12px]">{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </SettingsSection>
+
+        <SettingsSection title="Buttons" icon={Zap}>
+          {/* ── Shared sizing ── */}
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Shared</p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Radius</FieldLabel>
+              <Input value={form.theme.buttonRadius || '8px'} onChange={e => updateTheme({ buttonRadius: e.target.value })} placeholder="8px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Padding Y</FieldLabel>
+              <Input value={form.theme.buttonPaddingY || '12px'} onChange={e => updateTheme({ buttonPaddingY: e.target.value })} placeholder="12px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Padding X</FieldLabel>
+              <Input value={form.theme.buttonPaddingX || '14px'} onChange={e => updateTheme({ buttonPaddingX: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Button Shape</FieldLabel>
+            <div className="grid grid-cols-3 gap-1">
+              {(['rounded', 'pill', 'square'] as const).map(opt => (
+                <button key={opt} onClick={() => updateTheme({ buttonStyle: opt })}
+                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.buttonStyle ?? 'rounded') === opt ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Submit ── */}
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Submit Button</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Background</FieldLabel>
+              <Input value={form.theme.submitButtonBackground || ''} onChange={e => updateTheme({ submitButtonBackground: e.target.value })} placeholder="Gradient (default)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Hover Background</FieldLabel>
+              <Input value={form.theme.submitButtonHoverBackground || ''} onChange={e => updateTheme({ submitButtonHoverBackground: e.target.value })} placeholder="Darker shade" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Border Color</FieldLabel>
+              <Input value={form.theme.submitButtonBorderColor || ''} onChange={e => updateTheme({ submitButtonBorderColor: e.target.value })} placeholder="transparent" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Hover Text Color</FieldLabel>
+              <Input value={form.theme.submitButtonHoverTextColor || ''} onChange={e => updateTheme({ submitButtonHoverTextColor: e.target.value })} placeholder="Inherits button text" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Font Size</FieldLabel>
+              <Input value={form.theme.submitButtonFontSize || '15px'} onChange={e => updateTheme({ submitButtonFontSize: e.target.value })} placeholder="15px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Font Weight</FieldLabel>
+              <Input value={form.theme.submitButtonFontWeight || '600'} onChange={e => updateTheme({ submitButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Width</FieldLabel>
+              <Input value={form.theme.submitButtonWidth || '100%'} onChange={e => updateTheme({ submitButtonWidth: e.target.value })} placeholder="100%" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Alignment</FieldLabel>
+            <div className="grid grid-cols-3 gap-1">
+              {(['left', 'center', 'right'] as const).map(a => (
+                <button key={a} onClick={() => updateTheme({ submitButtonAlign: a })}
+                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.submitButtonAlign ?? 'center') === a ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Next ── */}
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Next Button</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Background</FieldLabel>
+              <Input value={form.theme.nextButtonBackground || ''} onChange={e => updateTheme({ nextButtonBackground: e.target.value })} placeholder="Same as submit" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Hover Background</FieldLabel>
+              <Input value={form.theme.nextButtonHoverBackground || ''} onChange={e => updateTheme({ nextButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Text Color</FieldLabel>
+              <Input value={form.theme.nextButtonTextColor || ''} onChange={e => updateTheme({ nextButtonTextColor: e.target.value })} placeholder="#ffffff" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Border Color</FieldLabel>
+              <Input value={form.theme.nextButtonBorderColor || ''} onChange={e => updateTheme({ nextButtonBorderColor: e.target.value })} placeholder="none" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+          </div>
+
+          {/* ── Back ── */}
+          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Back Button</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Background</FieldLabel>
+              <Input value={form.theme.backButtonBackground || ''} onChange={e => updateTheme({ backButtonBackground: e.target.value })} placeholder={form.theme.navButtonBackground || '#ffffff'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Hover Background</FieldLabel>
+              <Input value={form.theme.backButtonHoverBackground || ''} onChange={e => updateTheme({ backButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Text Color</FieldLabel>
+              <Input value={form.theme.backButtonTextColor || ''} onChange={e => updateTheme({ backButtonTextColor: e.target.value })} placeholder={form.theme.navButtonTextColor || '#1e293b'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Border Color</FieldLabel>
+              <Input value={form.theme.backButtonBorderColor || ''} onChange={e => updateTheme({ backButtonBorderColor: e.target.value })} placeholder={form.theme.navButtonBorderColor || '#e2e8f0'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
             </div>
           </div>
         </SettingsSection>
@@ -408,6 +631,42 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               ))}
             </div>
           </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Input Style</FieldLabel>
+            <div className="grid grid-cols-3 gap-1">
+              {([
+                { v: 'solid',       label: 'Solid' },
+                { v: 'bottom-only', label: 'Underline' },
+                { v: 'none',        label: 'None' },
+              ] as const).map(opt => (
+                <button key={opt.v} onClick={() => updateTheme({ inputBorderStyle: opt.v })}
+                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold transition-all ${
+                    (form.theme.inputBorderStyle ?? 'solid') === opt.v
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Button Shape</FieldLabel>
+            <div className="grid grid-cols-3 gap-1">
+              {([
+                { v: 'rounded', label: 'Rounded' },
+                { v: 'pill',    label: 'Pill' },
+                { v: 'square',  label: 'Square' },
+              ] as const).map(opt => (
+                <button key={opt.v} onClick={() => updateTheme({ buttonStyle: opt.v })}
+                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold transition-all ${
+                    (form.theme.buttonStyle ?? 'rounded') === opt.v
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </SettingsSection>
 
         {/* Form Layout */}
@@ -470,14 +729,36 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               </div>
               <div className="space-y-1.5">
                 <FieldLabel>Image URL</FieldLabel>
-                <Input
-                  value={form.layoutImageUrl || ''}
-                  onChange={(e) =>
-                    onUpdate({ layoutImageUrl: e.target.value })
-                  }
-                  placeholder="https://images.unsplash.com/…"
-                  className="rounded-xl border-border/50 bg-muted/20 text-[12px]"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    value={form.layoutImageUrl || ''}
+                    onChange={(e) =>
+                      onUpdate({ layoutImageUrl: e.target.value })
+                    }
+                    placeholder="https://images.unsplash.com/…"
+                    className="rounded-xl border-border/50 bg-muted/20 text-[12px] flex-1"
+                  />
+                  <label
+                    className="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/60 text-[11px] font-medium text-muted-foreground whitespace-nowrap transition-colors"
+                    title="Upload from device"
+                  >
+                    <Upload className="h-3 w-3" />
+                    Upload
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = (ev) => onUpdate({ layoutImageUrl: ev.target?.result as string });
+                        reader.readAsDataURL(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
               <div className="space-y-1.5">
                 <FieldLabel>Image Fit</FieldLabel>
@@ -816,6 +1097,10 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           <Badge variant={form.googleSheetsConfig.enabled ? 'default' : 'secondary'} className="text-[10px] h-5 rounded-full">{form.googleSheetsConfig.spreadsheetId ? 'Connected' : form.googleSheetsConfig.enabled ? 'Pending' : 'Off'}</Badge>
         }>
           <SettingsRow label="Record to Sheets"><Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} /></SettingsRow>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1.5">
+            <p className="text-[11px] font-semibold text-amber-800">Setup Required</p>
+            <p className="text-[11px] text-amber-700 leading-relaxed">Add <code className="bg-amber-100 px-1 rounded text-[10px] font-mono">GOOGLE_SERVICE_ACCOUNT_KEY</code> to Supabase → Project Settings → Edge Functions → Secrets. Paste the full Service Account JSON key (from Google Cloud Console → IAM → Service Accounts → Keys → Add Key → JSON).</p>
+          </div>
           {form.googleSheetsConfig.enabled && (
             sheetUrl ? (
               <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2">

@@ -208,13 +208,22 @@ serve(async (req: Request) => {
 
       // capacity & booking counts — list usually has these, detail may override
       const capacity      = detail.capacity      ?? s.capacity      ?? s.maxCapacity  ?? s.totalSpots ?? null;
-      const bookedCount   = detail.bookingCount   ?? s.bookingsCount ?? s.bookedCount  ?? s.currentBookings ?? s.registeredCount ?? null;
-      const spotsLeft     = (capacity != null && bookedCount != null)
-        ? Math.max(0, capacity - bookedCount)
-        : (s.spotsLeft ?? s.availableSpots ?? s.remainingSpots ?? null);
+      const bookedCountFromList   = s.bookingsCount ?? s.bookedCount ?? s.currentBookings ?? s.registeredCount ?? null;
+      const bookedCountFromDetail = detail.bookingCount ?? detail.bookingsCount ?? detail.currentBookings ?? detail.totalBookings ?? null;
+      // Take the larger non-null value — some endpoints return 0 when data is stale
+      const bookedCount = (bookedCountFromList != null && bookedCountFromDetail != null)
+        ? Math.max(bookedCountFromList, bookedCountFromDetail)
+        : (bookedCountFromDetail ?? bookedCountFromList);
+      // Prefer detail.spotsLeft if available, then calculate, then fall back to list
+      const spotsLeft = detail.spotsLeft != null ? detail.spotsLeft
+        : s.spotsLeft != null ? s.spotsLeft
+        : (capacity != null && bookedCount != null
+            ? Math.max(0, capacity - bookedCount)
+            : (s.availableSpots ?? s.remainingSpots ?? null));
       const waitlistCapacity    = detail.waitlistCapacity    ?? s.waitlistCapacity    ?? null;
       const waitlistBookingCount = detail.waitlistBookingCount ?? s.waitlistBookingCount ?? null;
-      const lateCancelled       = s.lateCancellationCount ?? s.lateCancelledCount ?? s.lateCancellations ?? s.lateCancelCount ?? null;
+      const lateCancelled       = detail.lateCancellationCount ?? detail.lateCancelledCount
+        ?? s.lateCancellationCount ?? s.lateCancelledCount ?? s.lateCancellations ?? s.lateCancelCount ?? null;
 
       // Tags from detail
       const tags: string[] = (detail.tags || []).map((t: any) =>
