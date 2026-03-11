@@ -3728,14 +3728,24 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .form-page { display: none; }
         .form-page.active { display: block; }
         .page-nav { display: flex; gap: 12px; margin-top: 20px; }
-        .page-nav button { flex: 1; padding: var(--btn-padding-y) var(--btn-padding-x); border: 2px solid; border-radius: var(--btn-radius); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .page-nav .btn-prev { background: var(--back-btn-bg); color: var(--back-btn-text); border-color: var(--back-btn-border); }
-        .page-nav .btn-prev:hover { background: var(--back-btn-hover-bg, color-mix(in srgb, var(--back-btn-bg) 88%, #000)); filter: brightness(0.93); transform: translateY(-1px); }
-        .page-nav .btn-next { background: var(--next-btn-bg); color: var(--next-btn-text); border-color: var(--next-btn-border); }
-        .page-nav .btn-next:hover { background: var(--next-btn-hover-bg, var(--next-btn-bg)); filter: brightness(0.92); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .page-nav button { flex: 1; padding: var(--btn-padding-y) var(--btn-padding-x); border: 2px solid; border-radius: var(--btn-radius); font-family: inherit; cursor: pointer; transition: all 0.2s; text-shadow: var(--btn-text-shadow); }
+        .page-nav .btn-prev { background: var(--back-btn-bg); color: var(--back-btn-text); border-color: var(--back-btn-border); font-size: var(--back-btn-font-size); font-weight: var(--back-btn-font-weight); letter-spacing: var(--back-btn-letter-spacing); text-transform: var(--back-btn-text-transform); box-shadow: var(--back-btn-shadow); }
+        .page-nav .btn-prev:hover { background: var(--back-btn-hover-bg, color-mix(in srgb, var(--back-btn-bg) 88%, #000)); ${theme.backButtonHoverAnimation === 'scale' ? `transform: scale(${theme.backButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.backButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 16px color-mix(in srgb, var(--back-btn-bg) 55%, transparent);' : theme.backButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px);'} }
+        .page-nav .btn-next { background: var(--next-btn-bg); color: var(--next-btn-text); border-color: var(--next-btn-border); font-size: var(--next-btn-font-size); font-weight: var(--next-btn-font-weight); letter-spacing: var(--next-btn-letter-spacing); text-transform: var(--next-btn-text-transform); box-shadow: var(--next-btn-shadow); }
+        .page-nav .btn-next:hover { background: var(--next-btn-hover-bg, var(--next-btn-bg)); ${theme.nextButtonHoverAnimation === 'scale' ? `transform: scale(${theme.nextButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.nextButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 20px color-mix(in srgb, var(--next-btn-bg) 55%, transparent);' : theme.nextButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px); box-shadow: var(--shadow-md);'} }
+        ${theme.nextButtonHoverAnimation === 'pulse' ? '@keyframes next-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}} .page-nav .btn-next:hover{animation:next-pulse 0.5s ease;}' : ''}
+        ${theme.backButtonHoverAnimation === 'pulse' ? '@keyframes back-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}} .page-nav .btn-prev:hover{animation:back-pulse 0.5s ease;}' : ''}
         .page-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
-        .page-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--border-color); transition: all 0.3s; }
-        .page-dot.active { background: var(--primary-color); transform: scale(1.2); }
+        .page-dot { width: var(--progress-bar-height); height: var(--progress-bar-height); border-radius: 50%; background: var(--border-color); transition: all 0.3s; }
+        .page-dot.active { background: var(--progress-bar-color); transform: scale(1.2); }
+        ${theme.progressBarStyle === 'bar' ? `
+        .page-indicator { display: block; height: 6px; background: var(--border-color); border-radius: 999px; overflow: hidden; }
+        .page-dot { display: none; }
+        .page-indicator::after { content: ''; display: block; height: 100%; background: var(--progress-bar-color); border-radius: 999px; transition: width 0.4s ease; }
+        ` : theme.progressBarStyle === 'line' ? `
+        .page-indicator { display: none; }
+        .form-header::after { content: ''; display: block; height: ${theme.progressBarHeight || '3px'}; background: linear-gradient(90deg, var(--progress-bar-color) 0%, transparent 100%); margin-top: 8px; border-radius: 999px; }
+        ` : ''}
   ` : '';
 
   const wrapFields = (fields: FormField[]) => 
@@ -3969,12 +3979,42 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             --submit-btn-font-size: ${theme.submitButtonFontSize || '15px'};
             --submit-btn-font-weight: ${theme.submitButtonFontWeight || '600'};
             --submit-btn-width: ${theme.submitButtonWidth || '100%'};
+            --submit-btn-text: ${theme.submitButtonTextColor || 'var(--button-text-color)'};
+            --submit-btn-shadow: ${theme.submitButtonBoxShadow || theme.buttonBoxShadow || 'var(--shadow-md)'};
+            --submit-btn-letter-spacing: ${theme.submitButtonLetterSpacing || 'normal'};
+            --submit-btn-text-transform: ${theme.submitButtonTextTransform || 'none'};
+            --next-btn-font-size: ${theme.nextButtonFontSize || '14px'};
+            --next-btn-font-weight: ${theme.nextButtonFontWeight || '600'};
+            --next-btn-shadow: ${theme.nextButtonBoxShadow || theme.buttonBoxShadow || '0 2px 8px rgba(0,0,0,0.06)'};
+            --next-btn-letter-spacing: ${theme.nextButtonLetterSpacing || 'normal'};
+            --next-btn-text-transform: ${theme.nextButtonTextTransform || 'none'};
+            --back-btn-font-size: ${theme.backButtonFontSize || '14px'};
+            --back-btn-font-weight: ${theme.backButtonFontWeight || '600'};
+            --back-btn-shadow: ${theme.backButtonBoxShadow || theme.buttonBoxShadow || 'none'};
+            --back-btn-letter-spacing: ${theme.backButtonLetterSpacing || 'normal'};
+            --back-btn-text-transform: ${theme.backButtonTextTransform || 'none'};
+            --btn-text-shadow: ${theme.buttonTextShadow || '0 1px 1px rgba(15,23,42,0.15)'};
+            --input-height: ${theme.inputHeight || 'auto'};
+            --input-focus-border: ${theme.inputFocusBorderColor || theme.primaryColor};
+            --input-focus-glow: ${theme.inputFocusGlowColor || theme.primaryColor};
+            --input-hover-border: ${theme.inputHoverBorderColor || theme.primaryColor};
+            --placeholder-color: ${theme.placeholderColor || '#94a3b8'};
+            --input-text-color: ${theme.inputTextColor || theme.textColor};
+            --label-font-weight: ${theme.labelFontWeight || '500'};
+            --progress-bar-color: ${theme.progressBarColor || theme.primaryColor};
+            --progress-bar-height: ${theme.progressBarHeight || '10px'};
             --preview-mode: ${previewMode ? 1 : 0};
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: ${theme.fontFamily};
-            background: ${(theme.backgroundColor || '#f1f5f9').includes('gradient') ? theme.backgroundColor : `linear-gradient(135deg, ${theme.backgroundColor || '#f1f5f9'} 0%, #e2e8f0 100%)`};
+            background: ${
+              theme.pageBackgroundGradientEnd
+                ? `linear-gradient(${theme.pageBackgroundGradientAngle || '135deg'}, ${theme.backgroundColor || '#f1f5f9'} 0%, ${theme.pageBackgroundGradientEnd} 100%)`
+                : (theme.backgroundColor || '#f1f5f9').includes('gradient')
+                  ? theme.backgroundColor
+                  : `linear-gradient(135deg, ${theme.backgroundColor || '#f1f5f9'} 0%, #e2e8f0 100%)`
+            };
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -3993,6 +4033,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             position: relative;
             overflow: hidden;
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            ${theme.formCardGlassmorphism ? `backdrop-filter: blur(${theme.formCardBlurAmount || '20px'}); -webkit-backdrop-filter: blur(${theme.formCardBlurAmount || '20px'}); background: ${theme.formBackgroundColor}cc;` : ''}
         }
         .form-container::before {
             content: '';
@@ -4077,7 +4118,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .form-group label {
             display: block;
             font-size: ${theme.labelFontSize};
-            font-weight: 500;
+            font-weight: var(--label-font-weight);
             color: ${theme.labelColor};
             text-align: ${theme.labelAlign || 'left'};
             margin-bottom: 6px;
@@ -4085,22 +4126,24 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .required { color: #ef4444; margin-left: 2px; }
         .form-input {
             width: 100%;
+            height: var(--input-height);
             padding: ${theme.inputPadding};
             border: 2px solid var(--border-color);
             border-radius: 8px;
             font-family: inherit;
             font-size: ${theme.inputFontSize};
             background: ${theme.inputBackgroundColor};
-            color: var(--text-primary);
+            color: var(--input-text-color);
             transition: all 0.2s ease;
         }
+        .form-input:hover:not(:focus) { border-color: var(--input-hover-border); }
         .form-input:focus {
             outline: none;
-            border-color: var(--border-focus);
-            box-shadow: 0 0 0 3px ${theme.primaryColor}1a;
+            border-color: var(--input-focus-border);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--input-focus-glow) 20%, transparent);
             transform: translateY(-1px);
         }
-        .form-input::placeholder { color: var(--text-light); }
+        .form-input::placeholder { color: var(--placeholder-color); }
         select.form-input {
             cursor: pointer;
             appearance: none;
@@ -4667,20 +4710,22 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .submit-btn {
             width: var(--submit-btn-width);
             padding: var(--btn-padding-y) var(--btn-padding-x);
-            border: 2px solid transparent;
+            border: 2px solid var(--submit-btn-border);
             border-radius: var(--btn-radius);
             background: var(--submit-btn-bg);
-            color: var(--button-text-color) !important;
+            color: var(--submit-btn-text) !important;
             font-family: inherit;
             font-size: var(--submit-btn-font-size);
             font-weight: var(--submit-btn-font-weight);
+            letter-spacing: var(--submit-btn-letter-spacing);
+            text-transform: var(--submit-btn-text-transform);
             cursor: pointer;
             transition: all 0.2s ease;
-            box-shadow: var(--shadow-md);
+            box-shadow: var(--submit-btn-shadow);
+            text-shadow: var(--btn-text-shadow);
             position: relative;
             overflow: hidden;
             isolation: isolate;
-            text-shadow: 0 1px 1px rgba(15, 23, 42, 0.18);
         }
         .submit-btn::before {
             content: '';
@@ -4692,12 +4737,18 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         }
         .submit-btn:hover {
             background: var(--submit-btn-hover-bg, var(--submit-btn-bg));
-            color: var(--submit-btn-hover-text, var(--button-text-color)) !important;
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
+            color: var(--submit-btn-hover-text, var(--submit-btn-text)) !important;
+            ${theme.submitButtonHoverAnimation === 'lift' || !theme.submitButtonHoverAnimation ? 'transform: translateY(-3px);' : ''}
+            ${theme.submitButtonHoverAnimation === 'scale' ? `transform: scale(${theme.submitButtonHoverScale || theme.buttonHoverScale || '1.03'});` : ''}
+            ${theme.submitButtonHoverAnimation === 'glow' ? `box-shadow: 0 0 24px color-mix(in srgb, var(--submit-btn-bg) 55%, transparent), var(--submit-btn-shadow);` : 'box-shadow: var(--shadow-lg);'}
+            ${theme.submitButtonHoverAnimation === 'none' ? 'transform: none; filter: none;' : ''}
         }
+        ${theme.submitButtonHoverAnimation === 'pulse' ? `
+        .submit-btn:hover { animation: btn-pulse 0.5s ease; }
+        @keyframes btn-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        ` : ''}
         .submit-btn:hover::before { left: 100%; }
-        .submit-btn:active { transform: translateY(-1px); }
+        .submit-btn:active { transform: translateY(-1px) scale(0.98); }
         .submit-btn:disabled {
             background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
             cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm);

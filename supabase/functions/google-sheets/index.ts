@@ -5,76 +5,35 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ── Service Account JWT auth ────────────────────────────────────────────────
-async function getServiceAccountToken(): Promise<string> {
-  const raw = Deno.env.get('GOOGLE_SERVICE_ACCOUNT_KEY');
-  if (!raw) {
+// ── OAuth refresh-token auth ─────────────────────────────────────────────────
+async function getOAuthToken(): Promise<string> {
+  const clientId     = Deno.env.get('GOOGLE_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+  const refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN');
+
+  if (!clientId || !clientSecret || !refreshToken) {
     throw new Error(
-      'GOOGLE_SERVICE_ACCOUNT_KEY secret is not configured. ' +
-      'Go to Supabase Dashboard → Project Settings → Edge Functions → Secrets and add it. ' +
-      'See: https://cloud.google.com/iam/docs/creating-managing-service-account-keys'
+      'Missing Google OAuth secrets. Go to Supabase Dashboard → Project Settings → ' +
+      'Edge Functions → Secrets and add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REFRESH_TOKEN.'
     );
   }
 
-  let sa: { client_email: string; private_key: string };
-  try {
-    sa = JSON.parse(raw);
-  } catch {
-    throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY is not valid JSON.');
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive',
-    aud: 'https://oauth2.googleapis.com/token',
-    exp: now + 3600,
-    iat: now,
-  };
-
-  const b64url = (s: string) =>
-    btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const b64urlBytes = (buf: ArrayBuffer) =>
-    b64url(String.fromCharCode(...new Uint8Array(buf)));
-
-  const header  = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const payload = b64url(JSON.stringify(claim));
-  const sigInput = `${header}.${payload}`;
-
-  const pemBody = sa.private_key
-    .replace(/-----BEGIN (RSA )?PRIVATE KEY-----/g, '')
-    .replace(/-----END (RSA )?PRIVATE KEY-----/g, '')
-    .replace(/\s/g, '');
-  const binaryKey = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8',
-    binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-
-  const sig = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5',
-    cryptoKey,
-    new TextEncoder().encode(sigInput),
-  );
-  const jwt = `${sigInput}.${b64urlBytes(sig)}`;
-
-  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
+      grant_type:    'refresh_token',
+      client_id:     clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
     }),
   });
-  const tokenData = await tokenRes.json();
-  if (!tokenData.access_token) {
-    throw new Error('Google token exchange failed: ' + JSON.stringify(tokenData));
+
+  const data = await res.json();
+  if (!data.access_token) {
+    throw new Error('Google token refresh failed: ' + JSON.stringify(data));
   }
-  return tokenData.access_token;
+  return data.access_token;
 }
 
 // ── Sheets helpers ──────────────────────────────────────────────────────────
@@ -172,7 +131,7 @@ serve(async (req) => {
     } = body;
 
     const sheet = rawSheetName || 'Form Submissions';
-    const token = await getServiceAccountToken();
+    const token = await getOAuthToken();
 
     // ── create ──────────────────────────────────────────────────────────────
     if (action === 'create') {

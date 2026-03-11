@@ -640,6 +640,98 @@ export interface FormTheme {
   submitButtonWidth?: string;
   /** Alignment of the submit button container when not full-width */
   submitButtonAlign?: 'left' | 'center' | 'right';
+
+  // ── Submit button extensions ───────────────────────────────────────────────
+  /** Submit button explicit text color (overrides global buttonTextColor) */
+  submitButtonTextColor?: string;
+  /** Submit button box shadow CSS value */
+  submitButtonBoxShadow?: string;
+  /** Submit button letter spacing (e.g. '0.05em') */
+  submitButtonLetterSpacing?: string;
+  /** Submit button text transform */
+  submitButtonTextTransform?: 'none' | 'uppercase' | 'capitalize';
+  /** Hover animation style for submit button */
+  submitButtonHoverAnimation?: 'lift' | 'scale' | 'glow' | 'pulse' | 'none';
+  /** Scale value used when submitButtonHoverAnimation = 'scale' */
+  submitButtonHoverScale?: string;
+
+  // ── Next button extensions ─────────────────────────────────────────────────
+  /** Next button font size (e.g. '14px') */
+  nextButtonFontSize?: string;
+  /** Next button font weight (e.g. '600') */
+  nextButtonFontWeight?: string;
+  /** Next button box shadow CSS value */
+  nextButtonBoxShadow?: string;
+  /** Next button letter spacing */
+  nextButtonLetterSpacing?: string;
+  /** Next button text transform */
+  nextButtonTextTransform?: 'none' | 'uppercase' | 'capitalize';
+  /** Hover animation style for next button */
+  nextButtonHoverAnimation?: 'lift' | 'scale' | 'glow' | 'pulse' | 'none';
+  /** Scale value used when nextButtonHoverAnimation = 'scale' */
+  nextButtonHoverScale?: string;
+
+  // ── Back button extensions ─────────────────────────────────────────────────
+  /** Back button font size */
+  backButtonFontSize?: string;
+  /** Back button font weight */
+  backButtonFontWeight?: string;
+  /** Back button box shadow CSS value */
+  backButtonBoxShadow?: string;
+  /** Back button letter spacing */
+  backButtonLetterSpacing?: string;
+  /** Back button text transform */
+  backButtonTextTransform?: 'none' | 'uppercase' | 'capitalize';
+  /** Hover animation style for back button */
+  backButtonHoverAnimation?: 'lift' | 'scale' | 'glow' | 'pulse' | 'none';
+  /** Scale value used when backButtonHoverAnimation = 'scale' */
+  backButtonHoverScale?: string;
+
+  // ── Shared button extensions ───────────────────────────────────────────────
+  /** Default box shadow applied to all buttons */
+  buttonBoxShadow?: string;
+  /** Text shadow applied to all button labels */
+  buttonTextShadow?: string;
+  /** Default hover scale for all buttons */
+  buttonHoverScale?: string;
+
+  // ── Input field extensions ─────────────────────────────────────────────────
+  /** Input element height (e.g. '44px') */
+  inputHeight?: string;
+  /** Border color on input focus (defaults to primaryColor) */
+  inputFocusBorderColor?: string;
+  /** Glow/halo color on input focus */
+  inputFocusGlowColor?: string;
+  /** Input border color on hover */
+  inputHoverBorderColor?: string;
+  /** Placeholder text color */
+  placeholderColor?: string;
+  /** Input text color (overrides global textColor for inputs) */
+  inputTextColor?: string;
+
+  // ── Label extensions ───────────────────────────────────────────────────────
+  /** Label font weight (e.g. '500') */
+  labelFontWeight?: string;
+
+  // ── Page background gradient ───────────────────────────────────────────────
+  /** End color of the page background gradient */
+  pageBackgroundGradientEnd?: string;
+  /** Angle of the page background gradient (e.g. '135deg') */
+  pageBackgroundGradientAngle?: string;
+
+  // ── Form card glassmorphism ────────────────────────────────────────────────
+  /** Enable glass/frosted effect on the form card */
+  formCardGlassmorphism?: boolean;
+  /** Blur radius for glassmorphism (e.g. '20px') */
+  formCardBlurAmount?: string;
+
+  // ── Progress bar (multi-page) ──────────────────────────────────────────────
+  /** Color of the active progress indicator */
+  progressBarColor?: string;
+  /** Height/size of the progress indicator */
+  progressBarHeight?: string;
+  /** Visual style of the step indicator */
+  progressBarStyle?: 'bar' | 'dots' | 'line';
 }
 
 /** Animation configuration per element on the generated form */

@@ -102,6 +102,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const [showHeroPicker, setShowHeroPicker] = useState(false);
   const [heroPickerInitialPage, setHeroPickerInitialPage] = useState(0);
   const [settingsTab, setSettingsTab] = useState<'content' | 'design' | 'integrations' | 'publish'>('content');
+  const [activeButtonPanel, setActiveButtonPanel] = useState<'shared' | 'submit' | 'next' | 'back'>('submit');
   const openHeroPicker = (page = 0) => { setHeroPickerInitialPage(page); setShowHeroPicker(true); };
 
   const pageCount = form.fields.filter(f => f.type === 'page-break').length + 1;
@@ -375,122 +376,312 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               </Select>
             </div>
           </div>
+          {/* Glassmorphism */}
+          <div className="space-y-2 rounded-lg border border-blue-200/40 bg-blue-50/20 p-3">
+            <div className="flex items-center justify-between">
+              <FieldLabel>Glassmorphism</FieldLabel>
+              <Switch checked={form.theme.formCardGlassmorphism ?? false} onCheckedChange={v => updateTheme({ formCardGlassmorphism: v })} />
+            </div>
+            {form.theme.formCardGlassmorphism && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Blur Amount</span>
+                  <span className="font-mono">{form.theme.formCardBlurAmount || '20px'}</span>
+                </div>
+                <input type="range" min={0} max={40} step={1}
+                  value={parseInt(form.theme.formCardBlurAmount || '20')}
+                  onChange={e => updateTheme({ formCardBlurAmount: `${e.target.value}px` })}
+                  className="w-full accent-primary" />
+                <p className="text-[10px] text-muted-foreground/60">Works best with a vivid gradient or image page background.</p>
+              </div>
+            )}
+          </div>
         </SettingsSection>
 
+        {/* Inputs & Fields */}
+        <SettingsSection title="Inputs & Fields" icon={Eye} defaultOpen={false}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Input Height</FieldLabel>
+              <Input value={form.theme.inputHeight || ''} onChange={e => updateTheme({ inputHeight: e.target.value })} placeholder="44px (auto)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Input Text Color</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.inputTextColor || form.theme.textColor} onChange={e => updateTheme({ inputTextColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.inputTextColor || ''} onChange={e => updateTheme({ inputTextColor: e.target.value })} placeholder="Inherits text color" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Placeholder Color</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.placeholderColor || '#94a3b8'} onChange={e => updateTheme({ placeholderColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.placeholderColor || ''} onChange={e => updateTheme({ placeholderColor: e.target.value })} placeholder="#94a3b8" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Hover Border</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.inputHoverBorderColor || form.theme.primaryColor} onChange={e => updateTheme({ inputHoverBorderColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.inputHoverBorderColor || ''} onChange={e => updateTheme({ inputHoverBorderColor: e.target.value })} placeholder="Primary color" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Focus Border</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.inputFocusBorderColor || form.theme.primaryColor} onChange={e => updateTheme({ inputFocusBorderColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.inputFocusBorderColor || ''} onChange={e => updateTheme({ inputFocusBorderColor: e.target.value })} placeholder="Primary color" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <FieldLabel>Focus Glow</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.inputFocusGlowColor || form.theme.primaryColor} onChange={e => updateTheme({ inputFocusGlowColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.inputFocusGlowColor || ''} onChange={e => updateTheme({ inputFocusGlowColor: e.target.value })} placeholder="Primary + 20% opacity" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+          </div>
+        </SettingsSection>
+
+        {/* Buttons */}
         <SettingsSection title="Buttons" icon={Zap}>
-          {/* ── Shared sizing ── */}
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest">Shared</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <FieldLabel>Radius</FieldLabel>
-              <Input value={form.theme.buttonRadius || '8px'} onChange={e => updateTheme({ buttonRadius: e.target.value })} placeholder="8px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+          {/* ── Tab strip ── */}
+          <div className="flex gap-1 p-1 rounded-xl bg-muted/30">
+            {(['shared', 'submit', 'next', 'back'] as const).map(panel => (
+              <button key={panel} type="button" onClick={() => setActiveButtonPanel(panel)}
+                className={`flex-1 rounded-lg py-1.5 text-[11px] font-semibold capitalize transition-all ${activeButtonPanel === panel ? 'bg-white shadow-sm text-foreground border border-border/50 dark:bg-muted' : 'text-muted-foreground hover:text-foreground'}`}>
+                {panel}
+              </button>
+            ))}
+          </div>
+
+          {/* ── SHARED ── */}
+          {activeButtonPanel === 'shared' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Radius</FieldLabel><Input value={form.theme.buttonRadius || '8px'} onChange={e => updateTheme({ buttonRadius: e.target.value })} placeholder="8px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Padding Y</FieldLabel><Input value={form.theme.buttonPaddingY || '12px'} onChange={e => updateTheme({ buttonPaddingY: e.target.value })} placeholder="12px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Padding X</FieldLabel><Input value={form.theme.buttonPaddingX || '14px'} onChange={e => updateTheme({ buttonPaddingX: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.buttonBoxShadow || ''} onChange={e => updateTheme({ buttonBoxShadow: e.target.value })} placeholder="0 4px 6px rgba(0,0,0,0.1)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Text Shadow</FieldLabel><Input value={form.theme.buttonTextShadow || ''} onChange={e => updateTheme({ buttonTextShadow: e.target.value })} placeholder="0 1px 1px rgba(0,0,0,0.18)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Hover Scale</FieldLabel><Input value={form.theme.buttonHoverScale || '1.02'} onChange={e => updateTheme({ buttonHoverScale: e.target.value })} placeholder="1.02" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Button Shape</FieldLabel>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['rounded', 'pill', 'square'] as const).map(opt => (
+                    <button key={opt} onClick={() => updateTheme({ buttonStyle: opt })}
+                      className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.buttonStyle ?? 'rounded') === opt ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Padding Y</FieldLabel>
-              <Input value={form.theme.buttonPaddingY || '12px'} onChange={e => updateTheme({ buttonPaddingY: e.target.value })} placeholder="12px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+          )}
+
+          {/* ── SUBMIT ── */}
+          {activeButtonPanel === 'submit' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.submitButtonBackground || ''} onChange={e => updateTheme({ submitButtonBackground: e.target.value })} placeholder="Gradient (default)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.submitButtonHoverBackground || ''} onChange={e => updateTheme({ submitButtonHoverBackground: e.target.value })} placeholder="Darker shade" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Color</FieldLabel>
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={form.theme.submitButtonTextColor || form.theme.buttonTextColor || '#ffffff'} onChange={e => updateTheme({ submitButtonTextColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                    <Input value={form.theme.submitButtonTextColor || ''} onChange={e => updateTheme({ submitButtonTextColor: e.target.value })} placeholder="Global button text" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+                  </div>
+                </div>
+                <div className="space-y-1.5"><FieldLabel>Hover Text Color</FieldLabel><Input value={form.theme.submitButtonHoverTextColor || ''} onChange={e => updateTheme({ submitButtonHoverTextColor: e.target.value })} placeholder="Inherits" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Border Color</FieldLabel><Input value={form.theme.submitButtonBorderColor || ''} onChange={e => updateTheme({ submitButtonBorderColor: e.target.value })} placeholder="transparent" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.submitButtonBoxShadow || ''} onChange={e => updateTheme({ submitButtonBoxShadow: e.target.value })} placeholder="Shared default" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.submitButtonFontSize || '15px'} onChange={e => updateTheme({ submitButtonFontSize: e.target.value })} placeholder="15px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.submitButtonFontWeight || '600'} onChange={e => updateTheme({ submitButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Width</FieldLabel><Input value={form.theme.submitButtonWidth || '100%'} onChange={e => updateTheme({ submitButtonWidth: e.target.value })} placeholder="100%" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.submitButtonLetterSpacing || ''} onChange={e => updateTheme({ submitButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Transform</FieldLabel>
+                  <Select value={form.theme.submitButtonTextTransform || 'none'} onValueChange={v => updateTheme({ submitButtonTextTransform: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Alignment</FieldLabel>
+                <div className="grid grid-cols-3 gap-1">
+                  {(['left', 'center', 'right'] as const).map(a => (
+                    <button key={a} onClick={() => updateTheme({ submitButtonAlign: a })}
+                      className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.submitButtonAlign ?? 'center') === a ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Hover Animation</FieldLabel>
+                  <Select value={form.theme.submitButtonHoverAnimation || 'lift'} onValueChange={v => updateTheme({ submitButtonHoverAnimation: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lift">Lift Up</SelectItem>
+                      <SelectItem value="scale">Scale Up</SelectItem>
+                      <SelectItem value="glow">Glow</SelectItem>
+                      <SelectItem value="pulse">Pulse</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(form.theme.submitButtonHoverAnimation === 'scale') && (
+                  <div className="space-y-1.5"><FieldLabel>Scale Amount</FieldLabel><Input value={form.theme.submitButtonHoverScale || '1.03'} onChange={e => updateTheme({ submitButtonHoverScale: e.target.value })} placeholder="1.03" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                )}
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Padding X</FieldLabel>
-              <Input value={form.theme.buttonPaddingX || '14px'} onChange={e => updateTheme({ buttonPaddingX: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+          )}
+
+          {/* ── NEXT ── */}
+          {activeButtonPanel === 'next' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.nextButtonBackground || ''} onChange={e => updateTheme({ nextButtonBackground: e.target.value })} placeholder="Same as submit" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.nextButtonHoverBackground || ''} onChange={e => updateTheme({ nextButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Color</FieldLabel>
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={form.theme.nextButtonTextColor || form.theme.buttonTextColor || '#ffffff'} onChange={e => updateTheme({ nextButtonTextColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                    <Input value={form.theme.nextButtonTextColor || ''} onChange={e => updateTheme({ nextButtonTextColor: e.target.value })} placeholder="#ffffff" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+                  </div>
+                </div>
+                <div className="space-y-1.5"><FieldLabel>Border Color</FieldLabel><Input value={form.theme.nextButtonBorderColor || ''} onChange={e => updateTheme({ nextButtonBorderColor: e.target.value })} placeholder="transparent" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.nextButtonFontSize || '14px'} onChange={e => updateTheme({ nextButtonFontSize: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.nextButtonFontWeight || '600'} onChange={e => updateTheme({ nextButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.nextButtonBoxShadow || ''} onChange={e => updateTheme({ nextButtonBoxShadow: e.target.value })} placeholder="Shared default" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.nextButtonLetterSpacing || ''} onChange={e => updateTheme({ nextButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Transform</FieldLabel>
+                  <Select value={form.theme.nextButtonTextTransform || 'none'} onValueChange={v => updateTheme({ nextButtonTextTransform: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Hover Animation</FieldLabel>
+                  <Select value={form.theme.nextButtonHoverAnimation || 'lift'} onValueChange={v => updateTheme({ nextButtonHoverAnimation: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lift">Lift Up</SelectItem>
+                      <SelectItem value="scale">Scale Up</SelectItem>
+                      <SelectItem value="glow">Glow</SelectItem>
+                      <SelectItem value="pulse">Pulse</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(form.theme.nextButtonHoverAnimation === 'scale') && (
+                  <div className="space-y-1.5"><FieldLabel>Scale Amount</FieldLabel><Input value={form.theme.nextButtonHoverScale || '1.03'} onChange={e => updateTheme({ nextButtonHoverScale: e.target.value })} placeholder="1.03" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                )}
+              </div>
             </div>
+          )}
+
+          {/* ── BACK ── */}
+          {activeButtonPanel === 'back' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.backButtonBackground || ''} onChange={e => updateTheme({ backButtonBackground: e.target.value })} placeholder={form.theme.navButtonBackground || '#ffffff'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.backButtonHoverBackground || ''} onChange={e => updateTheme({ backButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Color</FieldLabel>
+                  <div className="flex items-center gap-1.5">
+                    <input type="color" value={form.theme.backButtonTextColor || form.theme.textColor || '#1e293b'} onChange={e => updateTheme({ backButtonTextColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                    <Input value={form.theme.backButtonTextColor || ''} onChange={e => updateTheme({ backButtonTextColor: e.target.value })} placeholder={form.theme.navButtonTextColor || '#1e293b'} className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+                  </div>
+                </div>
+                <div className="space-y-1.5"><FieldLabel>Border Color</FieldLabel><Input value={form.theme.backButtonBorderColor || ''} onChange={e => updateTheme({ backButtonBorderColor: e.target.value })} placeholder={form.theme.navButtonBorderColor || '#e2e8f0'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.backButtonFontSize || '14px'} onChange={e => updateTheme({ backButtonFontSize: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.backButtonFontWeight || '600'} onChange={e => updateTheme({ backButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.backButtonBoxShadow || ''} onChange={e => updateTheme({ backButtonBoxShadow: e.target.value })} placeholder="none" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.backButtonLetterSpacing || ''} onChange={e => updateTheme({ backButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Text Transform</FieldLabel>
+                  <Select value={form.theme.backButtonTextTransform || 'none'} onValueChange={v => updateTheme({ backButtonTextTransform: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <FieldLabel>Hover Animation</FieldLabel>
+                  <Select value={form.theme.backButtonHoverAnimation || 'lift'} onValueChange={v => updateTheme({ backButtonHoverAnimation: v as any })}>
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="lift">Lift Up</SelectItem>
+                      <SelectItem value="scale">Scale Up</SelectItem>
+                      <SelectItem value="glow">Glow</SelectItem>
+                      <SelectItem value="pulse">Pulse</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {(form.theme.backButtonHoverAnimation === 'scale') && (
+                  <div className="space-y-1.5"><FieldLabel>Scale Amount</FieldLabel><Input value={form.theme.backButtonHoverScale || '1.03'} onChange={e => updateTheme({ backButtonHoverScale: e.target.value })} placeholder="1.03" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                )}
+              </div>
+            </div>
+          )}
+        </SettingsSection>
+
+        {/* Progress Bar */}
+        <SettingsSection title="Progress Bar" icon={BarChart3} defaultOpen={false}>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>Color</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.progressBarColor || form.theme.primaryColor} onChange={e => updateTheme({ progressBarColor: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.progressBarColor || ''} onChange={e => updateTheme({ progressBarColor: e.target.value })} placeholder="Primary color" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+            <div className="space-y-1.5"><FieldLabel>Height</FieldLabel><Input value={form.theme.progressBarHeight || '4px'} onChange={e => updateTheme({ progressBarHeight: e.target.value })} placeholder="4px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Button Shape</FieldLabel>
+            <FieldLabel>Style</FieldLabel>
             <div className="grid grid-cols-3 gap-1">
-              {(['rounded', 'pill', 'square'] as const).map(opt => (
-                <button key={opt} onClick={() => updateTheme({ buttonStyle: opt })}
-                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.buttonStyle ?? 'rounded') === opt ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
-                  {opt}
+              {(['bar', 'dots', 'line'] as const).map(s => (
+                <button key={s} onClick={() => updateTheme({ progressBarStyle: s })}
+                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.progressBarStyle ?? 'dots') === s ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
+                  {s}
                 </button>
               ))}
-            </div>
-          </div>
-
-          {/* ── Submit ── */}
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Submit Button</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <FieldLabel>Background</FieldLabel>
-              <Input value={form.theme.submitButtonBackground || ''} onChange={e => updateTheme({ submitButtonBackground: e.target.value })} placeholder="Gradient (default)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Hover Background</FieldLabel>
-              <Input value={form.theme.submitButtonHoverBackground || ''} onChange={e => updateTheme({ submitButtonHoverBackground: e.target.value })} placeholder="Darker shade" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Border Color</FieldLabel>
-              <Input value={form.theme.submitButtonBorderColor || ''} onChange={e => updateTheme({ submitButtonBorderColor: e.target.value })} placeholder="transparent" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Hover Text Color</FieldLabel>
-              <Input value={form.theme.submitButtonHoverTextColor || ''} onChange={e => updateTheme({ submitButtonHoverTextColor: e.target.value })} placeholder="Inherits button text" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <FieldLabel>Font Size</FieldLabel>
-              <Input value={form.theme.submitButtonFontSize || '15px'} onChange={e => updateTheme({ submitButtonFontSize: e.target.value })} placeholder="15px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Font Weight</FieldLabel>
-              <Input value={form.theme.submitButtonFontWeight || '600'} onChange={e => updateTheme({ submitButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Width</FieldLabel>
-              <Input value={form.theme.submitButtonWidth || '100%'} onChange={e => updateTheme({ submitButtonWidth: e.target.value })} placeholder="100%" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <FieldLabel>Alignment</FieldLabel>
-            <div className="grid grid-cols-3 gap-1">
-              {(['left', 'center', 'right'] as const).map(a => (
-                <button key={a} onClick={() => updateTheme({ submitButtonAlign: a })}
-                  className={`py-1.5 rounded-lg border-2 text-[10px] font-semibold capitalize transition-all ${(form.theme.submitButtonAlign ?? 'center') === a ? 'border-primary bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:border-primary/30'}`}>
-                  {a}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Next ── */}
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Next Button</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <FieldLabel>Background</FieldLabel>
-              <Input value={form.theme.nextButtonBackground || ''} onChange={e => updateTheme({ nextButtonBackground: e.target.value })} placeholder="Same as submit" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Hover Background</FieldLabel>
-              <Input value={form.theme.nextButtonHoverBackground || ''} onChange={e => updateTheme({ nextButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Text Color</FieldLabel>
-              <Input value={form.theme.nextButtonTextColor || ''} onChange={e => updateTheme({ nextButtonTextColor: e.target.value })} placeholder="#ffffff" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Border Color</FieldLabel>
-              <Input value={form.theme.nextButtonBorderColor || ''} onChange={e => updateTheme({ nextButtonBorderColor: e.target.value })} placeholder="none" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-          </div>
-
-          {/* ── Back ── */}
-          <p className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-2">Back Button</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <FieldLabel>Background</FieldLabel>
-              <Input value={form.theme.backButtonBackground || ''} onChange={e => updateTheme({ backButtonBackground: e.target.value })} placeholder={form.theme.navButtonBackground || '#ffffff'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Hover Background</FieldLabel>
-              <Input value={form.theme.backButtonHoverBackground || ''} onChange={e => updateTheme({ backButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Text Color</FieldLabel>
-              <Input value={form.theme.backButtonTextColor || ''} onChange={e => updateTheme({ backButtonTextColor: e.target.value })} placeholder={form.theme.navButtonTextColor || '#1e293b'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
-            </div>
-            <div className="space-y-1.5">
-              <FieldLabel>Border Color</FieldLabel>
-              <Input value={form.theme.backButtonBorderColor || ''} onChange={e => updateTheme({ backButtonBorderColor: e.target.value })} placeholder={form.theme.navButtonBorderColor || '#e2e8f0'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
             </div>
           </div>
         </SettingsSection>
@@ -526,6 +717,22 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                 </div>
               </div>
             ))}
+          </div>
+          {/* Page background gradient */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <FieldLabel>BG Gradient End</FieldLabel>
+              <div className="flex items-center gap-1.5">
+                <input type="color" value={form.theme.pageBackgroundGradientEnd || form.theme.backgroundColor} onChange={e => updateTheme({ pageBackgroundGradientEnd: e.target.value })} className="h-8 w-8 rounded-lg border border-border/50 cursor-pointer shrink-0" />
+                <Input value={form.theme.pageBackgroundGradientEnd || ''} onChange={e => updateTheme({ pageBackgroundGradientEnd: e.target.value })} placeholder="None (flat)" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
+              </div>
+            </div>
+            {form.theme.pageBackgroundGradientEnd && (
+              <div className="space-y-1.5 col-span-2">
+                <FieldLabel>Gradient Angle</FieldLabel>
+                <Input value={form.theme.pageBackgroundGradientAngle || '135deg'} onChange={e => updateTheme({ pageBackgroundGradientAngle: e.target.value })} placeholder="135deg" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+              </div>
+            )}
           </div>
           <SettingsRow label="Show Logo"><Switch checked={form.theme.showLogo} onCheckedChange={v => updateTheme({ showLogo: v })} /></SettingsRow>
           {form.theme.showLogo && (
@@ -630,6 +837,20 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                 </button>
               ))}
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Label Font Weight</FieldLabel>
+            <Select value={form.theme.labelFontWeight || '500'} onValueChange={v => updateTheme({ labelFontWeight: v })}>
+              <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="300">300 — Light</SelectItem>
+                <SelectItem value="400">400 — Normal</SelectItem>
+                <SelectItem value="500">500 — Medium</SelectItem>
+                <SelectItem value="600">600 — Semibold</SelectItem>
+                <SelectItem value="700">700 — Bold</SelectItem>
+                <SelectItem value="800">800 — Extrabold</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-1.5">
             <FieldLabel>Input Style</FieldLabel>
@@ -1099,7 +1320,13 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           <SettingsRow label="Record to Sheets"><Switch checked={form.googleSheetsConfig.enabled} onCheckedChange={v => onUpdate({ googleSheetsConfig: { ...form.googleSheetsConfig, enabled: v } })} /></SettingsRow>
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-1.5">
             <p className="text-[11px] font-semibold text-amber-800">Setup Required</p>
-            <p className="text-[11px] text-amber-700 leading-relaxed">Add <code className="bg-amber-100 px-1 rounded text-[10px] font-mono">GOOGLE_SERVICE_ACCOUNT_KEY</code> to Supabase → Project Settings → Edge Functions → Secrets. Paste the full Service Account JSON key (from Google Cloud Console → IAM → Service Accounts → Keys → Add Key → JSON).</p>
+            <p className="text-[11px] text-amber-700 leading-relaxed">Add the following three secrets to Supabase → Project Settings → Edge Functions → Secrets:</p>
+            <ul className="text-[11px] text-amber-700 space-y-0.5 pl-3 list-disc">
+              <li><code className="bg-amber-100 px-1 rounded text-[10px] font-mono">GOOGLE_CLIENT_ID</code></li>
+              <li><code className="bg-amber-100 px-1 rounded text-[10px] font-mono">GOOGLE_CLIENT_SECRET</code></li>
+              <li><code className="bg-amber-100 px-1 rounded text-[10px] font-mono">GOOGLE_REFRESH_TOKEN</code></li>
+            </ul>
+            <p className="text-[11px] text-amber-700 leading-relaxed">Get these from Google Cloud Console → OAuth 2.0 credentials. Use the OAuth Playground or your app's auth flow to obtain a refresh token with the Sheets and Drive scopes.</p>
           </div>
           {form.googleSheetsConfig.enabled && (
             sheetUrl ? (
