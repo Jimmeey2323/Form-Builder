@@ -58,7 +58,7 @@ export function FormPreview({ form }: FormPreviewProps) {
 
         {/* URL bar */}
         <div className="flex-1 flex items-center gap-2 rounded-full bg-slate-100 border border-slate-200/70 px-3 py-1.5 min-w-0">
-          <div className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" title="Live preview" />
+          <div className="h-2 w-2 rounded-full bg-blue-400 shrink-0" title="Live preview" />
           <span className="text-[11px] font-medium text-slate-500 truncate">{form.title || 'Untitled form'}</span>
         </div>
 
@@ -82,7 +82,7 @@ export function FormPreview({ form }: FormPreviewProps) {
               title={DEVICE_CONFIG[mode].label}
               className={`flex items-center justify-center h-6 w-7 rounded-md transition-all ${
                 device === mode
-                  ? 'bg-white shadow-sm text-cyan-700 border border-slate-200/80'
+                  ? 'bg-white shadow-sm text-blue-700 border border-slate-200/80'
                   : 'text-slate-400 hover:text-slate-600'
               }`}
             >

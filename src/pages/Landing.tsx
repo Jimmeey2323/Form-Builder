@@ -141,12 +141,12 @@ const Landing = () => {
   const confirmDelete = () => { if (!confirmDeleteId) return; const form = forms.find(f => f.id === confirmDeleteId); deleteForm(confirmDeleteId); toast.success(`"${form?.title ?? 'Form'}" deleted`); setConfirmDeleteId(null); };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(29,78,216,0.10),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eff6ff_48%,#f8fafc_100%)]">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-white/60 bg-white/80 shadow-[0_10px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-indigo-600 shadow-[0_12px_28px_rgba(14,165,233,0.35)]">
+            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 via-blue-500 to-blue-600 shadow-[0_12px_28px_rgba(59,130,246,0.35)]">
               <Sparkles className="h-4 w-4 text-primary-foreground" />
             </div>
             <div>
@@ -167,12 +167,12 @@ const Landing = () => {
 
       <main className="container py-8 space-y-6">
         <section className="relative overflow-hidden rounded-[32px] border border-white/65 bg-[linear-gradient(135deg,#020617_0%,#0f172a_38%,#172554_100%)] text-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.22)] md:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(56,189,248,0.28),transparent_30%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_80%,rgba(16,185,129,0.18),transparent_32%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(59,130,246,0.28),transparent_30%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_80%,rgba(29,78,216,0.18),transparent_32%)]" />
           <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
           <div className="relative flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
             <div className="max-w-2xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-100/80">Form Operations</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-blue-100/80">Form Operations</p>
               <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">Build, deploy and scale sophisticated forms faster.</h2>
               <p className="mt-3 text-sm text-white/80 max-w-2xl">
                 Manage templates, advanced fields, live deployment, and connected workflows from one workspace.
@@ -194,7 +194,7 @@ const Landing = () => {
               { label: 'Connected workflows', value: `${withIntegrations} forms`, icon: Zap },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-md">
-                <div className="flex items-center gap-2 text-cyan-100/80">
+                <div className="flex items-center gap-2 text-blue-100/80">
                   <Icon className="h-3.5 w-3.5" />
                   <span className="text-[10px] uppercase tracking-[0.18em]">{label}</span>
                 </div>
@@ -213,7 +213,7 @@ const Landing = () => {
             { icon: Zap, label: 'Integrations', value: withIntegrations, color: 'text-primary' },
           ].map(({ icon: Icon, label, value, color }) => (
             <div key={label} className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/75 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)] backdrop-blur-md">
-              <div className={`h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-50 to-sky-100 flex items-center justify-center ring-1 ring-sky-100 ${color}`}>
+              <div className={`h-10 w-10 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center ring-1 ring-blue-100 ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>

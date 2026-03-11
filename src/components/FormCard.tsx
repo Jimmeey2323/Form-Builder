@@ -26,12 +26,12 @@ import {
 import { FormConfig } from '@/types/formField';
 
 const CARD_GRADIENTS = [
-  ['from-blue-500 to-indigo-600',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
-  ['from-violet-500 to-purple-600', 'bg-violet-50', 'text-violet-700', 'border-violet-200/70'],
-  ['from-emerald-500 to-teal-600',  'bg-emerald-50','text-emerald-700','border-emerald-200/70'],
-  ['from-rose-500 to-pink-600',     'bg-rose-50',   'text-rose-700',   'border-rose-200/70'],
-  ['from-amber-500 to-orange-500',  'bg-amber-50',  'text-amber-700',  'border-amber-200/70'],
-  ['from-cyan-500 to-sky-600',      'bg-cyan-50',   'text-cyan-700',   'border-cyan-200/70'],
+  ['from-blue-500 to-blue-600',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
+  ['from-blue-600 to-blue-700',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
+  ['from-blue-400 to-blue-500',   'bg-blue-50',   'text-blue-600',   'border-blue-200/70'],
+  ['from-blue-700 to-blue-800',   'bg-blue-50',   'text-blue-800',   'border-blue-300/70'],
+  ['from-blue-500 to-blue-700',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
+  ['from-blue-400 to-blue-600',   'bg-blue-50',   'text-blue-700',   'border-blue-200/70'],
 ];
 
 function hashIndex(id: string, len: number) {
@@ -77,8 +77,8 @@ export function FormCard({
   };
 
   const integrations = [
-    form.webhookConfig?.enabled && { icon: <Webhook className="h-2.5 w-2.5" />, label: 'Webhook', color: 'text-indigo-600 border-indigo-200/80 bg-indigo-50' },
-    form.googleSheetsConfig?.enabled && { icon: <Sheet className="h-2.5 w-2.5" />, label: 'Sheets', color: 'text-emerald-600 border-emerald-200/80 bg-emerald-50' },
+    form.webhookConfig?.enabled && { icon: <Webhook className="h-2.5 w-2.5" />, label: 'Webhook', color: 'text-blue-600 border-blue-200/80 bg-blue-50' },
+    form.googleSheetsConfig?.enabled && { icon: <Sheet className="h-2.5 w-2.5" />, label: 'Sheets', color: 'text-blue-600 border-blue-200/80 bg-blue-50' },
     (form.pixelConfig?.snapPixelId || form.pixelConfig?.metaPixelId || form.pixelConfig?.googleAdsId) &&
       { icon: <BarChart3 className="h-2.5 w-2.5" />, label: 'Pixels', color: 'text-blue-600 border-blue-200/80 bg-blue-50' },
   ].filter(Boolean) as { icon: React.ReactNode; label: string; color: string }[];
@@ -154,8 +154,8 @@ export function FormCard({
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {isPublished && (
-            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex items-center gap-1 text-[9.5px] font-semibold text-blue-600 bg-blue-50 border border-blue-200/70 rounded-full px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
               Live
             </span>
           )}
@@ -211,7 +211,7 @@ export function FormCard({
 
         <div className="flex items-center gap-1.5 flex-wrap">
           {isPublished && (
-            <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200/70 rounded-full px-2 py-0.5">
+            <span className="inline-flex items-center gap-1 text-[9.5px] font-semibold text-blue-600 bg-blue-50 border border-blue-200/70 rounded-full px-2 py-0.5">
               <Rocket className="h-2.5 w-2.5" /> Live
             </span>
           )}

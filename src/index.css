@@ -18,7 +18,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 223 24% 16%;
 
-    --primary: 196 87% 42%;
+    --primary: 221 83% 53%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 24% 94%;
@@ -27,7 +27,7 @@ All colors MUST be HSL.
     --muted: 210 22% 95%;
     --muted-foreground: 220 13% 46%;
 
-    --accent: 186 48% 93%;
+    --accent: 220 80% 95%;
     --accent-foreground: 221 30% 22%;
 
     --destructive: 0 72% 56%;
@@ -35,7 +35,7 @@ All colors MUST be HSL.
 
     --border: 214 26% 86%;
     --input: 214 22% 90%;
-    --ring: 196 87% 42%;
+    --ring: 221 83% 53%;
 
     --radius: 0.75rem;
 
@@ -55,7 +55,7 @@ All colors MUST be HSL.
 
     --sidebar-ring: 257 4% 70.4%;
 
-    --chart-1: 196 87% 42%;
+    --chart-1: 221 83% 53%;
     --chart-2: 158 64% 41%;
     --chart-3: 222 47% 50%;
     --chart-4: 41 90% 55%;
@@ -156,9 +156,9 @@ All colors MUST be HSL.
     font-family: var(--font-sans);
     min-height: 100vh;
     background-image:
-      radial-gradient(circle at 12% -6%, hsl(195 100% 64% / 0.18) 0%, transparent 42%),
-      radial-gradient(circle at 92% 4%, hsl(163 84% 52% / 0.12) 0%, transparent 38%),
-      linear-gradient(180deg, hsl(210 35% 99%) 0%, hsl(210 32% 97%) 100%);
+      radial-gradient(circle at 12% -6%, hsl(221 83% 60% / 0.16) 0%, transparent 42%),
+      radial-gradient(circle at 92% 4%, hsl(221 83% 53% / 0.10) 0%, transparent 38%),
+      linear-gradient(180deg, hsl(220 35% 99%) 0%, hsl(220 32% 97%) 100%);
     background-attachment: fixed;
   }
 }
@@ -177,7 +177,7 @@ All colors MUST be HSL.
   opacity: 0.42;
   background-image:
     radial-gradient(hsl(214 26% 78% / 0.32) 0.6px, transparent 0.6px),
-    linear-gradient(115deg, hsl(189 84% 56% / 0.06), hsl(165 74% 44% / 0.02) 42%, transparent 70%);
+    linear-gradient(115deg, hsl(221 83% 60% / 0.07), hsl(221 83% 50% / 0.02) 42%, transparent 70%);
   background-size: 26px 26px, 100% 100%;
   animation: mesh-shift 28s linear infinite;
 }
@@ -252,7 +252,7 @@ All colors MUST be HSL.
 
   /* Small colored icon container */
   .settings-icon-wrap {
-    @apply flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/15 to-violet-500/10 text-indigo-600 ring-1 ring-indigo-200/60 shrink-0;
+    @apply flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-600/10 text-blue-600 ring-1 ring-blue-200/60 shrink-0;
   }
 
   /* Field label above inputs in settings */
@@ -263,14 +263,14 @@ All colors MUST be HSL.
   /* Enhanced input styling in settings */
   .settings-input {
     @apply rounded-xl border border-input/70 bg-slate-50/50 px-3 py-2.5 text-sm transition-all w-full
-           focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400/50
+           focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400/50
            placeholder:text-muted-foreground/40;
   }
 
   /* Gradient "premium" button */
   .premium-btn {
-    @apply inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-4 py-2.5 text-sm font-semibold
-           shadow-md shadow-indigo-500/20 hover:from-indigo-500 hover:to-violet-500 hover:shadow-lg active:scale-[0.98] transition-all duration-150;
+    @apply inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 text-sm font-semibold
+           shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-blue-600 hover:shadow-lg active:scale-[0.98] transition-all duration-150;
   }
 
   /* Drag-handle hover hint */
@@ -336,7 +336,7 @@ All colors MUST be HSL.
   animation: shimmer-btn 2.8s ease-in-out infinite;
 }
 .anim-gradient-title {
-  background: linear-gradient(110deg, #60a5fa, #818cf8, #c084fc, #818cf8, #60a5fa);
+  background: linear-gradient(110deg, #93c5fd, #3b82f6, #1d4ed8, #3b82f6, #93c5fd);
   background-size: 300% 100%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -349,7 +349,78 @@ All colors MUST be HSL.
 .delay-300 { animation-delay: 0.3s; }
 .delay-400 { animation-delay: 0.4s; }
 .delay-500 { animation-delay: 0.5s; }
-.delay-600 { animation-delay: 0.6s; }
+@keyframes card-shine {
+  0%   { background-position: -200% center; }
+  60%  { background-position: 200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes border-flow {
+  0%,100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+@keyframes float-up {
+  0%,100% { transform: translateY(0) scale(1); opacity: 0.6; }
+  50%      { transform: translateY(-18px) scale(1.08); opacity: 0.9; }
+}
+@keyframes scan-line {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(200%); }
+}
+
+/* Shimmering card highlight sweep on hover */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 35%,
+    hsl(0 0% 100% / 0.10) 50%,
+    transparent 65%
+  );
+  background-size: 200% 100%;
+  animation: card-shine 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Animated gradient border for highlighted cards */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(110deg, hsl(221 83% 53%), hsl(221 83% 68%), hsl(221 83% 40%), hsl(221 83% 68%), hsl(221 83% 53%));
+  background-size: 300% 100%;
+  animation: border-flow 3.5s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* Animated floating orb */
+.anim-float-up { animation: float-up 6s ease-in-out infinite; }
+
+/* Blue scan line for dark cards */
+.card-scan {
+  position: relative;
+  overflow: hidden;
+}
+.card-scan::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, hsl(221 83% 70% / 0.5), transparent);
+  animation: scan-line 4s linear infinite;
+  pointer-events: none;
+}
+
+
 
 /* ═══════════════════════════════════════════════════════
    ENHANCED UI COMPONENTS

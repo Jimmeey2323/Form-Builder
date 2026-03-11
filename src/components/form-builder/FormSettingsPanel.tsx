@@ -1160,7 +1160,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             </div>
           </div>
           {/* Cursive Header */}
-          <div className="space-y-2 rounded-lg border border-violet-200/50 bg-violet-50/30 p-3">
+          <div className="space-y-2 rounded-lg border border-blue-200/50 bg-blue-50/30 p-3">
             <div className="flex items-center justify-between">
               <FieldLabel>Cursive Header</FieldLabel>
               <Switch checked={form.theme.headerCursiveEnabled ?? false} onCheckedChange={v => updateTheme({ headerCursiveEnabled: v })} />
@@ -1182,7 +1182,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                     {(['left','right','all'] as const).map(part => (
                       <button key={part} type="button" onClick={() => updateTheme({ headerCursivePart: part })}
                         className={`px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${
-                          (form.theme.headerCursivePart ?? 'all') === part ? 'border-violet-500 bg-violet-100 text-violet-900' : 'border-violet-200 bg-white text-violet-700 hover:bg-violet-50'
+                          (form.theme.headerCursivePart ?? 'all') === part ? 'border-blue-500 bg-blue-100 text-blue-900' : 'border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
                         }`}
                       >{part === 'left' ? 'Left Half' : part === 'right' ? 'Right Half' : 'All Text'}</button>
                     ))}

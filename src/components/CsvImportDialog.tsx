@@ -48,9 +48,9 @@ const TYPE_COLORS: Record<string, string> = {
   tel: 'bg-green-100 text-green-700',
   number: 'bg-orange-100 text-orange-700',
   textarea: 'bg-yellow-100 text-yellow-700',
-  select: 'bg-cyan-100 text-cyan-700',
+  select: 'bg-blue-100 text-blue-700',
   radio: 'bg-rose-100 text-rose-700',
-  checkbox: 'bg-teal-100 text-teal-700',
+  checkbox: 'bg-blue-100 text-blue-700',
   date: 'bg-indigo-100 text-indigo-700',
   hidden: 'bg-gray-100 text-gray-500',
   heading: 'bg-slate-100 text-slate-700',
@@ -455,7 +455,7 @@ export function CsvImportDialog({
         {/* ── Header ── */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
               <Wand2 className="h-4 w-4 text-white" />
             </div>
             Import Forms from CSV
@@ -540,9 +540,9 @@ export function CsvImportDialog({
               </div>
 
               {/* AI note */}
-              <div className="flex items-start gap-2 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-3">
-                <Sparkles className="h-4 w-4 text-violet-500 mt-0.5 shrink-0" />
-                <p className="text-xs text-violet-700 dark:text-violet-300">
+              <div className="flex items-start gap-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-3">
+                <Sparkles className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   <span className="font-semibold">Powered by GPT-4o.</span> AI will intelligently map your field types,
                   parse option lists, and build complete form templates — with no manual configuration needed.
                 </p>
@@ -554,10 +554,10 @@ export function CsvImportDialog({
           {step === 'processing' && (
             <div className="flex flex-col items-center justify-center py-16 gap-6">
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
                   <Sparkles className="h-9 w-9 text-white" />
                 </div>
-                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-violet-400/30 to-purple-500/30 -z-10 animate-pulse" />
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-blue-400/30 to-blue-500/30 -z-10 animate-pulse" />
               </div>
               <div className="text-center space-y-2">
                 <p className="font-semibold text-base">{processingMsg}</p>
@@ -568,7 +568,7 @@ export function CsvImportDialog({
                   <span
                     key={i}
                     style={{ animationDelay: `${i * 0.2}s` }}
-                    className="w-2 h-2 rounded-full bg-violet-500 animate-bounce"
+                    className="w-2 h-2 rounded-full bg-blue-500 animate-bounce"
                   />
                 ))}
               </div>
@@ -663,7 +663,7 @@ export function CsvImportDialog({
                   size="sm"
                   disabled={!csvText}
                   onClick={handleGenerate}
-                  className="bg-gradient-to-r from-violet-500 to-purple-600 text-white gap-1.5 hover:opacity-90"
+                  className="bg-gradient-to-r from-blue-600 to-blue-700 text-white gap-1.5 hover:opacity-90"
                 >
                   <Wand2 className="h-3.5 w-3.5" />
                   Generate with AI
@@ -686,7 +686,7 @@ export function CsvImportDialog({
                   variant="outline"
                   size="sm"
                   onClick={handleSaveTemplates}
-                  className="gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50"
+                  className="gap-1.5 border-blue-300 text-blue-700 hover:bg-blue-50"
                 >
                   <BookMarked className="h-3.5 w-3.5" />
                   Save as Templates
@@ -694,7 +694,7 @@ export function CsvImportDialog({
                 <Button
                   size="sm"
                   onClick={handleSaveAndCreate}
-                  className="gap-1.5 bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:opacity-90"
+                  className="gap-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:opacity-90"
                 >
                   <LayoutDashboard className="h-3.5 w-3.5" />
                   Save &amp; Create Forms

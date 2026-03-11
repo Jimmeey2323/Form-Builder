@@ -665,12 +665,12 @@ const Index = () => {
         <div className="container max-w-[1760px] flex h-16 items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="anim-glow-ring flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-600 via-sky-600 to-emerald-600 shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+              <div className="anim-glow-ring flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-blue-600 via-blue-600 to-blue-700 shadow-lg shadow-blue-500/25 ring-1 ring-white/20">
                 <Sparkles className="h-5 w-5 text-white" />
               </div>
             </div>
             <div>
-              <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-transparent">JForms</h1>
+              <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 bg-clip-text text-transparent">JForms</h1>
               <p className="text-[10px] text-muted-foreground/70 font-semibold uppercase tracking-[0.2em]">Professional Form Builder</p>
             </div>
           </div>
@@ -682,7 +682,7 @@ const Index = () => {
               <>
                 <div className="hidden md:flex items-center gap-1.5 ml-2">
                   {activeForm.webhookConfig.enabled && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-700 border border-cyan-200 bg-cyan-50 rounded-full px-2.5 py-1">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 border border-blue-200 bg-blue-50 rounded-full px-2.5 py-1">
                       <Webhook className="h-3 w-3" /> Webhook
                     </span>
                   )}
@@ -692,7 +692,7 @@ const Index = () => {
                     </span>
                   )}
                   {activeForm.googleSheetsConfig.enabled && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 border border-emerald-200 bg-emerald-50 rounded-full px-2.5 py-1">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 border border-blue-200 bg-blue-50 rounded-full px-2.5 py-1">
                       <Sheet className="h-3 w-3" /> Sheets
                     </span>
                   )}
@@ -749,7 +749,7 @@ const Index = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <Button size="sm" onClick={() => setConfirmDeploy(true)} disabled={deploying}
-                    className="h-8 text-[12.5px] bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 shadow-md shadow-indigo-500/25 border-0 font-semibold">
+                    className="h-8 text-[12.5px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 shadow-md shadow-blue-500/25 border-0 font-semibold">
                     {deploying ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5 mr-1.5" />}
                     {deploying ? 'Deploying…' : 'Deploy'}
                   </Button>
@@ -760,19 +760,19 @@ const Index = () => {
         </div>
         {deployUrl && (
           <div className="container pb-3">
-            <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-emerald-950/90 to-teal-950/90 border border-emerald-500/20 px-5 py-3 shadow-lg shadow-emerald-900/20">
-              <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/25">
-                <ExternalLink className="h-4 w-4 text-emerald-400" />
+            <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-950/90 to-blue-900/90 border border-blue-500/20 px-5 py-3 shadow-lg shadow-blue-900/20">
+              <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-blue-500/15 ring-1 ring-blue-500/25">
+                <ExternalLink className="h-4 w-4 text-blue-400" />
               </div>
               <div className="flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-400/80 mb-0.5">Live</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-blue-400/80 mb-0.5">Live</p>
                 <a href={deployUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-[13px] text-emerald-300 hover:text-emerald-200 underline underline-offset-2 transition-colors font-medium">
+                  className="text-[13px] text-blue-300 hover:text-blue-200 underline underline-offset-2 transition-colors font-medium">
                   {deployUrl}
                 </a>
               </div>
               <Button variant="outline" size="sm" asChild
-                className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 bg-transparent h-8 text-xs">
+                className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10 bg-transparent h-8 text-xs">
                 <a href={deployUrl} target="_blank" rel="noopener noreferrer">
                   Visit <ExternalLink className="h-3 w-3 ml-1" />
                 </a>
@@ -784,18 +784,18 @@ const Index = () => {
 
       <main className="container max-w-[1760px] py-6 space-y-6">
         {activeForm && (
-          <Card className="anim-fade-in premium-surface-strong rounded-[30px] overflow-hidden">
+          <Card className="anim-fade-in card-scan premium-surface-strong rounded-[30px] overflow-hidden">
             <CardContent className="relative p-6">
               {/* Subtle shimmer line at top */}
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-cyan-400/45 to-transparent" />
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-blue-400/45 to-transparent" />
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-[10px] uppercase tracking-[0.45em] text-slate-400 mb-0.5">Active Form</p>
                   <div className="flex items-center gap-2.5">
                     <h2 className="text-xl font-bold text-white tracking-tight">{activeForm.title}</h2>
                     {isFormPublished(activeForm) && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-0.5">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />Live
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/15 text-blue-300 text-[10px] font-bold uppercase tracking-[0.2em] px-2.5 py-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />Live
                       </span>
                     )}
                     {activeForm.publicationState !== 'published' && (
@@ -843,13 +843,13 @@ const Index = () => {
                 </div>
               </div>
               {isFormPublished(activeForm) && (
-                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-2.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-blue-500/20 bg-blue-500/10 px-4 py-2.5">
+                  <span className="h-2 w-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0" />
                   <a href={activeForm.deployedUrl} target="_blank" rel="noopener noreferrer"
-                    className="flex-1 text-[12px] text-emerald-300 hover:text-emerald-200 underline underline-offset-2 truncate font-medium">
+                    className="flex-1 text-[12px] text-blue-300 hover:text-blue-200 underline underline-offset-2 truncate font-medium">
                     {activeForm.deployedUrl}
                   </a>
-                  <ExternalLink className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+                  <ExternalLink className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" />
                 </div>
               )}
             </CardContent>
@@ -866,17 +866,17 @@ const Index = () => {
                   <p className="text-[12px] font-semibold text-slate-700 mt-0.5">{forms.length} form{forms.length !== 1 ? 's' : ''}</p>
                 </div>
                 <Button size="sm" onClick={() => setShowTemplateDialog(true)}
-                  className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 border-0 shadow-sm shadow-indigo-500/20">
+                  className="h-7 px-3 text-[11px] font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 border-0 shadow-sm shadow-blue-500/20">
                   <Plus className="h-3 w-3 mr-1" />New
                 </Button>
               </div>
               <div className="p-3">
               <Tabs value={sidebarTab} onValueChange={handleSidebarTabChange} className="space-y-3">
                   <TabsList className="premium-tabs grid grid-cols-2 gap-1 rounded-xl p-1">
-                    <TabsTrigger value="library" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 data-[state=active]:font-semibold">
+                    <TabsTrigger value="library" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold">
                       <Layers className="h-3 w-3 mr-1.5" />Fields
                     </TabsTrigger>
-                    <TabsTrigger value="forms" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-cyan-700 data-[state=active]:font-semibold">
+                    <TabsTrigger value="forms" className="rounded-lg text-[11.5px] font-medium data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-700 data-[state=active]:font-semibold">
                       <List className="h-3 w-3 mr-1.5" />Forms
                     </TabsTrigger>
                   </TabsList>
@@ -920,7 +920,7 @@ const Index = () => {
                               draggable={!!activeForm && !activeForm.isLocked}
                               onDragStart={e => handleLibraryDragStart(e, preset.type)}
                               disabled={!activeForm || activeForm.isLocked}
-                              className="flex items-center gap-2 rounded-lg border border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-violet-700/80 transition-colors hover:border-violet-400/60 hover:bg-violet-100/60 hover:text-violet-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-violet-800/40 dark:bg-violet-950/20 dark:text-violet-300"
+                              className="flex items-center gap-2 rounded-lg border border-blue-200/70 bg-blue-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-blue-700/80 transition-colors hover:border-blue-400/60 hover:bg-blue-100/60 hover:text-blue-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-blue-800/40 dark:bg-blue-950/20 dark:text-blue-300"
                               title={`Add ${preset.label} dropdown (${preset.options!.length} options)`}
                             >
                               <span className="shrink-0">
@@ -935,11 +935,11 @@ const Index = () => {
                       {/* ── Session Mapping Fields ──────────────────── */}
                       <div>
                         <div className="flex items-center justify-between px-1 mb-1.5 pt-2">
-                          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-teal-600/70">Session Fields</p>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.35em] text-blue-600/70">Session Fields</p>
                           <button
                             onClick={() => handleAddAllPresets(SESSION_MAPPING_FIELDS)}
                             disabled={!activeForm || activeForm.isLocked}
-                            className="text-[9px] font-semibold text-teal-600 hover:text-teal-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-teal-200 hover:border-teal-400 bg-teal-50 hover:bg-teal-100 transition-colors"
+                            className="text-[9px] font-semibold text-blue-600 hover:text-blue-800 disabled:opacity-40 disabled:pointer-events-none px-1.5 py-0.5 rounded border border-blue-200 hover:border-blue-400 bg-blue-50 hover:bg-blue-100 transition-colors"
                           >+ Add All</button>
                         </div>
                         <div className="grid grid-cols-2 gap-1">
@@ -950,10 +950,10 @@ const Index = () => {
                               draggable={!!activeForm && !activeForm.isLocked}
                               onDragStart={e => handleLibraryDragStart(e, preset.type)}
                               disabled={!activeForm || activeForm.isLocked}
-                              className="flex items-center gap-2 rounded-lg border border-teal-200/70 bg-teal-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-teal-700/80 transition-colors hover:border-teal-400/60 hover:bg-teal-100/60 hover:text-teal-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-teal-800/40 dark:bg-teal-950/20 dark:text-teal-300"
+                              className="flex items-center gap-2 rounded-lg border border-blue-200/70 bg-blue-50/40 px-2.5 py-2 text-left text-[11px] font-medium text-blue-700/80 transition-colors hover:border-blue-400/60 hover:bg-blue-100/60 hover:text-blue-900 disabled:pointer-events-none disabled:opacity-40 truncate dark:border-blue-800/40 dark:bg-blue-950/20 dark:text-blue-300"
                               title={preset.helpText}
                             >
-                              <span className="shrink-0 text-teal-500">
+                              <span className="shrink-0 text-blue-500">
                                 {preset.isHidden
                                   ? <EyeOff className="h-3.5 w-3.5" />
                                   : preset.type === 'number'
@@ -1130,13 +1130,16 @@ const Index = () => {
               /* ── Workspace overview (forms exist) ───────────────────── */
               <div className="space-y-8">
                 {/* Enhanced masthead */}
-                <div className="anim-fade-in-up relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-cyan-50/35 border border-border/40 shadow-xl shadow-cyan-700/5">
-                  <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-emerald-500/5"></div>
+                <div className="anim-fade-in-up card-shine relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-blue-50/35 border border-border/40 shadow-xl shadow-blue-700/5">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-blue-600/5"></div>
+                  {/* Decorative blue orbs */}
+                  <div className="anim-blob absolute -top-8 -right-8 h-40 w-40 rounded-full bg-blue-500/8 blur-3xl pointer-events-none" />
+                  <div className="anim-blob delay-300 absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-blue-600/6 blur-2xl pointer-events-none" />
                   <div className="relative px-8 py-10">
                     <div className="flex items-center justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-cyan-600 to-sky-700 shadow-lg shadow-indigo-500/25">
+                          <div className="flex items-center justify-center h-12 w-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 shadow-lg shadow-blue-500/25">
                             <BarChart3 className="h-6 w-6 text-white" />
                           </div>
                           <div>
@@ -1152,7 +1155,7 @@ const Index = () => {
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="outline"
-                              className="rounded-xl border-2 border-dashed border-cyan-200/60 hover:border-cyan-300 hover:bg-cyan-50/50 text-cyan-700 font-semibold px-6 py-3 h-auto transition-all duration-200"
+                              className="rounded-xl border-2 border-dashed border-blue-200/60 hover:border-blue-300 hover:bg-blue-50/50 text-blue-700 font-semibold px-6 py-3 h-auto transition-all duration-200"
                             >
                               <Download className="h-4 w-4 mr-2" />
                               Import
@@ -1171,7 +1174,7 @@ const Index = () => {
                         </DropdownMenu>
                         <Button
                           onClick={() => setShowTemplateDialog(true)}
-                          className="rounded-xl bg-gradient-to-r from-cyan-600 to-sky-700 hover:from-cyan-500 hover:to-sky-600 text-white px-6 py-3 font-semibold shadow-md shadow-indigo-500/20 transition-all duration-200"
+                          className="rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white px-6 py-3 font-semibold shadow-md shadow-blue-500/20 transition-all duration-200"
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           New Form
@@ -1199,9 +1202,9 @@ const Index = () => {
                       label: 'Live',
                       value: forms.filter(f => isFormPublished(f)).length,
                       sub: 'deployed',
-                      gradient: 'from-emerald-500 to-teal-500',
-                      bg: 'from-emerald-500/10 to-teal-500/5',
-                      ring: 'ring-emerald-500/20',
+                      gradient: 'from-blue-500 to-blue-600',
+                      bg: 'from-blue-500/10 to-blue-600/5',
+                      ring: 'ring-blue-500/20',
                       delay: 'delay-200',
                     },
                     {
@@ -1209,9 +1212,9 @@ const Index = () => {
                       label: 'Total Fields',
                       value: forms.reduce((a, f) => a + f.fields.length, 0),
                       sub: 'across all forms',
-                      gradient: 'from-violet-500 to-purple-500',
-                      bg: 'from-violet-500/10 to-purple-500/5',
-                      ring: 'ring-violet-500/20',
+                      gradient: 'from-blue-600 to-blue-700',
+                      bg: 'from-blue-600/10 to-blue-700/5',
+                      ring: 'ring-blue-600/20',
                       delay: 'delay-300',
                     },
                     {
@@ -1219,15 +1222,15 @@ const Index = () => {
                       label: 'Integrations',
                       value: forms.filter(f => f.webhookConfig?.enabled || f.googleSheetsConfig?.enabled || !!(f.pixelConfig?.snapPixelId || f.pixelConfig?.metaPixelId || f.pixelConfig?.googleAdsId)).length,
                       sub: 'forms connected',
-                      gradient: 'from-rose-500 to-pink-500',
-                      bg: 'from-rose-500/10 to-pink-500/5',
-                      ring: 'ring-rose-500/20',
+                      gradient: 'from-blue-700 to-blue-800',
+                      bg: 'from-blue-700/10 to-blue-800/5',
+                      ring: 'ring-blue-700/20',
                       delay: 'delay-400',
                     },
                   ].map((stat, index) => (
                     <div
                       key={stat.label}
-                      className={`anim-fade-in-up ${stat.delay} group relative overflow-hidden rounded-2xl bg-gradient-to-br ${stat.bg} border border-border/50 p-6 hover:shadow-lg hover:shadow-${stat.gradient.split(' ')[0]}/10 transition-all duration-300 hover:scale-[1.02] cursor-default`}
+                      className={`anim-fade-in-up ${stat.delay} card-shine group relative overflow-hidden rounded-2xl bg-gradient-to-br ${stat.bg} border border-border/50 p-6 hover:shadow-lg hover:shadow-${stat.gradient.split(' ')[0]}/10 transition-all duration-300 hover:scale-[1.02] cursor-default`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="space-y-2">
@@ -1277,7 +1280,7 @@ const Index = () => {
                     ))}
                     <button
                       onClick={() => setShowTemplateDialog(true)}
-                      className={`anim-fade-in-up delay-600 ${viewMode === 'grid' ? 'min-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2' : 'h-14 rounded-xl flex items-center gap-2 px-4'} w-full border-2 border-dashed border-slate-200 hover:border-cyan-300 hover:bg-cyan-50/50 text-slate-400 hover:text-cyan-600 transition-all duration-200 cursor-pointer`}
+                      className={`anim-fade-in-up delay-600 ${viewMode === 'grid' ? 'min-h-[140px] rounded-2xl flex flex-col items-center justify-center gap-2' : 'h-14 rounded-xl flex items-center gap-2 px-4'} w-full border-2 border-dashed border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 text-slate-400 hover:text-blue-600 transition-all duration-200 cursor-pointer`}
                     >
                       <Plus className="h-5 w-5" />
                       <span className="text-[12px] font-medium">New Form</span>
@@ -1290,45 +1293,45 @@ const Index = () => {
               <div className="relative overflow-hidden rounded-3xl border border-white/8 min-h-[620px] flex flex-col items-center justify-center py-24 px-6">
                 {/* Enhanced animated background */}
                 <div className="absolute inset-0 -z-10 rounded-3xl overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950" />
-                  <div className="anim-blob absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-cyan-500/30 to-sky-600/20 blur-3xl" />
-                  <div className="anim-blob delay-400 absolute top-20 -right-20 h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-emerald-500/25 to-teal-600/15 blur-3xl" />
-                  <div className="anim-blob delay-200 absolute -bottom-20 left-1/4 h-80 w-80 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/15 blur-3xl" />
-                  <div className="anim-blob delay-600 absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-rose-500/15 to-pink-500/10 blur-3xl" />
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950" />
+                  <div className="anim-blob absolute -top-32 -left-32 h-96 w-96 rounded-full bg-gradient-to-br from-blue-500/30 to-blue-600/20 blur-3xl" />
+                  <div className="anim-blob delay-400 absolute top-20 -right-20 h-[28rem] w-[28rem] rounded-full bg-gradient-to-br from-blue-500/25 to-blue-600/15 blur-3xl" />
+                  <div className="anim-blob delay-200 absolute -bottom-20 left-1/4 h-80 w-80 rounded-full bg-gradient-to-br from-blue-600/20 to-blue-700/15 blur-3xl" />
+                  <div className="anim-blob delay-600 absolute bottom-10 right-1/4 h-64 w-64 rounded-full bg-gradient-to-br from-blue-700/15 to-blue-800/10 blur-3xl" />
                   {/* Enhanced dot grid */}
                   <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:36px_36px]" />
                   {/* Multiple radial glows */}
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-15%,rgba(99,102,241,0.25),transparent)]" />
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_80%,rgba(139,92,246,0.15),transparent)]" />
-                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_30%_at_20%_70%,rgba(16,185,129,0.12),transparent)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-15%,rgba(59,130,246,0.25),transparent)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_80%_80%,rgba(29,78,216,0.15),transparent)]" />
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_50%_30%_at_20%_70%,rgba(96,165,250,0.12),transparent)]" />
                 </div>
 
                 {/* Enhanced floating brand icon */}
                 <div className="anim-fade-in-up mb-8 relative">
-                  <div className="anim-float anim-glow-ring flex items-center justify-center h-24 w-24 rounded-3xl bg-gradient-to-br from-cyan-500 via-sky-500 to-emerald-500 shadow-2xl shadow-indigo-500/50 ring-2 ring-white/25">
+                  <div className="anim-float anim-glow-ring flex items-center justify-center h-24 w-24 rounded-3xl bg-gradient-to-br from-blue-500 via-blue-500 to-blue-600 shadow-2xl shadow-blue-500/50 ring-2 ring-white/25">
                     <Sparkles className="h-10 w-10 text-white" />
                   </div>
-                  <div className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-gradient-to-br from-emerald-400 to-green-500 flex items-center justify-center ring-3 ring-slate-900 animate-bounce shadow-lg">
+                  <div className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center ring-3 ring-slate-900 animate-bounce shadow-lg">
                     <Plus className="h-4 w-4 text-white" />
                   </div>
                   {/* Additional sparkle effects */}
                   <div className="absolute -top-4 -left-4 h-2 w-2 rounded-full bg-blue-400 animate-ping opacity-75"></div>
-                  <div className="absolute top-8 -right-6 h-1.5 w-1.5 rounded-full bg-violet-400 animate-ping opacity-60 delay-300"></div>
-                  <div className="absolute -bottom-2 left-12 h-1 w-1 rounded-full bg-emerald-400 animate-ping opacity-80 delay-500"></div>
+                  <div className="absolute top-8 -right-6 h-1.5 w-1.5 rounded-full bg-blue-300 animate-ping opacity-60 delay-300"></div>
+                  <div className="absolute -bottom-2 left-12 h-1 w-1 rounded-full bg-blue-400 animate-ping opacity-80 delay-500"></div>
                 </div>
 
                 {/* Enhanced badge */}
                 <div className="anim-fade-in-up delay-100 inline-flex items-center gap-2.5 rounded-full border border-white/20 bg-white/10 backdrop-blur-md text-white/80 text-xs font-bold uppercase tracking-[0.25em] px-5 py-2 mb-6 shadow-lg shadow-black/20">
-                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-emerald-400 to-green-500 animate-pulse shadow-sm shadow-emerald-400/50" />
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-blue-400 to-blue-500 animate-pulse shadow-sm shadow-blue-400/50" />
                   Professional Form Builder
-                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 animate-pulse shadow-sm shadow-cyan-400/50 delay-200" />
+                  <span className="h-2 w-2 rounded-full bg-gradient-to-r from-blue-300 to-blue-400 animate-pulse shadow-sm shadow-blue-400/50 delay-200" />
                 </div>
 
                 {/* Enhanced headline */}
                 <div className="anim-fade-in-up delay-200 text-center mb-6 max-w-2xl">
                   <h2 className="text-5xl md:text-[3.75rem] font-extrabold tracking-tight text-white leading-[1.05] mb-4">
                     Build Forms That
-                    <span className="block anim-gradient-title bg-gradient-to-r from-cyan-400 via-sky-400 to-emerald-400 bg-clip-text text-transparent">
+                    <span className="block anim-gradient-title bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300 bg-clip-text text-transparent">
                       Actually Convert.
                     </span>
                   </h2>
@@ -1361,7 +1364,7 @@ const Index = () => {
                 <div className="anim-fade-in-up delay-400 flex flex-wrap items-center justify-center gap-4 mb-16">
                   <button
                     onClick={createForm}
-                    className="anim-shimmer-btn group inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-cyan-600 via-sky-600 to-cyan-700 text-white font-bold px-10 h-14 text-lg shadow-2xl shadow-cyan-700/35 border-0 hover:shadow-cyan-600/55 hover:scale-105 active:scale-[0.98] transition-all duration-200"
+                    className="anim-shimmer-btn group inline-flex items-center gap-3 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-600 to-blue-700 text-white font-bold px-10 h-14 text-lg shadow-2xl shadow-blue-700/35 border-0 hover:shadow-blue-600/55 hover:scale-105 active:scale-[0.98] transition-all duration-200"
                   >
                     <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform duration-200" />
                     Create Your First Form
@@ -1388,20 +1391,20 @@ const Index = () => {
                       glow: 'shadow-blue-500/20',
                     },
                     {
-                      icon: <Rocket className="h-6 w-6 text-emerald-300" />,
-                      ring: 'ring-emerald-500/30', bg: 'from-emerald-500/15 to-emerald-500/5',
+                      icon: <Rocket className="h-6 w-6 text-blue-300" />,
+                      ring: 'ring-blue-500/30', bg: 'from-blue-500/15 to-blue-500/5',
                       title: 'One-Click Deploy',
                       desc: 'Instant deployment to Vercel with custom domains. Live URL in seconds.',
                       delay: 'delay-600',
-                      glow: 'shadow-emerald-500/20',
+                      glow: 'shadow-blue-500/20',
                     },
                     {
-                      icon: <Layers className="h-6 w-6 text-violet-300" />,
-                      ring: 'ring-violet-500/30', bg: 'from-violet-500/15 to-violet-500/5',
+                      icon: <Layers className="h-6 w-6 text-blue-300" />,
+                      ring: 'ring-blue-500/30', bg: 'from-blue-500/15 to-blue-500/5',
                       title: 'Rich Field Logic',
                       desc: '20+ field types, hero images, conditional logic & multi-page layouts.',
                       delay: 'delay-700',
-                      glow: 'shadow-violet-500/20',
+                      glow: 'shadow-blue-500/20',
                     },
                   ].map(f => (
                     <div
@@ -1424,9 +1427,9 @@ const Index = () => {
             ) : (
               <div className="space-y-5">
                 {/* Form title bar */}
-                <div className="flex items-center justify-between bg-white rounded-2xl border border-border/60 px-5 py-3.5 shadow-sm">
+                <div className="gradient-border flex items-center justify-between bg-white rounded-2xl border border-border/60 px-5 py-3.5 shadow-sm">
                   <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 to-sky-700 shadow-md shadow-cyan-700/30">
+                <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-md shadow-blue-700/30">
                       <FileCode className="h-4.5 w-4.5 text-white h-4 w-4" />
                     </div>
                     <div>
@@ -1450,16 +1453,16 @@ const Index = () => {
 
                 <Tabs value={mainTab} onValueChange={setMainTab} className="space-y-5">
                   <TabsList className="premium-tabs inline-flex h-10 gap-0.5 p-1 rounded-xl">
-                    <TabsTrigger value="fields" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-sky-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-cyan-700/25 transition-all">
+                    <TabsTrigger value="fields" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-700/25 transition-all">
                       <Layers className="h-3.5 w-3.5 mr-1.5" />Fields
                     </TabsTrigger>
-                    <TabsTrigger value="preview" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-sky-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-cyan-700/25 transition-all">
+                    <TabsTrigger value="preview" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-700/25 transition-all">
                       <Eye className="h-3.5 w-3.5 mr-1.5" />Preview
                     </TabsTrigger>
-                    <TabsTrigger value="settings" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-sky-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-cyan-700/25 transition-all">
+                    <TabsTrigger value="settings" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-700/25 transition-all">
                       <Settings className="h-3.5 w-3.5 mr-1.5" />Settings
                     </TabsTrigger>
-                    <TabsTrigger value="test" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-600 data-[state=active]:to-sky-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-cyan-700/25 transition-all">
+                    <TabsTrigger value="test" className="rounded-lg h-8 px-4 text-[12.5px] font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-blue-700 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-700/25 transition-all">
                       <BarChart3 className="h-3.5 w-3.5 mr-1.5" />Test
                     </TabsTrigger>
                   </TabsList>
@@ -1545,10 +1548,10 @@ const Index = () => {
 
                 <TabsContent value="settings">
                   <div className="premium-surface rounded-2xl overflow-hidden">
-                    <div className="px-6 py-4 border-b border-border/50 bg-gradient-to-r from-slate-50 to-cyan-50/45">
+                    <div className="px-6 py-4 border-b border-border/50 bg-gradient-to-r from-slate-50 to-blue-50/45">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-cyan-500/15 to-sky-500/10 ring-1 ring-cyan-200/70">
-                          <Settings className="h-4 w-4 text-cyan-700" />
+                        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-blue-500/15 to-blue-500/10 ring-1 ring-blue-200/70">
+                          <Settings className="h-4 w-4 text-blue-700" />
                         </div>
                         <div>
                           <p className="text-[13px] font-bold text-slate-800">Form Settings</p>
@@ -1713,7 +1716,7 @@ const Index = () => {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={saveFormAsTemplate} className="bg-cyan-600 hover:bg-cyan-700">
+            <AlertDialogAction onClick={saveFormAsTemplate} className="bg-blue-600 hover:bg-blue-700">
               Save Template
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1725,7 +1728,7 @@ const Index = () => {
         <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Bot className="h-5 w-5 text-cyan-700" />
+              <Bot className="h-5 w-5 text-blue-700" />
               AI Form Generator
             </AlertDialogTitle>
             <AlertDialogDescription>
@@ -1750,7 +1753,7 @@ const Index = () => {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={generateFormFromDescription} className="bg-cyan-600 hover:bg-cyan-700">
+            <AlertDialogAction onClick={generateFormFromDescription} className="bg-blue-600 hover:bg-blue-700">
               Generate Fields
             </AlertDialogAction>
           </AlertDialogFooter>

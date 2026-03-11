@@ -203,7 +203,7 @@ export function FieldCard({
             </Badge>
           )}
           {field.type === 'member-search' && (
-            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-violet-400 text-violet-600 font-semibold gap-0.5">
+            <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 border-blue-400 text-blue-600 font-semibold gap-0.5">
               <Users className="h-2.5 w-2.5" />
               Momence
             </Badge>

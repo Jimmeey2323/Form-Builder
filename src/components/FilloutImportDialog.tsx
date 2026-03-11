@@ -19,10 +19,10 @@ const TYPE_COLORS: Record<string, string> = {
   textarea: 'bg-yellow-100 text-yellow-700',
   email: 'bg-purple-100 text-purple-700',
   tel: 'bg-green-100 text-green-700',
-  select: 'bg-cyan-100 text-cyan-700',
+  select: 'bg-blue-100 text-blue-700',
   radio: 'bg-pink-100 text-pink-700',
-  checkbox: 'bg-teal-100 text-teal-700',
-  checkboxes: 'bg-teal-100 text-teal-700',
+  checkbox: 'bg-blue-100 text-blue-700',
+  checkboxes: 'bg-blue-100 text-blue-700',
   'section-break': 'bg-slate-100 text-slate-700',
   'page-break': 'bg-indigo-100 text-indigo-700',
   rating: 'bg-amber-100 text-amber-700',
@@ -109,7 +109,7 @@ export function FilloutImportDialog({ open, onClose, onCreateForm }: FilloutImpo
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden p-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-600 to-sky-700 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center">
               <Upload className="h-4 w-4 text-white" />
             </div>
             Import Fillout Form
@@ -138,7 +138,7 @@ export function FilloutImportDialog({ open, onClose, onCreateForm }: FilloutImpo
                   }}
                 />
               </div>
-              <Button onClick={handleImport} disabled={loading} className="bg-gradient-to-r from-cyan-600 to-sky-700 hover:opacity-90">
+              <Button onClick={handleImport} disabled={loading} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:opacity-90">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Import'}
               </Button>
             </div>
@@ -206,7 +206,7 @@ export function FilloutImportDialog({ open, onClose, onCreateForm }: FilloutImpo
                 onCreateForm(imported);
                 handleClose();
               }}
-              className="bg-gradient-to-r from-cyan-600 to-sky-700 hover:opacity-90"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 hover:opacity-90"
             >
               Create Form
             </Button>

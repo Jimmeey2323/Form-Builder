@@ -78,7 +78,7 @@ export function TemplateSelectionDialog({
                   variant="outline"
                   size="sm"
                   onClick={onImportFillout}
-                  className="gap-2 border-cyan-300 text-cyan-700 hover:bg-cyan-50"
+                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
                 >
                   <Link2 className="h-3.5 w-3.5" />
                   Import Fillout
@@ -89,7 +89,7 @@ export function TemplateSelectionDialog({
                   variant="outline"
                   size="sm"
                   onClick={onImportCsv}
-                  className="gap-2 border-violet-300 text-violet-700 hover:bg-violet-50"
+                  className="gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
                 >
                   <Upload className="h-3.5 w-3.5" />
                   Import CSV
@@ -285,8 +285,8 @@ function TemplateCard({ template, onSelect, onDelete, isUserCreated }: TemplateC
               <Trash2 className="h-3 w-3" />
             </button>
           )}
-          <Badge className="text-[9px] px-1.5 py-0 bg-violet-100 text-violet-700 border border-violet-200">
-            <Star className="h-2 w-2 mr-0.5 fill-violet-500 text-violet-500" /> Saved
+          <Badge className="text-[9px] px-1.5 py-0 bg-blue-100 text-blue-700 border border-blue-200">
+            <Star className="h-2 w-2 mr-0.5 fill-blue-500 text-blue-500" /> Saved
           </Badge>
         </div>
       )}

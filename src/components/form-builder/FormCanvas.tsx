@@ -852,8 +852,8 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
           <div className="space-y-1.5">
             <input type="text" className={baseClasses} readOnly placeholder="Auto-filled from lookup source" />
             <div className="text-[11px] text-muted-foreground/70 flex items-center gap-1.5 px-0.5">
-              <span className="font-mono font-bold text-indigo-500/80">↪</span>
-              <span>Lookup: <span className="font-mono text-indigo-600/80">{field.lookupConfig?.sourceFieldId || 'source field'}</span></span>
+              <span className="font-mono font-bold text-blue-500/80">↪</span>
+              <span>Lookup: <span className="font-mono text-blue-600/80">{field.lookupConfig?.sourceFieldId || 'source field'}</span></span>
             </div>
           </div>
         );
@@ -863,7 +863,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 px-3 py-2 bg-muted/40 border border-border rounded-md">
               <span className="text-muted-foreground/60 text-base font-bold italic">ƒ</span>
-              <code className="text-indigo-600/90 text-xs flex-1 font-mono">{field.formulaConfig?.expression || 'field1 + field2'}</code>
+              <code className="text-blue-600/90 text-xs flex-1 font-mono">{field.formulaConfig?.expression || 'field1 + field2'}</code>
             </div>
             <div className="text-[11px] text-muted-foreground px-0.5">Computed automatically — read-only output</div>
           </div>
@@ -1162,7 +1162,7 @@ function CanvasField({
             >
               <GripVertical className="h-3 w-3 text-indigo-300 group-hover:text-indigo-400" />
               <SplitSquareVertical className="h-3 w-3 text-indigo-400" />
-              <span className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">
                 {field.label && field.label !== 'Page Break' ? field.label : 'Page Break'}
               </span>
             </div>
@@ -1249,7 +1249,7 @@ function CanvasField({
       )}
       <div className={`rounded-xl border overflow-hidden transition-all duration-200 ${
         insertDropActive
-          ? 'border-primary/45 shadow-[0_12px_28px_rgba(99,102,241,0.16)] bg-cyan-50/30'
+          ? 'border-primary/45 shadow-[0_12px_28px_rgba(59,130,246,0.16)] bg-blue-50/30'
           : hovered
             ? 'border-indigo-200/80 shadow-[0_4px_20px_rgba(99,102,241,0.09)] bg-white'
             : 'border-slate-200/80 shadow-sm bg-white'
@@ -1265,7 +1265,7 @@ function CanvasField({
           >
             <GripVertical className="h-3.5 w-3.5" />
           </div>
-          <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-500/90 border border-indigo-100 leading-none whitespace-nowrap">
+          <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-500/90 border border-blue-100 leading-none whitespace-nowrap">
             {FIELD_TYPE_LABELS[field.type as FieldType] ?? field.type}
           </span>
           {field.isRequired && (
@@ -1828,7 +1828,7 @@ export function FormCanvas({
                     onClick={() => onUpdateTheme({ formLayout: layout.value })}
                     className={`h-6 px-1.5 rounded text-[10px] font-bold transition-colors border ${
                       (form.theme.formLayout || 'single') === layout.value
-                        ? 'text-cyan-700 border-cyan-300 bg-cyan-50'
+                        ? 'text-blue-700 border-blue-300 bg-blue-50'
                         : 'text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 border-border/40'
                     }`}
                     title={`Set grid to ${layout.value}`}
@@ -1901,7 +1901,7 @@ export function FormCanvas({
                     onBulkApplyCssClass(nextClass);
                     setBulkCssClass('');
                   }}
-                  className="h-6 px-2 rounded text-[10px] font-bold text-cyan-700 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 transition-colors border border-cyan-200/70"
+                  className="h-6 px-2 rounded text-[10px] font-bold text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 transition-colors border border-blue-200/70"
                   title="Apply class to all non-structural fields"
                 >
                   Apply
@@ -1917,7 +1917,7 @@ export function FormCanvas({
               {sortedFields.filter(f => f.type !== 'page-break' && f.type !== 'section-break').length} field{sortedFields.filter(f => f.type !== 'page-break' && f.type !== 'section-break').length !== 1 ? 's' : ''}
             </span>
             {totalPages > 1 && (
-              <span className="text-[10px] font-semibold text-indigo-500 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+              <span className="text-[10px] font-semibold text-blue-500 bg-blue-50 border border-blue-100 rounded-full px-2 py-0.5">
                 {totalPages} pages
               </span>
             )}
@@ -2012,7 +2012,7 @@ export function FormCanvas({
                           <Fragment key={field.id}>
                             {showPageHeader && (
                               <div className="col-span-12 flex items-center gap-3 pt-2 pb-0.5">
-                                <div className="flex items-center gap-1.5 bg-gradient-to-r from-cyan-600 to-sky-700 text-white rounded-full px-3 py-1 shadow-sm shadow-cyan-700/30">
+                                <div className="flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full px-3 py-1 shadow-sm shadow-blue-700/30">
                                   <BookOpen className="h-3 w-3" />
                                   <span className="text-[10px] font-bold uppercase tracking-widest">Page {pageNum}</span>
                                 </div>
