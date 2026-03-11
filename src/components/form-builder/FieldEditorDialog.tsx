@@ -23,6 +23,11 @@ import {
 } from '@/components/ui/select';
 import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig, AppointmentService, AppointmentAvailableDate, LikertColumn, LikertColumnType, LikertRow } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin, Star, Heart, ThumbsUp, Flame, Smile, Award, Sun, Zap, Shield, Target, Dumbbell, Bike, Trophy, Activity, Image as ImageIcon, List, Table2 } from 'lucide-react';
+import {
+  getChoiceMatrixColumns,
+  getFieldControlClassNames,
+  getFieldWrapperClassNames,
+} from '@/utils/formFieldStyling';
 
 const RATING_ICON_OPTIONS: { key: string; label: string; icon: typeof Star }[] = [
   { key: 'star',      label: 'Star',      icon: Star },
@@ -99,6 +104,9 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
   const isEmailOtp = (draft.type || field.type) === 'email-otp';
   const hasLikert  = (draft.type || field.type) === 'likert-table';
   const allowOtherTypes: FieldType[] = ['select', 'radio', 'checkbox', 'checkboxes', 'multiple-choice', 'multiselect'];
+  const effectiveField = { ...field, ...draft } as FormField;
+  const fieldWrapperClassPreview = getFieldWrapperClassNames(effectiveField, ['form-group']);
+  const fieldControlClassPreview = getFieldControlClassNames(effectiveField.type, ['form-input']);
 
   const getDefaultTab = (type: FieldType) => {
     if (type === 'conditional') return 'conditions';
@@ -515,6 +523,16 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
   };
 
   const otherFields = allFields.filter(f => f.id !== field.id);
+  const updateChoiceMatrixColumns = (rawValue: string) => {
+    const columns = rawValue
+      .split(/[\n,|]+/)
+      .map(value => value.trim())
+      .filter(Boolean);
+    update('choiceMatrixColumns', columns);
+    if (columns.length > 1) {
+      update('max', columns.length);
+    }
+  };
 
   // ─── Dependent Options Groups helpers ───────────────────────────────
   const sourceForGroups = draft.dependentOptionsConfig?.sourceFieldId
@@ -942,6 +960,61 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
                 <p className="text-xs text-muted-foreground">
                   Add choices. Optionally, set a condition on each option to show it only when another field has a specific value.
                 </p>
+                {(draft.type || field.type) === 'choice-matrix' && (
+                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">Choice Matrix Settings</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Configure the matrix scale separately from the row labels below. Row labels still come from the Options list.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Low-end Label</Label>
+                        <Input
+                          value={draft.choiceMatrixMinLabel || ''}
+                          onChange={e => update('choiceMatrixMinLabel', e.target.value)}
+                          placeholder="Lowest"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">High-end Label</Label>
+                        <Input
+                          value={draft.choiceMatrixMaxLabel || ''}
+                          onChange={e => update('choiceMatrixMaxLabel', e.target.value)}
+                          placeholder="Highest"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Column Labels</Label>
+                      <Textarea
+                        value={getChoiceMatrixColumns(effectiveField).join('\n')}
+                        onChange={e => updateChoiceMatrixColumns(e.target.value)}
+                        rows={5}
+                        placeholder={'1\n2\n3\n4\n5'}
+                        className="font-mono text-sm"
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Use one label per line. Commas and pipes also work.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[3, 4, 5, 7].map(count => (
+                        <Button
+                          key={count}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => updateChoiceMatrixColumns(Array.from({ length: count }, (_, index) => String(index + 1)).join('\n'))}
+                        >
+                          {count}-point scale
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {allowOtherTypes.includes((draft.type || field.type) as FieldType) && (
                   <div className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
                     <div>
@@ -1422,6 +1495,31 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
               <div className="space-y-2">
                 <Label>CSS Class</Label>
                 <Input value={draft.cssClass || ''} onChange={e => update('cssClass', e.target.value)} placeholder="custom-class" />
+              </div>
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Generated CSS Hooks</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    These classes are added automatically in preview and exported HTML, so custom CSS can target fields reliably.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Wrapper Classes</Label>
+                  <Textarea
+                    value={fieldWrapperClassPreview}
+                    readOnly
+                    rows={2}
+                    className="font-mono text-xs bg-background"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Control Classes</Label>
+                  <Input
+                    value={fieldControlClassPreview}
+                    readOnly
+                    className="font-mono text-xs bg-background"
+                  />
+                </div>
               </div>
             </TabsContent>
 

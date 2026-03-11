@@ -42,6 +42,74 @@ const defaultEmailConfig: import('@/types/formField').EmailNotificationConfig = 
   subject: 'New Form Submission — {{formTitle}}',
 };
 
+type ButtonTarget = 'submit' | 'next' | 'back';
+type ButtonThemeSlot =
+  | 'background'
+  | 'hoverBackground'
+  | 'textColor'
+  | 'hoverTextColor'
+  | 'borderColor'
+  | 'boxShadow'
+  | 'fontSize'
+  | 'fontWeight'
+  | 'letterSpacing'
+  | 'textTransform';
+
+const BUTTON_THEME_MAP: Record<ButtonTarget, Record<ButtonThemeSlot, keyof FormTheme>> = {
+  submit: {
+    background: 'submitButtonBackground',
+    hoverBackground: 'submitButtonHoverBackground',
+    textColor: 'submitButtonTextColor',
+    hoverTextColor: 'submitButtonHoverTextColor',
+    borderColor: 'submitButtonBorderColor',
+    boxShadow: 'submitButtonBoxShadow',
+    fontSize: 'submitButtonFontSize',
+    fontWeight: 'submitButtonFontWeight',
+    letterSpacing: 'submitButtonLetterSpacing',
+    textTransform: 'submitButtonTextTransform',
+  },
+  next: {
+    background: 'nextButtonBackground',
+    hoverBackground: 'nextButtonHoverBackground',
+    textColor: 'nextButtonTextColor',
+    hoverTextColor: 'nextButtonHoverTextColor',
+    borderColor: 'nextButtonBorderColor',
+    boxShadow: 'nextButtonBoxShadow',
+    fontSize: 'nextButtonFontSize',
+    fontWeight: 'nextButtonFontWeight',
+    letterSpacing: 'nextButtonLetterSpacing',
+    textTransform: 'nextButtonTextTransform',
+  },
+  back: {
+    background: 'backButtonBackground',
+    hoverBackground: 'backButtonHoverBackground',
+    textColor: 'backButtonTextColor',
+    hoverTextColor: 'backButtonHoverTextColor',
+    borderColor: 'backButtonBorderColor',
+    boxShadow: 'backButtonBoxShadow',
+    fontSize: 'backButtonFontSize',
+    fontWeight: 'backButtonFontWeight',
+    letterSpacing: 'backButtonLetterSpacing',
+    textTransform: 'backButtonTextTransform',
+  },
+};
+
+const LETTER_SPACING_OPTIONS = [
+  { value: 'normal', label: 'Normal' },
+  { value: '0.02em', label: '0.02em' },
+  { value: '0.04em', label: '0.04em' },
+  { value: '0.08em', label: '0.08em' },
+  { value: '0.12em', label: '0.12em' },
+] as const;
+
+const FONT_WEIGHT_OPTIONS = [
+  { value: '400', label: '400' },
+  { value: '500', label: '500' },
+  { value: '600', label: '600' },
+  { value: '700', label: '700' },
+  { value: '800', label: '800' },
+] as const;
+
 interface FormSettingsPanelProps {
   form: FormConfig;
   onUpdate: (updates: Partial<FormConfig>) => void;
@@ -119,6 +187,63 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const updateEmail = (updates: Partial<EmailNotificationConfig>) => onUpdate({ emailNotificationConfig: { ...defaultEmailConfig, ...form.emailNotificationConfig, ...updates } });
   const updateUtmDefaults = (key: string, value: string) => updateWebhook({ utmParamDefaults: { ...form.webhookConfig.utmParamDefaults, [key]: value } });
   const handleLayoutChange = (layout: FormConfig['layout']) => onUpdate(applyHeroImageForLayout(form, { layout }));
+  const glassBlurValue = Number.parseInt(form.theme.formCardBlurAmount || '20', 10) || 20;
+  const glassOpacityValue = Math.round((Number.parseFloat(form.theme.formCardGlassOpacity || '0.82') || 0.82) * 100);
+  const glassBorderOpacityValue = Math.round((Number.parseFloat(form.theme.formCardGlassBorderOpacity || '0.22') || 0.22) * 100);
+  const glassSaturationValue = Number.parseInt(form.theme.formCardGlassSaturation || '180', 10) || 180;
+  const buttonGradientPresets = [
+    {
+      label: 'Brand',
+      background: `linear-gradient(135deg, ${form.theme.primaryColor} 0%, ${form.theme.secondaryColor} 100%)`,
+      hoverBackground: `linear-gradient(135deg, ${form.theme.secondaryColor} 0%, ${form.theme.primaryColor} 100%)`,
+      textColor: '#ffffff',
+      borderColor: 'transparent',
+    },
+    {
+      label: 'Midnight',
+      background: 'linear-gradient(135deg, #0f172a 0%, #334155 100%)',
+      hoverBackground: 'linear-gradient(135deg, #020617 0%, #1e293b 100%)',
+      textColor: '#f8fafc',
+      borderColor: 'transparent',
+    },
+    {
+      label: 'Copper',
+      background: 'linear-gradient(135deg, #7c2d12 0%, #ea580c 100%)',
+      hoverBackground: 'linear-gradient(135deg, #9a3412 0%, #f97316 100%)',
+      textColor: '#fff7ed',
+      borderColor: 'transparent',
+    },
+    {
+      label: 'Monochrome',
+      background: 'linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%)',
+      hoverBackground: 'linear-gradient(135deg, #f8fafc 0%, #cbd5e1 100%)',
+      textColor: '#0f172a',
+      borderColor: '#cbd5e1',
+    },
+  ] as const;
+  const glassPresetOptions = [
+    { label: 'Balanced', blur: '20px', opacity: '0.82', borderOpacity: '0.22', saturation: '180%', shadow: '0 20px 48px rgba(15, 23, 42, 0.18)' },
+    { label: 'Crystal', blur: '28px', opacity: '0.76', borderOpacity: '0.32', saturation: '220%', shadow: '0 24px 52px rgba(15, 23, 42, 0.24)' },
+    { label: 'Soft', blur: '14px', opacity: '0.9', borderOpacity: '0.18', saturation: '150%', shadow: '0 16px 36px rgba(15, 23, 42, 0.14)' },
+    { label: 'Frosted', blur: '34px', opacity: '0.7', borderOpacity: '0.26', saturation: '250%', shadow: '0 30px 68px rgba(15, 23, 42, 0.26)' },
+  ] as const;
+
+  const getButtonThemeValue = (target: ButtonTarget, slot: ButtonThemeSlot, fallback = '') => {
+    const themeKey = BUTTON_THEME_MAP[target][slot];
+    return (form.theme[themeKey] as string | undefined) || fallback;
+  };
+
+  const updateButtonTheme = (target: ButtonTarget, updates: Partial<Record<ButtonThemeSlot, string>>) => {
+    const mapped: Partial<FormTheme> = {};
+    Object.entries(updates).forEach(([slot, value]) => {
+      const themeKey = BUTTON_THEME_MAP[target][slot as ButtonThemeSlot];
+      mapped[themeKey] = value;
+    });
+    updateTheme(mapped);
+  };
+
+  const resolvePresetSelectValue = (value: string, options: readonly { value: string }[]) =>
+    options.some(option => option.value === value) ? value : '__custom__';
 
   const addHeader = () => {
     if (!newHeaderKey) return;
@@ -377,21 +502,95 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
             </div>
           </div>
           {/* Glassmorphism */}
-          <div className="space-y-2 rounded-lg border border-blue-200/40 bg-blue-50/20 p-3">
+          <div className="space-y-3 rounded-lg border border-blue-200/40 bg-blue-50/20 p-3">
             <div className="flex items-center justify-between">
               <FieldLabel>Glassmorphism</FieldLabel>
               <Switch checked={form.theme.formCardGlassmorphism ?? false} onCheckedChange={v => updateTheme({ formCardGlassmorphism: v })} />
             </div>
             {form.theme.formCardGlassmorphism && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Blur Amount</span>
-                  <span className="font-mono">{form.theme.formCardBlurAmount || '20px'}</span>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {glassPresetOptions.map(preset => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => updateTheme({
+                        formCardBlurAmount: preset.blur,
+                        formCardGlassOpacity: preset.opacity,
+                        formCardGlassBorderOpacity: preset.borderOpacity,
+                        formCardGlassSaturation: preset.saturation,
+                        formCardGlassShadow: preset.shadow,
+                      })}
+                      className="rounded-xl border border-blue-200/60 bg-white/65 px-3 py-2 text-left transition-colors hover:border-primary/40 hover:bg-white"
+                    >
+                      <p className="text-[11px] font-semibold text-foreground">{preset.label}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {preset.blur} blur · {Math.round(Number.parseFloat(preset.opacity) * 100)}% opacity
+                      </p>
+                    </button>
+                  ))}
                 </div>
-                <input type="range" min={0} max={40} step={1}
-                  value={parseInt(form.theme.formCardBlurAmount || '20')}
-                  onChange={e => updateTheme({ formCardBlurAmount: `${e.target.value}px` })}
-                  className="w-full accent-primary" />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Blur Amount</span>
+                    <span className="font-mono">{form.theme.formCardBlurAmount || '20px'}</span>
+                  </div>
+                  <Slider
+                    value={[glassBlurValue]}
+                    min={0}
+                    max={40}
+                    step={1}
+                    onValueChange={([value]) => updateTheme({ formCardBlurAmount: `${value}px` })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Surface Opacity</span>
+                    <span className="font-mono">{glassOpacityValue}%</span>
+                  </div>
+                  <Slider
+                    value={[glassOpacityValue]}
+                    min={45}
+                    max={100}
+                    step={1}
+                    onValueChange={([value]) => updateTheme({ formCardGlassOpacity: `${(value / 100).toFixed(2)}` })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Border Opacity</span>
+                    <span className="font-mono">{glassBorderOpacityValue}%</span>
+                  </div>
+                  <Slider
+                    value={[glassBorderOpacityValue]}
+                    min={5}
+                    max={50}
+                    step={1}
+                    onValueChange={([value]) => updateTheme({ formCardGlassBorderOpacity: `${(value / 100).toFixed(2)}` })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Saturation</span>
+                    <span className="font-mono">{form.theme.formCardGlassSaturation || '180%'}</span>
+                  </div>
+                  <Slider
+                    value={[glassSaturationValue]}
+                    min={100}
+                    max={300}
+                    step={5}
+                    onValueChange={([value]) => updateTheme({ formCardGlassSaturation: `${value}%` })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Glass Shadow</FieldLabel>
+                  <Input
+                    value={form.theme.formCardGlassShadow || ''}
+                    onChange={e => updateTheme({ formCardGlassShadow: e.target.value })}
+                    placeholder="0 20px 48px rgba(15, 23, 42, 0.18)"
+                    className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
+                  />
+                </div>
                 <p className="text-[10px] text-muted-foreground/60">Works best with a vivid gradient or image page background.</p>
               </div>
             )}
@@ -489,6 +688,27 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           {/* ── SUBMIT ── */}
           {activeButtonPanel === 'submit' && (
             <div className="space-y-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Gradient Presets</FieldLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {buttonGradientPresets.map(preset => (
+                    <button
+                      key={`submit_${preset.label}`}
+                      type="button"
+                      onClick={() => updateButtonTheme('submit', {
+                        background: preset.background,
+                        hoverBackground: preset.hoverBackground,
+                        textColor: preset.textColor,
+                        borderColor: preset.borderColor,
+                      })}
+                      className="rounded-xl border border-border/40 p-2 text-left transition-colors hover:border-primary/35"
+                    >
+                      <div className="h-8 rounded-lg border border-white/30" style={{ background: preset.background }} />
+                      <div className="mt-2 text-[11px] font-semibold text-foreground">{preset.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.submitButtonBackground || ''} onChange={e => updateTheme({ submitButtonBackground: e.target.value })} placeholder="Gradient (default)" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
                 <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.submitButtonHoverBackground || ''} onChange={e => updateTheme({ submitButtonHoverBackground: e.target.value })} placeholder="Darker shade" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
@@ -509,11 +729,53 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.submitButtonFontSize || '15px'} onChange={e => updateTheme({ submitButtonFontSize: e.target.value })} placeholder="15px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.submitButtonFontWeight || '600'} onChange={e => updateTheme({ submitButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Font Weight</FieldLabel>
+                  <Select
+                    value={resolvePresetSelectValue(getButtonThemeValue('submit', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS)}
+                    onValueChange={value => {
+                      if (value !== '__custom__') updateButtonTheme('submit', { fontWeight: value });
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_WEIGHT_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Custom…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {resolvePresetSelectValue(getButtonThemeValue('submit', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS) === '__custom__' && (
+                    <Input value={getButtonThemeValue('submit', 'fontWeight', '600')} onChange={e => updateButtonTheme('submit', { fontWeight: e.target.value })} placeholder="600" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                  )}
+                </div>
                 <div className="space-y-1.5"><FieldLabel>Width</FieldLabel><Input value={form.theme.submitButtonWidth || '100%'} onChange={e => updateTheme({ submitButtonWidth: e.target.value })} placeholder="100%" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.submitButtonLetterSpacing || ''} onChange={e => updateTheme({ submitButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Letter Spacing</FieldLabel>
+                  <Select
+                    value={resolvePresetSelectValue(getButtonThemeValue('submit', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS)}
+                    onValueChange={value => {
+                      if (value !== '__custom__') updateButtonTheme('submit', { letterSpacing: value });
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LETTER_SPACING_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Custom…</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {resolvePresetSelectValue(getButtonThemeValue('submit', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS) === '__custom__' && (
+                    <Input value={getButtonThemeValue('submit', 'letterSpacing', 'normal')} onChange={e => updateButtonTheme('submit', { letterSpacing: e.target.value })} placeholder="0.06em" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                  )}
+                </div>
                 <div className="space-y-1.5">
                   <FieldLabel>Text Transform</FieldLabel>
                   <Select value={form.theme.submitButtonTextTransform || 'none'} onValueChange={v => updateTheme({ submitButtonTextTransform: v as any })}>
@@ -557,6 +819,27 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           {/* ── NEXT ── */}
           {activeButtonPanel === 'next' && (
             <div className="space-y-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Gradient Presets</FieldLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {buttonGradientPresets.map(preset => (
+                    <button
+                      key={`next_${preset.label}`}
+                      type="button"
+                      onClick={() => updateButtonTheme('next', {
+                        background: preset.background,
+                        hoverBackground: preset.hoverBackground,
+                        textColor: preset.textColor,
+                        borderColor: preset.borderColor,
+                      })}
+                      className="rounded-xl border border-border/40 p-2 text-left transition-colors hover:border-primary/35"
+                    >
+                      <div className="h-8 rounded-lg border border-white/30" style={{ background: preset.background }} />
+                      <div className="mt-2 text-[11px] font-semibold text-foreground">{preset.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.nextButtonBackground || ''} onChange={e => updateTheme({ nextButtonBackground: e.target.value })} placeholder="Same as submit" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
                 <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.nextButtonHoverBackground || ''} onChange={e => updateTheme({ nextButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
@@ -569,22 +852,59 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                     <Input value={form.theme.nextButtonTextColor || ''} onChange={e => updateTheme({ nextButtonTextColor: e.target.value })} placeholder="#ffffff" className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
                   </div>
                 </div>
+                <div className="space-y-1.5"><FieldLabel>Hover Text Color</FieldLabel><Input value={form.theme.nextButtonHoverTextColor || ''} onChange={e => updateTheme({ nextButtonHoverTextColor: e.target.value })} placeholder="Inherits" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Border Color</FieldLabel><Input value={form.theme.nextButtonBorderColor || ''} onChange={e => updateTheme({ nextButtonBorderColor: e.target.value })} placeholder="transparent" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.nextButtonBoxShadow || ''} onChange={e => updateTheme({ nextButtonBoxShadow: e.target.value })} placeholder="Shared default" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.nextButtonFontSize || '14px'} onChange={e => updateTheme({ nextButtonFontSize: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.nextButtonFontWeight || '600'} onChange={e => updateTheme({ nextButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.nextButtonBoxShadow || ''} onChange={e => updateTheme({ nextButtonBoxShadow: e.target.value })} placeholder="Shared default" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.nextButtonLetterSpacing || ''} onChange={e => updateTheme({ nextButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
                 <div className="space-y-1.5">
-                  <FieldLabel>Text Transform</FieldLabel>
-                  <Select value={form.theme.nextButtonTextTransform || 'none'} onValueChange={v => updateTheme({ nextButtonTextTransform: v as any })}>
-                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent>
+                  <FieldLabel>Font Weight</FieldLabel>
+                  <Select
+                    value={resolvePresetSelectValue(getButtonThemeValue('next', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS)}
+                    onValueChange={value => {
+                      if (value !== '__custom__') updateButtonTheme('next', { fontWeight: value });
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_WEIGHT_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Custom…</SelectItem>
+                    </SelectContent>
                   </Select>
+                  {resolvePresetSelectValue(getButtonThemeValue('next', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS) === '__custom__' && (
+                    <Input value={getButtonThemeValue('next', 'fontWeight', '600')} onChange={e => updateButtonTheme('next', { fontWeight: e.target.value })} placeholder="600" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                  )}
                 </div>
+                <div className="space-y-1.5"><FieldLabel>Text Transform</FieldLabel><Select value={form.theme.nextButtonTextTransform || 'none'} onValueChange={v => updateTheme({ nextButtonTextTransform: v as any })}><SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent></Select></div>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Letter Spacing</FieldLabel>
+                <Select
+                  value={resolvePresetSelectValue(getButtonThemeValue('next', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS)}
+                  onValueChange={value => {
+                    if (value !== '__custom__') updateButtonTheme('next', { letterSpacing: value });
+                  }}
+                >
+                  <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LETTER_SPACING_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">Custom…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {resolvePresetSelectValue(getButtonThemeValue('next', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS) === '__custom__' && (
+                  <Input value={getButtonThemeValue('next', 'letterSpacing', 'normal')} onChange={e => updateButtonTheme('next', { letterSpacing: e.target.value })} placeholder="0.06em" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -610,6 +930,27 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
           {/* ── BACK ── */}
           {activeButtonPanel === 'back' && (
             <div className="space-y-3">
+              <div className="space-y-1.5">
+                <FieldLabel>Gradient Presets</FieldLabel>
+                <div className="grid grid-cols-2 gap-2">
+                  {buttonGradientPresets.map(preset => (
+                    <button
+                      key={`back_${preset.label}`}
+                      type="button"
+                      onClick={() => updateButtonTheme('back', {
+                        background: preset.background,
+                        hoverBackground: preset.hoverBackground,
+                        textColor: preset.textColor,
+                        borderColor: preset.borderColor,
+                      })}
+                      className="rounded-xl border border-border/40 p-2 text-left transition-colors hover:border-primary/35"
+                    >
+                      <div className="h-8 rounded-lg border border-white/30" style={{ background: preset.background }} />
+                      <div className="mt-2 text-[11px] font-semibold text-foreground">{preset.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Background</FieldLabel><Input value={form.theme.backButtonBackground || ''} onChange={e => updateTheme({ backButtonBackground: e.target.value })} placeholder={form.theme.navButtonBackground || '#ffffff'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
                 <div className="space-y-1.5"><FieldLabel>Hover Background</FieldLabel><Input value={form.theme.backButtonHoverBackground || ''} onChange={e => updateTheme({ backButtonHoverBackground: e.target.value })} placeholder="Auto" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
@@ -622,22 +963,59 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
                     <Input value={form.theme.backButtonTextColor || ''} onChange={e => updateTheme({ backButtonTextColor: e.target.value })} placeholder={form.theme.navButtonTextColor || '#1e293b'} className="font-mono text-[10px] h-8 rounded-lg border-border/40 bg-muted/20 px-2" />
                   </div>
                 </div>
+                <div className="space-y-1.5"><FieldLabel>Hover Text Color</FieldLabel><Input value={form.theme.backButtonHoverTextColor || ''} onChange={e => updateTheme({ backButtonHoverTextColor: e.target.value })} placeholder="Inherits" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Border Color</FieldLabel><Input value={form.theme.backButtonBorderColor || ''} onChange={e => updateTheme({ backButtonBorderColor: e.target.value })} placeholder={form.theme.navButtonBorderColor || '#e2e8f0'} className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
+                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.backButtonBoxShadow || ''} onChange={e => updateTheme({ backButtonBoxShadow: e.target.value })} placeholder="none" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5"><FieldLabel>Font Size</FieldLabel><Input value={form.theme.backButtonFontSize || '14px'} onChange={e => updateTheme({ backButtonFontSize: e.target.value })} placeholder="14px" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-                <div className="space-y-1.5"><FieldLabel>Font Weight</FieldLabel><Input value={form.theme.backButtonFontWeight || '600'} onChange={e => updateTheme({ backButtonFontWeight: e.target.value })} placeholder="600" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-                <div className="space-y-1.5"><FieldLabel>Box Shadow</FieldLabel><Input value={form.theme.backButtonBoxShadow || ''} onChange={e => updateTheme({ backButtonBoxShadow: e.target.value })} placeholder="none" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><FieldLabel>Letter Spacing</FieldLabel><Input value={form.theme.backButtonLetterSpacing || ''} onChange={e => updateTheme({ backButtonLetterSpacing: e.target.value })} placeholder="normal" className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" /></div>
                 <div className="space-y-1.5">
-                  <FieldLabel>Text Transform</FieldLabel>
-                  <Select value={form.theme.backButtonTextTransform || 'none'} onValueChange={v => updateTheme({ backButtonTextTransform: v as any })}>
-                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent>
+                  <FieldLabel>Font Weight</FieldLabel>
+                  <Select
+                    value={resolvePresetSelectValue(getButtonThemeValue('back', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS)}
+                    onValueChange={value => {
+                      if (value !== '__custom__') updateButtonTheme('back', { fontWeight: value });
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FONT_WEIGHT_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                      ))}
+                      <SelectItem value="__custom__">Custom…</SelectItem>
+                    </SelectContent>
                   </Select>
+                  {resolvePresetSelectValue(getButtonThemeValue('back', 'fontWeight', '600'), FONT_WEIGHT_OPTIONS) === '__custom__' && (
+                    <Input value={getButtonThemeValue('back', 'fontWeight', '600')} onChange={e => updateButtonTheme('back', { fontWeight: e.target.value })} placeholder="600" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                  )}
                 </div>
+                <div className="space-y-1.5"><FieldLabel>Text Transform</FieldLabel><Select value={form.theme.backButtonTextTransform || 'none'} onValueChange={v => updateTheme({ backButtonTextTransform: v as any })}><SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">None</SelectItem><SelectItem value="uppercase">UPPERCASE</SelectItem><SelectItem value="capitalize">Capitalize</SelectItem></SelectContent></Select></div>
+              </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Letter Spacing</FieldLabel>
+                <Select
+                  value={resolvePresetSelectValue(getButtonThemeValue('back', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS)}
+                  onValueChange={value => {
+                    if (value !== '__custom__') updateButtonTheme('back', { letterSpacing: value });
+                  }}
+                >
+                  <SelectTrigger className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LETTER_SPACING_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                    <SelectItem value="__custom__">Custom…</SelectItem>
+                  </SelectContent>
+                </Select>
+                {resolvePresetSelectValue(getButtonThemeValue('back', 'letterSpacing', 'normal'), LETTER_SPACING_OPTIONS) === '__custom__' && (
+                  <Input value={getButtonThemeValue('back', 'letterSpacing', 'normal')} onChange={e => updateButtonTheme('back', { letterSpacing: e.target.value })} placeholder="0.06em" className="mt-2 rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono" />
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -1499,7 +1877,37 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
         </SettingsSection>
 
         <SettingsSection title="Custom CSS" icon={Code2} defaultOpen={false}>
-          <Textarea value={form.theme.customCss || ''} onChange={e => updateTheme({ customCss: e.target.value })} rows={6} placeholder=".form-container { /* your styles */ }" className="font-mono text-[11px] rounded-xl border-border/40 bg-muted/20" />
+          <div className="space-y-3">
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Custom CSS is injected last, so these selectors can override exported and preview styles cleanly.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                '.form-container',
+                '.form-header',
+                '.form-body',
+                '.field-shell',
+                '.field-control',
+                '.field-type-switch',
+                '.field-type-choice-matrix',
+                '.field-name-email',
+                '.page-nav .btn-prev',
+                '.page-nav .btn-next',
+                '.submit-btn',
+              ].map(selector => (
+                <code key={selector} className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
+                  {selector}
+                </code>
+              ))}
+            </div>
+            <Textarea
+              value={form.theme.customCss || ''}
+              onChange={e => updateTheme({ customCss: e.target.value })}
+              rows={10}
+              placeholder={`.form-container {\n  backdrop-filter: blur(24px);\n}\n\n.field-type-switch .switch-group {\n  border-radius: 24px;\n}\n\n.page-nav .btn-next {\n  letter-spacing: 0.08em;\n}`}
+              className="font-mono text-[11px] rounded-xl border-border/40 bg-muted/20"
+            />
+          </div>
         </SettingsSection>
       </div>
     )}

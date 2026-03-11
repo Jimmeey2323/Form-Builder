@@ -456,6 +456,10 @@ export interface FormField {
   switchDefaultOn?: boolean;
   switchOnLabel?: string;
   switchOffLabel?: string;
+  // Choice Matrix
+  choiceMatrixColumns?: string[];
+  choiceMatrixMinLabel?: string;
+  choiceMatrixMaxLabel?: string;
   // Password
   passwordReveal?: boolean;
   // Section Collapse
@@ -626,6 +630,10 @@ export interface FormTheme {
   submitButtonBorderColor?: string;
   /** Submit button hover text color */
   submitButtonHoverTextColor?: string;
+  /** Next button hover text color */
+  nextButtonHoverTextColor?: string;
+  /** Back button hover text color */
+  backButtonHoverTextColor?: string;
   /** Radius for submit/next/back buttons (e.g. '10px') */
   buttonRadius?: string;
   /** Button vertical padding (e.g. '12px') */
@@ -724,6 +732,14 @@ export interface FormTheme {
   formCardGlassmorphism?: boolean;
   /** Blur radius for glassmorphism (e.g. '20px') */
   formCardBlurAmount?: string;
+  /** Glass card opacity from 0 to 1 */
+  formCardGlassOpacity?: string;
+  /** Border opacity from 0 to 1 */
+  formCardGlassBorderOpacity?: string;
+  /** Backdrop saturation for the glass card */
+  formCardGlassSaturation?: string;
+  /** Shadow applied when glassmorphism is enabled */
+  formCardGlassShadow?: string;
 
   // ── Progress bar (multi-page) ──────────────────────────────────────────────
   /** Color of the active progress indicator */
@@ -956,6 +972,13 @@ export function createDefaultField(type: FieldType, order: number): FormField {
 
   if (type === 'date-range') {
     base.placeholder = 'Start → End';
+  }
+
+  if (type === 'choice-matrix') {
+    base.max = 5;
+    base.choiceMatrixColumns = ['1', '2', '3', '4', '5'];
+    base.choiceMatrixMinLabel = 'Lowest';
+    base.choiceMatrixMaxLabel = 'Highest';
   }
 
   if (type === 'subform' || type === 'section-collapse') {

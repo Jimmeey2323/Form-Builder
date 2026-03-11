@@ -1497,6 +1497,45 @@ const Index = () => {
                       );
                       updateForm(activeForm.id, { fields });
                     }}
+                    onBulkApplyCssClass={cssClass => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
+                      const fields = activeForm.fields.map(f => {
+                        if (f.type === 'page-break' || f.type === 'section-break') return f;
+                        const currentClasses = (f.cssClass || '').split(/\s+/).filter(Boolean);
+                        return currentClasses.includes(cssClass)
+                          ? f
+                          : { ...f, cssClass: [...currentClasses, cssClass].join(' ').trim() };
+                      });
+                      updateForm(activeForm.id, { fields });
+                    }}
+                    onBulkArrange={preset => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
+                      let visualIndex = 0;
+                      const fields = activeForm.fields.map(f => {
+                        if (f.type === 'page-break' || f.type === 'section-break') return f;
+                        const width = (() => {
+                          switch (preset) {
+                            case 'halves':
+                              return '50';
+                            case 'thirds':
+                              return '33';
+                            case 'feature-first':
+                              if (visualIndex === 0) return '100';
+                              return visualIndex % 3 === 1 ? '66' : '33';
+                            case 'single':
+                            default:
+                              return '100';
+                          }
+                        })();
+                        visualIndex += 1;
+                        return { ...f, width: width as FormField['width'] };
+                      });
+                      updateForm(activeForm.id, { fields });
+                    }}
+                    onUpdateTheme={updates => {
+                      if (activeForm.isLocked) { toast.error('Form is locked. Unlock it to make changes.'); return; }
+                      updateForm(activeForm.id, { theme: { ...activeForm.theme, ...updates } });
+                    }}
                   />
                 </TabsContent>
 

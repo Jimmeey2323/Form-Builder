@@ -1,5 +1,11 @@
 import { FormConfig, FormField } from '@/types/formField';
 import { getHeroForPage, normalizeHeroImageValue, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
+import {
+  getChoiceMatrixColumns,
+  getFieldControlClassNames,
+  getFieldWrapperClassNames,
+  sanitizeCssToken,
+} from '@/utils/formFieldStyling';
 
 function escapeHtml(str: string): string {
   return str
@@ -119,6 +125,11 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
   const placeholder = field.placeholder ? ` placeholder="${escapeHtml(field.placeholder)}"` : '';
   const helpText = field.helpText ? `\n      <span class="help-text">${escapeHtml(field.helpText)}</span>` : '';
   const cssClass = field.cssClass ? ` ${field.cssClass}` : '';
+  const escapedCssClass = field.cssClass ? ` ${escapeHtml(field.cssClass)}` : '';
+  const fieldWrapperClassName = escapeHtml(getFieldWrapperClassNames(field, ['form-group']));
+  const controlClassName = escapeHtml(getFieldControlClassNames(field.type, ['form-input']));
+  const controlClassAttr = `${controlClassName}${escapedCssClass}`;
+  const fieldDataAttrs = ` data-field-id="${escapeHtml(field.id)}" data-field-name="${escapeHtml(field.name)}" data-field-type="${escapeHtml(field.type)}" data-field-width="${escapeHtml(field.width || '100')}"`;
   const widthStyle = field.width && field.width !== '100' ? ` style="grid-column: span ${Math.round(parseInt(field.width) / (100/12))} / span ${Math.round(parseInt(field.width) / (100/12))}"` : '';
   const autocomplete = field.autocomplete ? ` autocomplete="${escapeHtml(field.autocomplete)}"` : '';
   const minLen = field.minLength ? ` minlength="${field.minLength}"` : '';
@@ -129,6 +140,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
   const pattern = field.pattern ? ` pattern="${escapeHtml(field.pattern)}"` : '';
   const accept = field.accept ? ` accept="${escapeHtml(field.accept)}"` : '';
   const defaultVal = field.defaultValue ? ` value="${escapeHtml(field.defaultValue)}"` : '';
+  const labelClass = 'field-label';
 
   let condAttrs = '';
   if (field.conditionalRules && field.conditionalRules.length > 0) {
@@ -142,7 +154,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
 
   switch (field.type) {
     case 'textarea':
-      inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="form-input${cssClass}" rows="4">${field.defaultValue || ''}</textarea>`;
+      inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="${controlClassAttr}" rows="4">${field.defaultValue || ''}</textarea>`;
       break;
     case 'email-otp': {
       const cfg = field.emailOtpConfig || {};
@@ -158,11 +170,11 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
         data-subject="${escapeHtml(cfg.subject || 'Your verification code')}"
         data-send-label="${escapeHtml(cfg.sendButtonText || 'Send OTP')}">
         <div class="email-otp-row">
-          <input type="email" id="${field.id}_email" name="${field.name}_raw"${required}${readonly}${disabled}${placeholder}${autocomplete} class="form-input email-otp-email" />
+          <input type="email" id="${field.id}_email" name="${field.name}_raw"${required}${readonly}${disabled}${placeholder}${autocomplete} class="${escapeHtml(getFieldControlClassNames(field.type, ['form-input', 'email-otp-email']))}${escapedCssClass}" />
           <button type="button" class="email-otp-send-btn">${escapeHtml(cfg.sendButtonText || 'Send OTP')}</button>
         </div>
         <div class="email-otp-row">
-          <input type="text" id="${field.id}_otp" class="form-input email-otp-code" placeholder="Enter OTP" inputmode="numeric" maxlength="${otpLen}" />
+          <input type="text" id="${field.id}_otp" class="${escapeHtml(getFieldControlClassNames(field.type, ['form-input', 'email-otp-code']))}${escapedCssClass}" placeholder="Enter OTP" inputmode="numeric" maxlength="${otpLen}" />
           <button type="button" class="email-otp-verify-btn">${escapeHtml(cfg.verifyButtonText || 'Verify OTP')}</button>
         </div>
         <div class="email-otp-status" aria-live="polite"></div>
@@ -177,7 +189,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       const selectOnChange = field.allowOther
         ? ` onchange="var o=document.getElementById('other_${field.id}');if(o)o.style.display=this.value==='__other__'?'block':'none'"`
         : '';
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${selectOnChange} class="form-input${cssClass}">
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${selectOnChange} class="${controlClassAttr}">
         <option value="" disabled selected>${field.placeholder || 'Select an option'}</option>
         ${(field.options || []).map(o => {
           const condData = getOptionCondData(field, o.value, o.conditionalRule);
@@ -267,18 +279,18 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
           <button type="button" class="password-toggle" onclick="togglePassword('${field.id}')">Show</button>
         </div>`;
       } else {
-        inputHtml = `<input type="password" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${pattern}${autocomplete}${defaultVal} class="form-input${cssClass}">`;
+      inputHtml = `<input type="password" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${pattern}${autocomplete}${defaultVal} class="${controlClassAttr}">`;
       }
       break;
     }
     case 'lookup':
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="form-input${cssClass}" data-lookup="true">
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="${controlClassAttr}" data-lookup="true">
         <option value="" disabled selected>Select...</option>
         ${field.lookupConfig ? Object.entries(field.lookupConfig.lookupData).map(([k, v]) => `<option value="${escapeHtml(k)}">${escapeHtml(v)}</option>`).join('\n        ') : ''}
       </select>`;
       break;
     case 'formula':
-      inputHtml = `<input type="text" id="${field.id}" name="${field.name}" readonly class="form-input formula-field${cssClass}"${condAttrs} data-formula="${escapeHtml(field.formulaConfig?.expression || '')}"${defaultVal}>`;
+      inputHtml = `<input type="text" id="${field.id}" name="${field.name}" readonly class="${escapeHtml(getFieldControlClassNames(field.type, ['form-input', 'formula-field']))}${escapedCssClass}"${condAttrs} data-formula="${escapeHtml(field.formulaConfig?.expression || '')}"${defaultVal}>`;
       break;
     case 'member-search': {
       const mCfg    = field.momenceSearchConfig;
@@ -293,7 +305,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
               <input type="${type}" name="${pfx}_${nm}" readonly class="form-input mmember-field" placeholder="Auto-filled">
             </div>`;
       return `
-    <div class="form-group"${hidden}${widthStyle}>
+    <div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}>
       <div class="mmember-section${cssClass}"${condAttrs}
         data-momence-search="true"
         data-host-id="${hostId}"
@@ -379,7 +391,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
               <input type="${type}" name="${pfxS}_${nm}" readonly class="form-input msess-field" placeholder="Auto-filled">
             </div>`;
       return `
-    <div class="form-group"${hidden}${widthStyle}>
+    <div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}>
       <div class="msess-section${cssClass}"${condAttrs}
         data-momence-sessions="true"
         data-range-days="${rangeDays}"
@@ -458,7 +470,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
               <input type="${type}" name="${pfxH}_${nm}" readonly class="form-input msess-field" placeholder="Auto-filled">
             </div>`;
       return `
-    <div class="form-group"${hidden}${widthStyle}>
+    <div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}>
       <div class="msess-section${cssClass}"${condAttrs}
         data-momence-sessions="true"
         data-session-type-filter="private"
@@ -640,7 +652,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       break;
     }
     case 'conditional':
-      inputHtml = `<input type="text" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${condAttrs}${defaultVal} class="form-input${cssClass}">`;
+      inputHtml = `<input type="text" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${condAttrs}${defaultVal} class="${controlClassAttr}">`;
       break;
     case 'dependent': {
       const depSource = field.dependentOptionsConfig?.sourceFieldId;
@@ -651,7 +663,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
             { label: 'Option A', value: 'option_a' },
             { label: 'Option B', value: 'option_b' },
           ];
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="form-input${cssClass}">
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete} class="${controlClassAttr}">
         <option value="" disabled selected>${escapeHtml(depPlaceholder)}</option>
         ${depOptions.map(o => {
           const condData = getOptionCondData(field, o.value, o.conditionalRule);
@@ -768,25 +780,32 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       </div>`;
       break;
     case 'address':
-      inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="form-input${cssClass}" rows="3" placeholder="Street address, city, state, zip…"></textarea>`;
+      inputHtml = `<textarea id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${minLen}${maxLen}${condAttrs} class="${controlClassAttr}" rows="3" placeholder="Street address, city, state, zip…"></textarea>`;
       break;
     case 'currency':
       inputHtml = `<div class="currency-input-group${cssClass}"${condAttrs}>
         <span class="currency-symbol">$</span>
-        <input type="number" id="${field.id}" name="${field.name}"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || '0.00')}"${minVal}${maxVal}${stepVal}${autocomplete} class="form-input currency-input">
+        <input type="number" id="${field.id}" name="${field.name}"${required}${readonly}${disabled} placeholder="${escapeHtml(field.placeholder || '0.00')}"${minVal}${maxVal}${stepVal}${autocomplete} class="${escapeHtml(getFieldControlClassNames(field.type, ['form-input', 'currency-input']))}${escapedCssClass}">
       </div>`;
       break;
     case 'choice-matrix': {
-      const cmMax = field.max || 5;
-      const cols = Array.from({ length: cmMax }).map((_, i) => i + 1);
+      const cols = getChoiceMatrixColumns(field);
       const rows = field.options || [];
+      const minLabel = field.choiceMatrixMinLabel ? `<span>${escapeHtml(field.choiceMatrixMinLabel)}</span>` : '<span></span>';
+      const maxLabel = field.choiceMatrixMaxLabel ? `<span>${escapeHtml(field.choiceMatrixMaxLabel)}</span>` : '<span></span>';
       inputHtml = `<div class="choice-matrix-group${cssClass}"${condAttrs}>
-        <div class="choice-matrix-grid" style="display:grid;grid-template-columns:repeat(${cols.length + 1}, minmax(0,1fr));gap:6px;align-items:center;">
-          <div></div>
-          ${cols.map(c => `<div class="choice-matrix-col">${c}</div>`).join('')}
+        <div class="choice-matrix-scale-labels">${minLabel}${maxLabel}</div>
+        <div class="choice-matrix-grid" style="display:grid;grid-template-columns:minmax(180px,1.4fr) repeat(${cols.length}, minmax(64px,1fr));gap:10px;align-items:center;">
+          <div class="choice-matrix-corner"></div>
+          ${cols.map(c => `<div class="choice-matrix-col">${escapeHtml(c)}</div>`).join('')}
           ${rows.map(r => `
             <div class="choice-matrix-row">${escapeHtml(r.label)}</div>
-            ${cols.map(c => `<div class="choice-matrix-cell"><input type="radio" name="${field.name}_${escapeHtml(r.value)}" value="${c}"${required}></div>`).join('')}
+            ${cols.map(c => `<div class="choice-matrix-cell">
+              <label class="choice-matrix-choice">
+                <input type="radio" name="${field.name}_${escapeHtml(r.value)}" value="${escapeHtml(c)}"${required}>
+                <span class="choice-matrix-choice-pill">${escapeHtml(c)}</span>
+              </label>
+            </div>`).join('')}
           `).join('')}
         </div>
       </div>`;
@@ -855,7 +874,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       const msOnChange = field.allowOther
         ? ` onchange="var o=document.getElementById('other_${field.id}');if(o){var sel=Array.from(this.selectedOptions).map(x=>x.value);o.style.display=sel.includes('__other__')?'block':'none';}"`
         : '';
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${msOnChange} class="form-input${cssClass}" multiple>
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs}${autocomplete}${msOnChange} class="${controlClassAttr}" multiple>
         ${(field.options || []).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('\n        ')}
         ${field.allowOther ? '<option value="__other__">Other…</option>' : ''}
       </select>${msOtherInput}`;
@@ -1037,7 +1056,7 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
             { label: 'Submission 1', value: 'submission_1' },
             { label: 'Submission 2', value: 'submission_2' },
           ];
-      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="form-input${cssClass}">
+      inputHtml = `<select id="${field.id}" name="${field.name}"${required}${disabled}${condAttrs} class="${controlClassAttr}">
         <option value="" disabled selected>${field.placeholder || 'Select a submission'}</option>
         ${subOptions.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('\n        ')}
       </select>`;
@@ -1055,22 +1074,22 @@ function generateFieldHtml(field: FormField, allFields: FormField[]): string {
       </div>`;
       break;
     case 'heading':
-      return `<h2 class="form-heading"${hidden}${widthStyle}${condAttrs}>${escapeHtml(field.label)}</h2>`;
+      return `<div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}${condAttrs}><h2 class="form-heading">${escapeHtml(field.label)}</h2></div>`;
     case 'paragraph':
-      return `<p class="form-paragraph"${hidden}${widthStyle}${condAttrs}>${escapeHtml(field.helpText || field.label)}</p>`;
+      return `<div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}${condAttrs}><p class="form-paragraph">${escapeHtml(field.helpText || field.label)}</p></div>`;
     case 'banner':
-      return `<div class="form-banner"${hidden}${widthStyle}${condAttrs} style="background-image: url('${escapeHtml(field.helpText || '')}');">
+      return `<div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}${condAttrs}><div class="form-banner" style="background-image: url('${escapeHtml(field.helpText || '')}');">
         <div class="banner-content">
           <h3>${escapeHtml(field.label)}</h3>
         </div>
-      </div>`;
+      </div></div>`;
     default:
-      inputHtml = `<input type="${field.type === 'color' || field.type === 'range' || field.type === 'date' || field.type === 'time' || field.type === 'datetime-local' || field.type === 'file' ? field.type : 'text'}" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${defaultVal}${minLen}${maxLen}${minVal}${maxVal}${stepVal}${pattern}${accept}${autocomplete}${condAttrs} class="form-input${cssClass}">`;
+      inputHtml = `<input type="${field.type === 'color' || field.type === 'range' || field.type === 'date' || field.type === 'time' || field.type === 'datetime-local' || field.type === 'file' ? field.type : 'text'}" id="${field.id}" name="${field.name}"${required}${readonly}${disabled}${placeholder}${defaultVal}${minLen}${maxLen}${minVal}${maxVal}${stepVal}${pattern}${accept}${autocomplete}${condAttrs} class="${controlClassAttr}">`;
   }
 
   return `
-    <div class="form-group"${hidden}${widthStyle}>
-      <label for="${field.id}">${escapeHtml(field.label)}${requiredMark}</label>
+    <div class="${fieldWrapperClassName}"${hidden}${widthStyle}${fieldDataAttrs}>
+      <label for="${field.id}" class="${labelClass}">${escapeHtml(field.label)}${requiredMark}</label>
       ${inputHtml}${helpText}
     </div>`;
 }
@@ -1282,6 +1301,13 @@ function generateWebhookScript(config: FormConfig): string {
             e.preventDefault();
             var formEl = this;
             reportSubmitStatus('', false);
+            var validationResult = window.__validateGeneratedForm
+              ? window.__validateGeneratedForm(formEl)
+              : { ok: formEl.reportValidity ? formEl.reportValidity() : true };
+            if (validationResult && validationResult.ok === false) {
+                reportSubmitStatus(validationResult.message || 'Please complete the required fields before submitting.', true);
+                return;
+            }
             var submitBtn = formEl.querySelector('.submit-btn');
             if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
             ${appointmentGate}
@@ -1312,6 +1338,13 @@ function generateWebhookScript(config: FormConfig): string {
             e.preventDefault();
             var formEl = this;
             reportSubmitStatus('', false);
+            var validationResult = window.__validateGeneratedForm
+              ? window.__validateGeneratedForm(formEl)
+              : { ok: formEl.reportValidity ? formEl.reportValidity() : true };
+            if (validationResult && validationResult.ok === false) {
+                reportSubmitStatus(validationResult.message || 'Please complete the required fields before submitting.', true);
+                return;
+            }
             var submitBtn = formEl.querySelector('.submit-btn');
             submitBtn.disabled = true;
             submitBtn.textContent = 'Submitting...';
@@ -3723,16 +3756,19 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
   };
 
   const formShadow = shadowMap[theme.formShadow] || shadowMap.xl;
+  const glassOpacityPct = Math.round(Math.max(0, Math.min(1, Number(theme.formCardGlassOpacity ?? '0.82'))) * 100);
+  const glassBorderOpacityPct = Math.round(Math.max(0, Math.min(1, Number(theme.formCardGlassBorderOpacity ?? '0.22'))) * 100);
 
   const paginationStyles = isMultiPage ? `
         .form-page { display: none; }
         .form-page.active { display: block; }
-        .page-nav { display: flex; gap: 12px; margin-top: 20px; }
-        .page-nav button { flex: 1; padding: var(--btn-padding-y) var(--btn-padding-x); border: 2px solid; border-radius: var(--btn-radius); font-family: inherit; cursor: pointer; transition: all 0.2s; text-shadow: var(--btn-text-shadow); }
+        .page-nav { display: flex; gap: 12px; margin-top: 20px; align-items: center; }
+        .page-nav button { flex: 0 0 auto; min-width: 110px; padding: var(--btn-padding-y) var(--btn-padding-x); border: 2px solid; border-radius: var(--btn-radius); font-family: inherit; cursor: pointer; transition: all 0.2s; text-shadow: var(--btn-text-shadow); }
+        .page-nav .btn-next, .page-nav .submit-btn { margin-left: auto; }
         .page-nav .btn-prev { background: var(--back-btn-bg); color: var(--back-btn-text); border-color: var(--back-btn-border); font-size: var(--back-btn-font-size); font-weight: var(--back-btn-font-weight); letter-spacing: var(--back-btn-letter-spacing); text-transform: var(--back-btn-text-transform); box-shadow: var(--back-btn-shadow); }
-        .page-nav .btn-prev:hover { background: var(--back-btn-hover-bg, color-mix(in srgb, var(--back-btn-bg) 88%, #000)); ${theme.backButtonHoverAnimation === 'scale' ? `transform: scale(${theme.backButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.backButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 16px color-mix(in srgb, var(--back-btn-bg) 55%, transparent);' : theme.backButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px);'} }
+        .page-nav .btn-prev:hover { background: var(--back-btn-hover-bg, color-mix(in srgb, var(--back-btn-bg) 88%, #000)); color: var(--back-btn-hover-text, var(--back-btn-text)); ${theme.backButtonHoverAnimation === 'scale' ? `transform: scale(${theme.backButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.backButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 16px color-mix(in srgb, var(--back-btn-bg) 55%, transparent);' : theme.backButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px);'} }
         .page-nav .btn-next { background: var(--next-btn-bg); color: var(--next-btn-text); border-color: var(--next-btn-border); font-size: var(--next-btn-font-size); font-weight: var(--next-btn-font-weight); letter-spacing: var(--next-btn-letter-spacing); text-transform: var(--next-btn-text-transform); box-shadow: var(--next-btn-shadow); }
-        .page-nav .btn-next:hover { background: var(--next-btn-hover-bg, var(--next-btn-bg)); ${theme.nextButtonHoverAnimation === 'scale' ? `transform: scale(${theme.nextButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.nextButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 20px color-mix(in srgb, var(--next-btn-bg) 55%, transparent);' : theme.nextButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px); box-shadow: var(--shadow-md);'} }
+        .page-nav .btn-next:hover { background: var(--next-btn-hover-bg, var(--next-btn-bg)); color: var(--next-btn-hover-text, var(--next-btn-text)); ${theme.nextButtonHoverAnimation === 'scale' ? `transform: scale(${theme.nextButtonHoverScale || theme.buttonHoverScale || '1.02'});` : theme.nextButtonHoverAnimation === 'glow' ? 'box-shadow: 0 0 20px color-mix(in srgb, var(--next-btn-bg) 55%, transparent);' : theme.nextButtonHoverAnimation === 'none' ? '' : 'transform: translateY(-1px); box-shadow: var(--shadow-md);'} }
         ${theme.nextButtonHoverAnimation === 'pulse' ? '@keyframes next-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}} .page-nav .btn-next:hover{animation:next-pulse 0.5s ease;}' : ''}
         ${theme.backButtonHoverAnimation === 'pulse' ? '@keyframes back-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}} .page-nav .btn-prev:hover{animation:back-pulse 0.5s ease;}' : ''}
         .page-indicator { display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; }
@@ -3741,7 +3777,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         ${theme.progressBarStyle === 'bar' ? `
         .page-indicator { display: block; height: 6px; background: var(--border-color); border-radius: 999px; overflow: hidden; }
         .page-dot { display: none; }
-        .page-indicator::after { content: ''; display: block; height: 100%; background: var(--progress-bar-color); border-radius: 999px; transition: width 0.4s ease; }
+        .page-indicator::after { content: ''; display: block; width: var(--page-progress, ${(pages.length > 0 ? (100 / pages.length) : 100).toFixed(2)}%); height: 100%; background: var(--progress-bar-color); border-radius: 999px; transition: width 0.4s ease; }
         ` : theme.progressBarStyle === 'line' ? `
         .page-indicator { display: none; }
         .form-header::after { content: ''; display: block; height: ${theme.progressBarHeight || '3px'}; background: linear-gradient(90deg, var(--progress-bar-color) 0%, transparent 100%); margin-top: 8px; border-radius: 999px; }
@@ -3903,16 +3939,200 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
                 }
             }
         }
-        function goToPage(n) {
-            var allPages = document.querySelectorAll('.form-page');
-            var dots = document.querySelectorAll('.page-dot');
+        function _currentPageIndex() {
+            var pages = Array.prototype.slice.call(document.querySelectorAll('.form-page'));
+            for (var i = 0; i < pages.length; i++) {
+                if (pages[i].classList.contains('active')) return i;
+            }
+            return 0;
+        }
+        function _updatePageProgress(pageIndex, totalPages) {
+            var indicator = document.querySelector('.page-indicator');
+            if (!indicator) return;
+            indicator.style.setProperty('--page-progress', (((pageIndex + 1) / Math.max(totalPages, 1)) * 100) + '%');
+        }
+        function goToPage(n, options) {
+            var allPages = Array.prototype.slice.call(document.querySelectorAll('.form-page'));
+            var dots = Array.prototype.slice.call(document.querySelectorAll('.page-dot'));
+            if (!allPages.length || !allPages[n]) return;
+            var currentIndex = _currentPageIndex();
+            if ((!options || !options.skipValidation) && n > currentIndex && window.__validateFormScope) {
+                var currentPageValidation = window.__validateFormScope(allPages[currentIndex]);
+                if (currentPageValidation && currentPageValidation.ok === false) {
+                    if (window.__setGeneratedFormStatus && !(options && options.preserveStatus)) {
+                        window.__setGeneratedFormStatus(currentPageValidation.message || 'Please fill the required fields highlighted below.', true);
+                    }
+                    return;
+                }
+            }
             allPages.forEach(function(p) { p.classList.remove('active'); });
             dots.forEach(function(d) { d.classList.remove('active'); });
             allPages[n].classList.add('active');
-            dots[n].classList.add('active');
+            if (dots[n]) dots[n].classList.add('active');
+            _updatePageProgress(n, allPages.length);
             _applyPageHero(n);
+            if (window.__setGeneratedFormStatus && !(options && options.preserveStatus)) {
+                window.__setGeneratedFormStatus('', false);
+            }
             document.querySelector('.form-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }` : '';
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            _applyPageHero(0);
+            _updatePageProgress(0, document.querySelectorAll('.form-page').length || 1);
+        });` : '';
+
+  const formValidationScript = `
+        function __setGeneratedFormStatus(message, isError) {
+            var statusEl = document.getElementById('form-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.className = 'form-status' + (isError ? ' is-error' : ' is-success');
+            statusEl.style.display = message ? 'block' : 'none';
+        }
+        window.__setGeneratedFormStatus = __setGeneratedFormStatus;
+
+        function __isVisibleElement(el) {
+            if (!el) return false;
+            if (el.closest && el.closest('.form-page') && !el.closest('.form-page').classList.contains('active')) return false;
+            if (el.matches && el.matches('[type="hidden"]')) return true;
+            return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+        }
+
+        function __findFieldGroup(target) {
+            return target && target.closest ? target.closest('.form-group') : null;
+        }
+
+        function __ensureFieldError(group) {
+            var errorEl = group.querySelector('.field-error');
+            if (!errorEl) {
+                errorEl = document.createElement('div');
+                errorEl.className = 'field-error';
+                group.appendChild(errorEl);
+            }
+            return errorEl;
+        }
+
+        function __clearFieldError(group) {
+            if (!group) return;
+            group.classList.remove('is-invalid');
+            var errorEl = group.querySelector('.field-error');
+            if (errorEl) errorEl.textContent = '';
+        }
+
+        function __clearValidationState(scope) {
+            Array.prototype.slice.call((scope || document).querySelectorAll('.form-group.is-invalid')).forEach(__clearFieldError);
+        }
+
+        function __pushFieldError(errors, seenGroups, group, target, message) {
+            if (!group) return;
+            if (seenGroups.indexOf(group) !== -1) return;
+            seenGroups.push(group);
+            group.classList.add('is-invalid');
+            __ensureFieldError(group).textContent = message || 'Please complete this field.';
+            errors.push({ group: group, target: target, message: message || 'Please complete this field.' });
+        }
+
+        function __validateScope(scope) {
+            var root = scope || document.getElementById('generated-form') || document;
+            var errors = [];
+            var seenGroups = [];
+            __clearValidationState(root);
+
+            Array.prototype.slice.call(root.querySelectorAll('input, select, textarea')).forEach(function(control) {
+                if (!control || control.disabled || control.type === 'hidden') return;
+                if (!__isVisibleElement(control)) return;
+                if (!control.willValidate) return;
+                if (control.checkValidity()) return;
+                __pushFieldError(errors, seenGroups, __findFieldGroup(control), control, control.validationMessage || 'Please complete this field.');
+            });
+
+            Array.prototype.slice.call(root.querySelectorAll('input[type="hidden"][required]')).forEach(function(hidden) {
+                if (!hidden || hidden.disabled) return;
+                var group = __findFieldGroup(hidden);
+                if (!group || !__isVisibleElement(group)) return;
+                if ((hidden.value || '').trim()) return;
+                __pushFieldError(errors, seenGroups, group, hidden, 'Please make a selection to continue.');
+            });
+
+            Array.prototype.slice.call(root.querySelectorAll('[data-email-otp="true"]')).forEach(function(groupWrap) {
+                if (!__isVisibleElement(groupWrap)) return;
+                var hidden = groupWrap.querySelector('input[type="hidden"]');
+                if (hidden && hidden.required && groupWrap.dataset.verified !== 'true') {
+                    __pushFieldError(errors, seenGroups, __findFieldGroup(hidden) || __findFieldGroup(groupWrap), hidden || groupWrap, 'Please verify your email before continuing.');
+                }
+            });
+
+            return {
+                ok: errors.length === 0,
+                errors: errors,
+                message: errors.length === 1 ? errors[0].message : (errors.length ? 'Please fill the required fields highlighted below.' : ''),
+            };
+        }
+
+        function __focusValidationError(result) {
+            if (!result || result.ok || !result.errors || !result.errors.length) return;
+            var first = result.errors[0];
+            if (first.group && first.group.scrollIntoView) {
+                first.group.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            if (first.target && first.target.focus && first.target.type !== 'hidden') {
+                try {
+                    first.target.focus({ preventScroll: true });
+                } catch (err) {
+                    first.target.focus();
+                }
+            }
+        }
+
+        window.__validateFormScope = function(scope) {
+            return __validateScope(scope);
+        };
+
+        window.__validateGeneratedForm = function(formEl) {
+            var root = formEl || document.getElementById('generated-form') || document;
+            var pages = Array.prototype.slice.call(root.querySelectorAll('.form-page'));
+            if (!pages.length) {
+                var singlePageResult = __validateScope(root);
+                if (!singlePageResult.ok) {
+                    __setGeneratedFormStatus(singlePageResult.message, true);
+                    __focusValidationError(singlePageResult);
+                } else {
+                    __setGeneratedFormStatus('', false);
+                }
+                return singlePageResult;
+            }
+
+            for (var i = 0; i < pages.length; i++) {
+                var result = __validateScope(pages[i]);
+                if (!result.ok) {
+                    if (typeof goToPage === 'function') {
+                        goToPage(i, { skipValidation: true, preserveStatus: true });
+                    }
+                    __setGeneratedFormStatus(result.message, true);
+                    __focusValidationError(result);
+                    result.pageIndex = i;
+                    return result;
+                }
+            }
+
+            __setGeneratedFormStatus('', false);
+            return { ok: true, errors: [] };
+        };
+
+        function __clearErrorOnInteraction(event) {
+            var target = event && event.target;
+            if (!target || !target.closest) return;
+            var group = __findFieldGroup(target);
+            if (!group) return;
+            __clearFieldError(group);
+            if (!document.querySelector('.form-group.is-invalid')) {
+                __setGeneratedFormStatus('', false);
+            }
+        }
+
+        document.addEventListener('input', __clearErrorOnInteraction);
+        document.addEventListener('change', __clearErrorOnInteraction);
+  `;
 
   const logoSrc = options?.logoBase64 || (theme.logoUrl ? escapeHtml(theme.logoUrl) : '');
 
@@ -3969,10 +4189,12 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             --back-btn-text: ${theme.backButtonTextColor || theme.navButtonTextColor || 'var(--text-primary)'};
             --back-btn-border: ${theme.backButtonBorderColor || theme.navButtonBorderColor || 'var(--border-color)'};
             --back-btn-hover-bg: ${theme.backButtonHoverBackground || ''};
+            --back-btn-hover-text: ${theme.backButtonHoverTextColor || ''};
             --next-btn-bg: ${theme.nextButtonBackground || theme.submitButtonBackground || 'var(--primary-gradient)'};
             --next-btn-text: ${theme.nextButtonTextColor || 'var(--button-text-color)'};
             --next-btn-border: ${theme.nextButtonBorderColor || 'transparent'};
             --next-btn-hover-bg: ${theme.nextButtonHoverBackground || ''};
+            --next-btn-hover-text: ${theme.nextButtonHoverTextColor || ''};
             --btn-radius: ${theme.buttonRadius || '8px'};
             --btn-padding-y: ${theme.buttonPaddingY || '12px'};
             --btn-padding-x: ${theme.buttonPaddingX || '14px'};
@@ -4003,6 +4225,10 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             --label-font-weight: ${theme.labelFontWeight || '500'};
             --progress-bar-color: ${theme.progressBarColor || theme.primaryColor};
             --progress-bar-height: ${theme.progressBarHeight || '10px'};
+            --glass-blur: ${theme.formCardBlurAmount || '20px'};
+            --glass-opacity: ${theme.formCardGlassOpacity || '0.82'};
+            --glass-border-opacity: ${theme.formCardGlassBorderOpacity || '0.22'};
+            --glass-saturation: ${theme.formCardGlassSaturation || '180%'};
             --preview-mode: ${previewMode ? 1 : 0};
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -4023,17 +4249,21 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             color: var(--text-primary);
         }
         .form-container {
-            background: var(--bg-primary);
+            background: ${theme.formCardGlassmorphism
+              ? `color-mix(in srgb, ${theme.formBackgroundColor || '#ffffff'} ${glassOpacityPct}%, transparent)`
+              : 'var(--bg-primary)'};
             border-radius: var(--radius);
-            border: var(--form-border-width) solid var(--form-border-color);
-            box-shadow: ${formShadow};
+            border: var(--form-border-width) solid ${theme.formCardGlassmorphism
+              ? `color-mix(in srgb, ${theme.formBorderColor || theme.inputBorderColor} ${glassBorderOpacityPct}%, transparent)`
+              : 'var(--form-border-color)'};
+            box-shadow: ${theme.formCardGlassmorphism ? (theme.formCardGlassShadow || formShadow) : formShadow};
             width: ${theme.formWidth};
             max-width: ${theme.formMaxWidth};
             min-height: ${theme.formMinHeight || 'auto'};
             position: relative;
             overflow: hidden;
             animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            ${theme.formCardGlassmorphism ? `backdrop-filter: blur(${theme.formCardBlurAmount || '20px'}); -webkit-backdrop-filter: blur(${theme.formCardBlurAmount || '20px'}); background: ${theme.formBackgroundColor}cc;` : ''}
+            ${theme.formCardGlassmorphism ? 'backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)); -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));' : ''}
         }
         .form-container::before {
             content: '';
@@ -4042,6 +4272,17 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             height: 4px;
             background: var(--primary-gradient);
         }
+        ${theme.formCardGlassmorphism ? `
+        .form-container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+              linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 22%, transparent 58%),
+              radial-gradient(circle at top right, rgba(255,255,255,0.18), transparent 36%);
+            mix-blend-mode: screen;
+        }` : ''}
         @keyframes slideUp {
             from { opacity: 0; transform: translateY(30px) scale(0.95); }
             to { opacity: 1; transform: translateY(0) scale(1); }
@@ -4114,6 +4355,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .form-body { padding: 24px ${theme.formPadding} ${theme.formPadding}; }
         .form-group {
             line-height: ${theme.lineHeight || '1.6'};
+            position: relative;
         }
         .form-group label {
             display: block;
@@ -4122,6 +4364,30 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             color: ${theme.labelColor};
             text-align: ${theme.labelAlign || 'left'};
             margin-bottom: 6px;
+        }
+        .field-shell {
+            position: relative;
+        }
+        .form-group.is-invalid > .field-label,
+        .form-group.is-invalid > label {
+            color: #b91c1c;
+        }
+        .form-group.is-invalid .form-input,
+        .form-group.is-invalid .radio-option,
+        .form-group.is-invalid .checkbox-option,
+        .form-group.is-invalid .switch-group,
+        .form-group.is-invalid .choice-matrix-group,
+        .form-group.is-invalid .msess-section,
+        .form-group.is-invalid .mmember-section,
+        .form-group.is-invalid .appt-booking {
+            border-color: rgba(220, 38, 38, 0.65) !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+        }
+        .field-error {
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #b91c1c;
         }
         .required { color: #ef4444; margin-left: 2px; }
         .form-input {
@@ -4178,6 +4444,68 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .likert-spread-input { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary-color); }
         .likert-opt-hdr { font-size: 12px; font-weight: 500; padding: 6px 10px !important; color: var(--text-secondary); background: var(--bg-secondary, #f8fafc); }
         .likert-empty { color: var(--text-secondary); font-size: 13px; padding: 12px 0; }
+        .switch-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            min-height: 54px;
+            padding: 12px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--bg-primary) 84%, white);
+            cursor: pointer;
+            transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+        }
+        .switch-group:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
+        .switch-group input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+        .switch-slider {
+            position: relative;
+            width: 52px;
+            height: 30px;
+            border-radius: 999px;
+            background: color-mix(in srgb, var(--border-color) 72%, white);
+            box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            flex-shrink: 0;
+        }
+        .switch-slider::after {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+            transition: transform 0.2s ease;
+        }
+        .switch-group input:checked + .switch-slider {
+            background: var(--submit-btn-bg);
+            box-shadow: 0 6px 18px color-mix(in srgb, var(--primary-color) 20%, transparent);
+        }
+        .switch-group input:checked + .switch-slider::after {
+            transform: translateX(22px);
+        }
+        .switch-group input:focus-visible + .switch-slider {
+            outline: 3px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
+            outline-offset: 2px;
+        }
+        .switch-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
         .switch-state-labels { display: flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 13px; color: var(--text-secondary); }
         .switch-on-lbl, .switch-off-lbl { transition: opacity 0.2s, color 0.2s; }
         .switch-group input:not(:checked) ~ .switch-state-labels .switch-on-lbl  { opacity: 0.35; }
@@ -4222,9 +4550,88 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .subform-group { border: 2px dashed var(--border-color); border-radius: 12px; padding: 14px; background: var(--bg-secondary); }
         .subform-title { font-size: 13px; font-weight: 600; color: var(--text-primary); text-align: center; }
         .subform-meta { font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 4px; }
-        .choice-matrix-col { text-align: center; font-size: 12px; color: var(--text-secondary); }
-        .choice-matrix-row { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+        .choice-matrix-group {
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 14px;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 82%, white), color-mix(in srgb, var(--bg-primary) 92%, transparent));
+            box-shadow: var(--shadow-sm);
+            overflow-x: auto;
+        }
+        .choice-matrix-scale-labels {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: var(--text-light);
+        }
+        .choice-matrix-corner {
+            min-width: 180px;
+        }
+        .choice-matrix-col {
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            padding: 8px 6px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.12);
+        }
+        .choice-matrix-row {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: var(--bg-primary);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
         .choice-matrix-cell { display: flex; justify-content: center; }
+        .choice-matrix-choice {
+            display: flex;
+            width: 100%;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .choice-matrix-choice input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+            pointer-events: none;
+        }
+        .choice-matrix-choice-pill {
+            min-width: 42px;
+            min-height: 38px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1.5px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.92);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            transition: all 0.18s ease;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+        .choice-matrix-choice:hover .choice-matrix-choice-pill {
+            border-color: var(--primary-color);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+        .choice-matrix-choice input:checked + .choice-matrix-choice-pill {
+            background: var(--submit-btn-bg);
+            border-color: transparent;
+            color: white;
+            box-shadow: 0 10px 20px color-mix(in srgb, var(--primary-color) 25%, transparent);
+        }
         .section-break {
             margin: 8px 0;
             padding-bottom: 8px;
@@ -4756,7 +5163,9 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .page-nav .submit-btn,
         .page-nav .submit-btn:hover {
             border: none;
-            color: var(--button-text-color) !important;
+            width: auto !important;
+            min-width: 110px;
+            color: var(--submit-btn-text) !important;
         }
         .success-message { text-align: center; padding: 40px 20px; }
         .success-message h2 { font-size: 48px; margin-bottom: 12px; }
@@ -4792,7 +5201,6 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
             .country-code-select { width: 100% !important; }
             .email-otp-row { flex-direction: column; }
         }
-        ${theme.customCss || ''}
         ${theme.inputBorderStyle === 'bottom-only' ? `
         .form-input { border: none !important; border-bottom: 2px solid var(--border-color) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; padding-left: 0 !important; padding-right: 0 !important; }
         select.form-input { padding-left: 0 !important; }
@@ -4890,14 +5298,21 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .msess-controls {
           display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;
         }
-        .msess-start, .msess-end { flex: 1; min-width: 130px; }
+        .msess-start, .msess-end {
+          flex: 1;
+          min-width: 130px;
+          min-height: 46px;
+          padding-inline: 14px !important;
+          border-radius: 12px !important;
+        }
         .msess-sep { font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
         .msess-load-btn {
           display: inline-flex; align-items: center; gap: 6px;
-          padding: 0 16px; height: 42px; border-radius: 8px; border: none; cursor: pointer;
+          padding: 0 18px; height: 46px; border-radius: 12px; border: none; cursor: pointer;
           background: var(--primary-gradient); color: white;
           font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
-          transition: opacity 0.15s, transform 0.1s; white-space: nowrap; flex-shrink: 0;
+          transition: opacity 0.15s, transform 0.1s, box-shadow 0.18s; white-space: nowrap; flex-shrink: 0;
+          box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
         }
         .msess-load-btn:hover   { opacity: 0.88; }
         .msess-load-btn:active  { transform: scale(0.97); }
@@ -4952,6 +5367,17 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
         .msess-section {
           border: 2px solid var(--border-color); border-radius: 14px;
           background: var(--bg-secondary); padding: 0; overflow: visible;
+          position: relative;
+        }
+        .field-type-momence-sessions .msess-section::before,
+        .field-type-hosted-class .msess-section::before {
+          content: '';
+          position: absolute;
+          inset: 0 auto 0 0;
+          width: 8px;
+          border-radius: 14px 0 0 14px;
+          background: var(--submit-btn-bg);
+          box-shadow: 8px 0 18px color-mix(in srgb, var(--primary-color) 18%, transparent);
         }
         .msess-section-header {
           display: flex; align-items: center; gap: 8px;
@@ -4959,10 +5385,24 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
           border-radius: 12px 12px 0 0; border-bottom: 2px solid var(--border-color);
           color: var(--primary-color);
         }
+        .field-type-momence-sessions .msess-section-header,
+        .field-type-hosted-class .msess-section-header {
+          padding-left: 24px;
+        }
         .msess-section-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
         .msess-section > .msess-controls { padding: 12px 16px 0; }
         .msess-section > .msess-list { margin: 10px 16px 0; }
         .msess-detail-fields { padding: 0 16px 16px; }
+        .field-type-momence-sessions .msess-section > .msess-controls,
+        .field-type-hosted-class .msess-section > .msess-controls,
+        .field-type-momence-sessions .msess-section > .msess-list,
+        .field-type-hosted-class .msess-section > .msess-list,
+        .field-type-momence-sessions .msess-detail-fields,
+        .field-type-hosted-class .msess-detail-fields,
+        .field-type-momence-sessions .msess-bookings,
+        .field-type-hosted-class .msess-bookings {
+          padding-left: 24px;
+        }
         .msess-detail-divider {
           display: flex; align-items: center; justify-content: space-between;
           padding: 12px 0 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary);
@@ -5053,6 +5493,7 @@ export function generateFormHtml(config: FormConfig, options?: GenerateOptions):
           .msess-bk-modal { max-width:100%; border-radius:12px 12px 0 0; }
           .msess-bk-modal-overlay { align-items:flex-end; padding:0; }
         }
+        ${theme.customCss || ''}
     </style>
     <script>
     // ── Confetti ──────────────────────────────────────────────────────────────
@@ -5156,6 +5597,7 @@ ${pagesHtml}
     ${['split-left','split-right','editorial-left','editorial-right'].includes(config.layout ?? '') ? '</div>' : ''}
     <script>
         ${multiPageScript}
+        ${formValidationScript}
         ${generateWebhookScript(config)}
 
         // Phone country code handler

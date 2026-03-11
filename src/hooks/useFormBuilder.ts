@@ -48,9 +48,15 @@ const defaultTheme: FormTheme = {
   navButtonBackground: '#ffffff',
   navButtonTextColor: '#1e293b',
   navButtonBorderColor: '#e2e8f0',
+  nextButtonHoverTextColor: '',
+  backButtonHoverTextColor: '',
   buttonRadius: '8px',
   buttonPaddingY: '12px',
   buttonPaddingX: '14px',
+  formCardGlassOpacity: '0.82',
+  formCardGlassBorderOpacity: '0.22',
+  formCardGlassSaturation: '180%',
+  formCardGlassShadow: '0 20px 48px rgba(15, 23, 42, 0.18)',
   customCss: '',
 };
 

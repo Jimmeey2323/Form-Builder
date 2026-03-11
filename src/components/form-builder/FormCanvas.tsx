@@ -2,6 +2,7 @@ import { useState, useCallback, Fragment, useEffect, MouseEvent } from 'react';
 import {
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   PointerSensor,
   KeyboardSensor,
   useSensor,
@@ -40,8 +41,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { generateFormHtml } from '@/utils/htmlGenerator';
 import { getHeroForPage, resolveHeroBackgroundStyle } from '@/utils/heroImageConfig';
+import {
+  getChoiceMatrixColumns,
+  getFieldControlClassNames,
+  getFieldWrapperClassNames,
+} from '@/utils/formFieldStyling';
 
 // ── Rating icon map ───────────────────────────────────────────────────────────────
 const RATING_ICON_MAP: Record<string, typeof Star> = {
@@ -89,8 +94,10 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
     setPasswordVisible(false);
   }, [field.id, field.defaultValue, field.collapseDefaultOpen, field.type, field.max]);
 
+  const fieldWrapperClassName = getFieldWrapperClassNames(field, ['form-group', 'canvas-field-shell']);
+  const baseClasses = getFieldControlClassNames(field.type, ['form-input']);
+
   const renderFieldInput = () => {
-    const baseClasses = "form-input";
     const required = field.isRequired;
     const placeholder = field.placeholder || getDefaultPlaceholder(field.type);
 
@@ -102,11 +109,11 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         return (
           <div className="space-y-2">
             <div className="flex gap-2">
-              <input type="email" className={baseClasses} placeholder={placeholder || 'name@example.com'} required={required} />
+              <input type="email" className={getFieldControlClassNames(field.type, ['form-input', 'email-otp-email'])} placeholder={placeholder || 'name@example.com'} required={required} />
               <button type="button" className="px-3 py-2 text-xs rounded-md border border-border bg-muted whitespace-nowrap">Send OTP</button>
             </div>
             <div className="flex gap-2">
-              <input type="text" className={baseClasses} placeholder="Enter OTP" />
+              <input type="text" className={getFieldControlClassNames(field.type, ['form-input', 'email-otp-code'])} placeholder="Enter OTP" />
               <button type="button" className="px-3 py-2 text-xs rounded-md border border-border bg-muted whitespace-nowrap">Verify</button>
             </div>
           </div>
@@ -161,7 +168,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
             {field.allowOther && (
               <label className="radio-option">
                 <input type="radio" name={field.id} value="__other__" />
-                <span className="flex items-center gap-2">Other… <input type="text" className="form-input text-xs py-1 px-2 h-7" placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
+                <span className="flex items-center gap-2">Other… <input type="text" className={getFieldControlClassNames(field.type, ['form-input', 'text-xs', 'py-1', 'px-2', 'h-7'])} placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
               </label>
             )}
           </div>
@@ -270,7 +277,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         return (
           <div className="flex gap-2 items-center">
             <input type="color" className="w-10 h-8 border border-border rounded cursor-pointer" defaultValue="#000000" />
-            <input type="text" className="form-input flex-1" placeholder="#000000" />
+            <input type="text" className={`${baseClasses} flex-1`} placeholder="#000000" />
           </div>
         );
 
@@ -306,13 +313,13 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'date':
-        return <input type="date" className="form-input" required={required} />;
+        return <input type="date" className={baseClasses} required={required} />;
 
       case 'datetime-local':
-        return <input type="datetime-local" className="form-input" required={required} />;
+        return <input type="datetime-local" className={baseClasses} required={required} />;
 
       case 'time':
-        return <input type="time" className="form-input" required={required} />;
+        return <input type="time" className={baseClasses} required={required} />;
 
       case 'hidden':
         return (
@@ -524,28 +531,34 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
         );
 
       case 'choice-matrix':
-        const cmCols = Array.from({ length: field.max || 5 }).map((_, i) => i + 1);
+        const cmCols = getChoiceMatrixColumns(field);
         const cmRows = field.options && field.options.length > 0 ? field.options : [
           { label: 'Row 1', value: 'row1' },
           { label: 'Row 2', value: 'row2' },
         ];
         return (
-          <div className="space-y-2">
-            <div className="text-xs text-muted-foreground mb-2">Rate each option:</div>
+          <div className="choice-matrix-group">
+            <div className="choice-matrix-scale-labels">
+              <span>{field.choiceMatrixMinLabel || 'Lowest'}</span>
+              <span>{field.choiceMatrixMaxLabel || 'Highest'}</span>
+            </div>
             <div
-              className="grid gap-1 text-xs"
-              style={{ gridTemplateColumns: `repeat(${cmCols.length + 1}, minmax(0, 1fr))` }}
+              className="choice-matrix-grid"
+              style={{ gridTemplateColumns: `minmax(160px, 1.4fr) repeat(${cmCols.length}, minmax(56px, 1fr))` }}
             >
-              <div></div>
+              <div className="choice-matrix-corner"></div>
               {cmCols.map(c => (
-                <div key={`cmc_${c}`} className="text-center">{c}</div>
+                <div key={`cmc_${c}`} className="choice-matrix-col">{c}</div>
               ))}
               {cmRows.map(row => (
                 <Fragment key={row.value}>
-                  <div className="py-1">{row.label}</div>
+                  <div className="choice-matrix-row">{row.label}</div>
                   {cmCols.map(c => (
                     <div key={`${row.value}_${c}`} className="flex justify-center">
-                      <input type="radio" name={row.value} className="w-3 h-3" />
+                      <label className="choice-matrix-choice">
+                        <input type="radio" name={row.value} className="sr-only" />
+                        <span className="choice-matrix-choice-pill">{c}</span>
+                      </label>
                     </div>
                   ))}
                 </Fragment>
@@ -557,7 +570,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
       case 'multiselect':
         return (
           <div className="space-y-1.5">
-            <select className="form-input" multiple size={Math.min((field.options?.length ?? 0) + (field.allowOther ? 1 : 0), 5) || 4} required={required}>
+            <select className={baseClasses} multiple size={Math.min((field.options?.length ?? 0) + (field.allowOther ? 1 : 0), 5) || 4} required={required}>
               {(field.options || []).map(o => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
@@ -571,17 +584,17 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
 
       case 'switch':
         return (
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-5 rounded-full relative transition-colors ${field.switchDefaultOn ? 'bg-primary' : 'bg-border'}`}>
-              <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform shadow-sm ${field.switchDefaultOn ? 'translate-x-5' : 'left-0.5'}`}></div>
-            </div>
-            <span className="text-sm text-foreground">{field.label}</span>
+          <label className="switch-group">
+            <input type="checkbox" defaultChecked={field.switchDefaultOn} className="sr-only" />
+            <span className="switch-slider"></span>
+            <span className="switch-label">{field.label}</span>
             {(field.switchOnLabel || field.switchOffLabel) && (
-              <span className="text-xs text-muted-foreground ml-1">
-                {field.switchDefaultOn ? (field.switchOnLabel || '') : (field.switchOffLabel || '')}
+              <span className="switch-state-labels">
+                <span className="switch-off-lbl">{field.switchOffLabel || ''}</span>
+                <span className="switch-on-lbl">{field.switchOnLabel || ''}</span>
               </span>
             )}
-          </div>
+          </label>
         );
 
       case 'multiple-choice':
@@ -599,7 +612,7 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
             {field.allowOther && (
               <label className="checkbox-option">
                 <input type="checkbox" name={field.id} value="__other__" />
-                <span className="flex items-center gap-2">Other… <input type="text" className="form-input text-xs py-1 px-2 h-7" placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
+                <span className="flex items-center gap-2">Other… <input type="text" className={getFieldControlClassNames(field.type, ['form-input', 'text-xs', 'py-1', 'px-2', 'h-7'])} placeholder="Specify…" disabled style={{ width: '120px' }} /></span>
               </label>
             )}
           </div>
@@ -682,12 +695,37 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
 
       case 'momence-sessions':
       case 'hosted-class':
+        const isHostedSession = field.type === 'hosted-class';
         return (
-          <select className="form-input" required={required} defaultValue="">
-            <option value="" disabled>Select a session</option>
-            <option value="session1">Morning Session</option>
-            <option value="session2">Afternoon Session</option>
-          </select>
+          <div className={`session-preview-card ${isHostedSession ? 'session-preview-card-hosted' : ''}`}>
+            <div className="session-preview-header">
+              <div>
+                <p className="session-preview-title">{field.label}</p>
+                <p className="session-preview-subtitle">{isHostedSession ? 'Hosted session lookup' : 'Session picker'}</p>
+              </div>
+              <span className="session-preview-badge">{isHostedSession ? 'Manual' : 'Auto'}</span>
+            </div>
+            <div className="session-preview-controls">
+              <input type="date" className="form-input session-preview-date" />
+              <span className="session-preview-sep">to</span>
+              <input type="date" className="form-input session-preview-date" />
+              <button type="button" className="session-preview-load">Load Sessions</button>
+            </div>
+            <div className="session-preview-list">
+              <div className="session-preview-item">
+                <div>
+                  <div className="session-preview-item-title">Morning Method Flow</div>
+                  <div className="session-preview-item-meta">09:00 AM · 45 min · 6 spots left</div>
+                </div>
+              </div>
+              <div className="session-preview-item">
+                <div>
+                  <div className="session-preview-item-title">Signature Burn</div>
+                  <div className="session-preview-item-meta">11:30 AM · 50 min · Waitlist available</div>
+                </div>
+              </div>
+            </div>
+          </div>
         );
 
       case 'appointment-slots': {
@@ -945,9 +983,9 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
                             ))}
                           </div>
                         ) : sc.colDef.type === 'date' ? (
-                          <input type="date" className="text-xs py-0.5 px-1 border border-border rounded" />
+                          <input type="date" className={getFieldControlClassNames(field.type, ['form-input', 'text-xs', 'py-0.5', 'px-1'])} />
                         ) : (
-                          <input type={sc.colDef.type === 'number' ? 'number' : 'text'} className="text-xs py-0.5 px-1 border border-border rounded w-16" placeholder={sc.colDef.placeholder || '…'} />
+                          <input type={sc.colDef.type === 'number' ? 'number' : 'text'} className={getFieldControlClassNames(field.type, ['form-input', 'text-xs', 'py-0.5', 'px-1', 'w-16'])} placeholder={sc.colDef.placeholder || '…'} />
                         )}
                       </td>
                     ))}
@@ -987,12 +1025,16 @@ function RealFieldPreview({ field, onEdit, onDelete, onDuplicate }: {
 
   return (
     <div 
-      className="form-group relative group"
+      className={`${fieldWrapperClassName} relative group form-field-preview`}
+      data-field-id={field.id}
+      data-field-name={field.name}
+      data-field-type={field.type}
+      data-field-width={field.width || '100'}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Field Label */}
-      <label className="block">
+      <label className="field-label block">
         {field.label}
         {field.isRequired && <span className="required">*</span>}
       </label>
@@ -1082,6 +1124,10 @@ function CanvasField({
     id: field.id,
     disabled: !!isLocked,
   });
+  const sortableStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || 'transform 180ms cubic-bezier(0.22, 1, 0.36, 1)',
+  };
 
   const colSpan = fieldColSpan(field, formLayout);
   const isPageBreak = field.type === 'page-break';
@@ -1098,7 +1144,7 @@ function CanvasField({
     return (
       <div
         ref={setNodeRef}
-        style={{ transform: CSS.Transform.toString(transform), transition }}
+        style={sortableStyle}
         className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -1151,7 +1197,7 @@ function CanvasField({
     return (
       <div
         ref={setNodeRef}
-        style={{ transform: CSS.Transform.toString(transform), transition }}
+        style={sortableStyle}
         className={`col-span-12 ${isDragging ? 'opacity-30' : ''}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -1187,18 +1233,26 @@ function CanvasField({
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={sortableStyle}
       className={`${colSpan} ${isDragging ? 'opacity-30 z-50' : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {insertDropActive && (
-        <div className="h-1 rounded-full bg-primary/60 mb-1.5 mx-2 transition-all" />
+        <div className="mb-2 flex items-center gap-2 px-2 transition-all">
+          <div className="h-[3px] flex-1 rounded-full bg-gradient-to-r from-primary/40 via-primary to-primary/40 shadow-[0_0_18px_rgba(99,102,241,0.28)]" />
+          <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
+            Drop Here
+          </span>
+          <div className="h-[3px] flex-1 rounded-full bg-gradient-to-r from-primary/40 via-primary to-primary/40 shadow-[0_0_18px_rgba(99,102,241,0.28)]" />
+        </div>
       )}
       <div className={`rounded-xl border overflow-hidden transition-all duration-200 ${
-        hovered
-          ? 'border-indigo-200/80 shadow-[0_4px_20px_rgba(99,102,241,0.09)] bg-white'
-          : 'border-slate-200/80 shadow-sm bg-white'
+        insertDropActive
+          ? 'border-primary/45 shadow-[0_12px_28px_rgba(99,102,241,0.16)] bg-cyan-50/30'
+          : hovered
+            ? 'border-indigo-200/80 shadow-[0_4px_20px_rgba(99,102,241,0.09)] bg-white'
+            : 'border-slate-200/80 shadow-sm bg-white'
       }`} onClick={handleOpenField}>
         {/* Card header */}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-slate-50/70">
@@ -1315,12 +1369,28 @@ interface FormCanvasProps {
   onReorder: (orderedIds: string[]) => void;
   isLocked?: boolean;
   onBulkFieldWidth?: (width: string) => void;
+  onBulkApplyCssClass?: (cssClass: string) => void;
+  onBulkArrange?: (preset: 'single' | 'halves' | 'thirds' | 'feature-first') => void;
   onUpdateTheme?: (updates: Partial<FormConfig['theme']>) => void;
 }
 
-export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReorder, isLocked, onBulkFieldWidth, onUpdateTheme }: FormCanvasProps) {
+export function FormCanvas({
+  form,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onAdd,
+  onReorder,
+  isLocked,
+  onBulkFieldWidth,
+  onBulkApplyCssClass,
+  onBulkArrange,
+  onUpdateTheme,
+}: FormCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [bulkCssClass, setBulkCssClass] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1358,8 +1428,13 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
     if (isLocked) return;
     setActiveId(String(e.active.id));
   };
+  const handleDragOver = (e: DragOverEvent) => {
+    if (isLocked) return;
+    setOverId(e.over ? String(e.over.id) : null);
+  };
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    setOverId(null);
     if (isLocked) return;
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -1427,12 +1502,23 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       --submit-btn-bg: ${submitButtonBackground};
     }
     .form-canvas-wrapper * { box-sizing: border-box; }
+    .form-canvas-wrapper.form-container {
+      position: relative;
+      width: 100%;
+      background: transparent;
+    }
+    .form-canvas-wrapper .form-header,
+    .form-canvas-wrapper .form-body {
+      position: relative;
+      z-index: 1;
+    }
     .form-canvas-wrapper .form-group {
       padding: 0 !important;
       margin: 0 !important;
       background: transparent !important;
       border: 0 !important;
       line-height: ${form.theme.lineHeight || '1.6'};
+      position: relative;
     }
     .form-canvas-wrapper .form-fields-grid {
       display: grid;
@@ -1465,6 +1551,8 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       box-shadow: 0 0 0 3px ${form.theme.primaryColor}1a;
     }
     .form-canvas-wrapper .form-input::placeholder { color: var(--text-light); }
+    .form-canvas-wrapper .field-shell { position: relative; }
+    .form-canvas-wrapper .field-control { display: block; }
     .form-canvas-wrapper select.form-input {
       cursor: pointer;
       appearance: none;
@@ -1489,6 +1577,195 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
     .form-canvas-wrapper .radio-option:hover, .form-canvas-wrapper .checkbox-option:hover { 
       border-color: var(--border-focus); background: var(--bg-secondary); 
     }
+    .form-canvas-wrapper .switch-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 54px;
+      padding: 12px 14px;
+      border: 2px solid var(--border-color);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--bg-primary) 84%, white);
+      cursor: pointer;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+    }
+    .form-canvas-wrapper .switch-group:hover { border-color: var(--primary-color); transform: translateY(-1px); }
+    .form-canvas-wrapper .switch-slider {
+      position: relative;
+      width: 52px;
+      height: 30px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--border-color) 72%, white);
+      box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+      flex-shrink: 0;
+    }
+    .form-canvas-wrapper .switch-slider::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+      transition: transform 0.2s ease;
+    }
+    .form-canvas-wrapper .switch-group input:checked + .switch-slider {
+      background: var(--submit-btn-bg);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.18);
+    }
+    .form-canvas-wrapper .switch-group input:checked + .switch-slider::after { transform: translateX(22px); }
+    .form-canvas-wrapper .switch-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+    .form-canvas-wrapper .switch-state-labels { display: flex; gap: 6px; margin-left: auto; font-size: 12px; color: var(--text-secondary); }
+    .form-canvas-wrapper .switch-group input:not(:checked) ~ .switch-state-labels .switch-on-lbl { opacity: 0.35; }
+    .form-canvas-wrapper .switch-group input:checked ~ .switch-state-labels .switch-off-lbl { opacity: 0.35; }
+    .form-canvas-wrapper .switch-group input:checked ~ .switch-state-labels .switch-on-lbl { color: var(--primary-color); font-weight: 600; }
+    .form-canvas-wrapper .choice-matrix-group {
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 14px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 82%, white), color-mix(in srgb, var(--bg-primary) 92%, transparent));
+      box-shadow: var(--shadow-sm);
+      overflow-x: auto;
+    }
+    .form-canvas-wrapper .choice-matrix-scale-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--text-light);
+    }
+    .form-canvas-wrapper .choice-matrix-corner { min-width: 160px; }
+    .form-canvas-wrapper .choice-matrix-grid { display: grid; gap: 10px; align-items: center; }
+    .form-canvas-wrapper .choice-matrix-col {
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      padding: 8px 6px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.12);
+    }
+    .form-canvas-wrapper .choice-matrix-row {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      background: var(--bg-primary);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+    .form-canvas-wrapper .choice-matrix-choice {
+      display: flex;
+      width: 100%;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .form-canvas-wrapper .choice-matrix-choice-pill {
+      min-width: 42px;
+      min-height: 38px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      transition: all 0.18s ease;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+    }
+    .form-canvas-wrapper .choice-matrix-choice:hover .choice-matrix-choice-pill {
+      border-color: var(--primary-color);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+    .form-canvas-wrapper .choice-matrix-choice input:checked + .choice-matrix-choice-pill {
+      background: var(--submit-btn-bg);
+      border-color: transparent;
+      color: white;
+      box-shadow: 0 10px 20px rgba(99, 102, 241, 0.22);
+    }
+    .form-canvas-wrapper .session-preview-card {
+      position: relative;
+      border: 2px solid var(--border-color);
+      border-radius: 18px;
+      background: linear-gradient(180deg, color-mix(in srgb, var(--bg-secondary) 88%, white), var(--bg-primary));
+      padding: 16px 16px 16px 22px;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .form-canvas-wrapper .session-preview-card::before {
+      content: '';
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 8px;
+      background: var(--submit-btn-bg);
+      box-shadow: 10px 0 22px rgba(99, 102, 241, 0.16);
+    }
+    .form-canvas-wrapper .session-preview-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .form-canvas-wrapper .session-preview-title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+    .form-canvas-wrapper .session-preview-subtitle { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .form-canvas-wrapper .session-preview-badge {
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary-color);
+      border: 1px solid rgba(99, 102, 241, 0.18);
+    }
+    .form-canvas-wrapper .session-preview-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .form-canvas-wrapper .session-preview-date {
+      min-height: 46px;
+      padding-inline: 14px !important;
+      border-radius: 12px !important;
+    }
+    .form-canvas-wrapper .session-preview-sep { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+    .form-canvas-wrapper .session-preview-load {
+      min-height: 46px;
+      padding: 0 18px;
+      border-radius: 12px;
+      border: none;
+      background: var(--submit-btn-bg);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+    }
+    .form-canvas-wrapper .session-preview-list { display: grid; gap: 8px; }
+    .form-canvas-wrapper .session-preview-item {
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(255, 255, 255, 0.8);
+      padding: 12px 14px;
+    }
+    .form-canvas-wrapper .session-preview-item-title { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .form-canvas-wrapper .session-preview-item-meta { margin-top: 4px; font-size: 11px; color: var(--text-secondary); }
     .form-canvas-wrapper .section-break {
       margin: 8px 0;
       padding-bottom: 8px;
@@ -1518,7 +1795,11 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
       .form-canvas-wrapper .form-fields-grid {
         grid-template-columns: 1fr;
       }
+      .form-canvas-wrapper .session-preview-controls {
+        grid-template-columns: 1fr;
+      }
     }
+    ${form.theme.customCss || ''}
   `;
 
   return (
@@ -1583,6 +1864,50 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                 ))}
               </div>
             )}
+            {!isLocked && onBulkArrange && (
+              <div className="flex items-center gap-1 border-r border-border/30 mr-1 pr-2">
+                <span className="text-[9px] font-semibold text-muted-foreground/50 uppercase tracking-wider">Arrange:</span>
+                {([
+                  { preset: 'single', label: 'Stack' },
+                  { preset: 'halves', label: '2-up' },
+                  { preset: 'thirds', label: '3-up' },
+                  { preset: 'feature-first', label: 'Feature' },
+                ] as const).map(({ preset, label }) => (
+                  <button
+                    key={preset}
+                    onClick={() => onBulkArrange(preset)}
+                    className="h-6 px-1.5 rounded text-[10px] font-bold text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-colors border border-border/40"
+                    title={`Apply ${label.toLowerCase()} positioning to all eligible fields`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!isLocked && onBulkApplyCssClass && (
+              <div className="flex items-center gap-1.5 border-r border-border/30 mr-1 pr-2">
+                <span className="text-[9px] font-semibold text-muted-foreground/50 uppercase tracking-wider">Class:</span>
+                <input
+                  value={bulkCssClass}
+                  onChange={e => setBulkCssClass(e.target.value)}
+                  className="h-6 w-[120px] rounded border border-border/40 bg-white px-1.5 text-[10px] font-mono text-muted-foreground"
+                  placeholder="vip-field"
+                  title="Append a CSS class to all non-structural fields"
+                />
+                <button
+                  onClick={() => {
+                    const nextClass = bulkCssClass.trim();
+                    if (!nextClass) return;
+                    onBulkApplyCssClass(nextClass);
+                    setBulkCssClass('');
+                  }}
+                  className="h-6 px-2 rounded text-[10px] font-bold text-cyan-700 hover:text-cyan-900 bg-cyan-50 hover:bg-cyan-100 transition-colors border border-cyan-200/70"
+                  title="Apply class to all non-structural fields"
+                >
+                  Apply
+                </button>
+              </div>
+            )}
             {isLocked && (
               <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
                 <Lock className="h-2.5 w-2.5" /> Locked — read only
@@ -1618,7 +1943,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                 />
               )}
               <div
-                className="w-full form-canvas-wrapper"
+                className="w-full form-canvas-wrapper form-container"
                 style={{
                   maxWidth: isSplitLayout ? '100%' : form.theme.formMaxWidth || '100%',
                   lineHeight: form.theme.lineHeight || '1.6',
@@ -1639,7 +1964,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
 
               {/* Header */}
               <div
-                className="pt-8 pb-6 bg-muted"
+                className="form-header pt-8 pb-6 bg-muted"
                 style={{
                   paddingLeft: 'var(--form-padding)',
                   paddingRight: 'var(--form-padding)',
@@ -1660,12 +1985,16 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                 {form.description && <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{form.description}</p>}
               </div>
 
-              {/* Fields */}
-              <div style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: 'var(--form-padding)' }}>
+              <div
+                className="form-body"
+                style={{ paddingLeft: 'var(--form-padding)', paddingRight: 'var(--form-padding)', paddingBottom: 'var(--form-padding)' }}
+              >
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
+                  measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
                   onDragStart={handleDragStart}
+                  onDragOver={handleDragOver}
                   onDragEnd={handleDragEnd}
                 >
                   <SortableContext
@@ -1700,7 +2029,7 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                               onEdit={(field) => onEdit(field)}
                               onDelete={(fieldId) => setPendingDeleteId(fieldId)}
                               onDuplicate={(fieldId) => onDuplicate(fieldId)}
-                              insertDropActive={false}
+                              insertDropActive={overId === field.id && activeId !== field.id}
                             />
                           </Fragment>
                         );
@@ -1711,9 +2040,9 @@ export function FormCanvas({ form, onEdit, onDelete, onDuplicate, onAdd, onReord
                     </div>
                   </SortableContext>
 
-                  <DragOverlay>
+                  <DragOverlay dropAnimation={{ duration: 220, easing: 'cubic-bezier(0.18, 0.67, 0.4, 1.18)' }}>
                     {activeField && (
-                      <div className="rounded-xl border-2 border-primary bg-card shadow-xl p-3 opacity-90 w-48">
+                      <div className="rounded-2xl border-2 border-primary/80 bg-card shadow-[0_22px_48px_rgba(15,23,42,0.22)] p-3 opacity-95 w-56 backdrop-blur-sm">
                         <div className="text-[11px] font-semibold text-foreground/80 mb-1.5">{activeField.label}</div>
                         <RealFieldPreview field={activeField} onEdit={() => {}} onDelete={() => {}} onDuplicate={() => {}} />
                       </div>

@@ -48,18 +48,18 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
   const fieldCount = form.fields.filter(f => f.type !== 'page-break' && f.type !== 'section-break').length;
 
   return (
-    <Card className="group relative flex flex-col overflow-hidden border border-border/50 bg-card hover:border-primary/30 hover:shadow-lg transition-all duration-200 rounded-2xl">
+    <Card className="group relative flex flex-col overflow-hidden rounded-[26px] border border-white/75 bg-white/80 shadow-[0_18px_42px_rgba(15,23,42,0.06)] backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-[0_22px_48px_rgba(14,165,233,0.12)]">
       {/* Accent gradient */}
       <div className="h-1 w-full" style={{ background: `linear-gradient(90deg, ${form.theme.primaryColor}, ${form.theme.secondaryColor})` }} />
       <CardContent className="flex flex-col flex-1 p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 shrink-0 rounded-xl flex items-center justify-center text-[16px]" style={{ background: `linear-gradient(135deg, ${form.theme.primaryColor}20, ${form.theme.secondaryColor}20)` }}>
+            <div className="h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center text-[16px] ring-1 ring-white/70" style={{ background: `linear-gradient(135deg, ${form.theme.primaryColor}24, ${form.theme.secondaryColor}20)` }}>
               <FileText className="h-4 w-4 text-primary" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-[13px] font-semibold text-foreground truncate">{form.title}</h3>
-              {form.description && <p className="text-[11px] text-muted-foreground truncate mt-0.5 max-w-[180px]">{form.description}</p>}
+              <h3 className="text-[13px] font-semibold tracking-tight text-slate-900 truncate">{form.title}</h3>
+              {form.description && <p className="text-[11px] text-slate-500 truncate mt-0.5 max-w-[180px]">{form.description}</p>}
             </div>
           </div>
           <DropdownMenu>
@@ -77,7 +77,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
         </div>
 
         {/* Meta row */}
-        <div className="flex items-center gap-3 mb-3 text-[10px] text-muted-foreground">
+        <div className="flex items-center gap-3 mb-3 text-[10px] text-slate-500">
           <span className="flex items-center gap-1"><Layers className="h-3 w-3" />{fieldCount} fields</span>
           <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{timeAgo(form.updatedAt)}</span>
         </div>
@@ -94,7 +94,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
         {/* Deploy status */}
         <div className="mt-auto">
           {isPublished ? (
-            <div className="rounded-lg bg-primary/5 border border-primary/15 px-3 py-2 flex items-center justify-between">
+            <div className="rounded-xl bg-primary/5 border border-primary/15 px-3 py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="text-[10px] font-semibold text-primary">Live</span>
@@ -104,7 +104,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
               </a>
             </div>
           ) : (
-            <div className="rounded-lg bg-muted/30 border border-border/30 px-3 py-2 flex items-center justify-between">
+            <div className="rounded-xl bg-slate-50 border border-slate-200/70 px-3 py-2.5 flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground">Draft</span>
               <Link to={`/builder?formId=${form.id}`} className="text-[10px] text-primary font-medium flex items-center gap-1"><Rocket className="h-2.5 w-2.5" />Deploy</Link>
             </div>
@@ -112,7 +112,7 @@ function FormDashboardCard({ form, onDelete, onDuplicate }: {
         </div>
 
         <Link to={`/builder?formId=${form.id}`}
-          className="mt-2.5 flex items-center justify-center gap-2 rounded-xl border border-border/40 py-2 text-[11px] font-medium text-muted-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all">
+          className="mt-3 flex items-center justify-center gap-2 rounded-2xl border border-slate-200/80 bg-slate-50/70 py-2.5 text-[11px] font-medium text-slate-500 transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground">
           <PencilLine className="h-3 w-3" />Open in Builder<ChevronRight className="h-3 w-3 ml-auto" />
         </Link>
       </CardContent>
@@ -141,17 +141,17 @@ const Landing = () => {
   const confirmDelete = () => { if (!confirmDeleteId) return; const form = forms.find(f => f.id === confirmDeleteId); deleteForm(confirmDeleteId); toast.success(`"${form?.title ?? 'Form'}" deleted`); setConfirmDeleteId(null); };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.12),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#f8fafc_100%)]">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-card/95 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/60 bg-white/80 shadow-[0_10px_40px_rgba(15,23,42,0.06)] backdrop-blur-xl">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-primary">
+            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 via-sky-500 to-indigo-600 shadow-[0_12px_28px_rgba(14,165,233,0.35)]">
               <Sparkles className="h-4 w-4 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-[15px] font-bold text-foreground">JForms</h1>
-              <p className="text-[10px] text-muted-foreground font-medium -mt-0.5">Dashboard</p>
+              <h1 className="text-[15px] font-bold tracking-tight text-slate-900">JForms</h1>
+              <p className="text-[10px] text-slate-500 font-medium -mt-0.5">Operations Dashboard</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -166,25 +166,41 @@ const Landing = () => {
       </header>
 
       <main className="container py-8 space-y-6">
-        <section className="relative overflow-hidden rounded-3xl border border-border/40 bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-900 text-white p-8 md:p-10">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.35),transparent_45%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(16,185,129,0.2),transparent_40%)]" />
-          <div className="relative flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-white/70">Form Operations</p>
-              <h2 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Build, deploy and scale branded forms faster.</h2>
+        <section className="relative overflow-hidden rounded-[32px] border border-white/65 bg-[linear-gradient(135deg,#020617_0%,#0f172a_38%,#172554_100%)] text-white p-8 shadow-[0_30px_80px_rgba(15,23,42,0.22)] md:p-10">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_18%,rgba(56,189,248,0.28),transparent_30%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_80%,rgba(16,185,129,0.18),transparent_32%)]" />
+          <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:40px_40px]" />
+          <div className="relative flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.35em] text-cyan-100/80">Form Operations</p>
+              <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-5xl">Build, deploy and scale sophisticated forms faster.</h2>
               <p className="mt-3 text-sm text-white/80 max-w-2xl">
                 Manage templates, advanced fields, live deployment, and connected workflows from one workspace.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button size="sm" className="h-9 rounded-xl bg-white text-slate-900 hover:bg-white/90" onClick={handleCreateNew}>
+              <Button size="sm" className="h-10 rounded-xl bg-white text-slate-900 hover:bg-white/90 shadow-[0_14px_30px_rgba(255,255,255,0.18)]" onClick={handleCreateNew}>
                 <Plus className="h-3.5 w-3.5 mr-1.5" />Create Form
               </Button>
-              <Button variant="outline" size="sm" asChild className="h-9 rounded-xl border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+              <Button variant="outline" size="sm" asChild className="h-10 rounded-xl border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white">
                 <Link to="/builder"><LayoutDashboard className="h-3.5 w-3.5 mr-1.5" />Open Builder</Link>
               </Button>
             </div>
+          </div>
+          <div className="relative mt-8 grid gap-3 md:grid-cols-3">
+            {[
+              { label: 'Active workspace', value: `${forms.length || 0} forms`, icon: Layers },
+              { label: 'Published surfaces', value: `${deployedCount} live`, icon: Globe },
+              { label: 'Connected workflows', value: `${withIntegrations} forms`, icon: Zap },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-md">
+                <div className="flex items-center gap-2 text-cyan-100/80">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="text-[10px] uppercase tracking-[0.18em]">{label}</span>
+                </div>
+                <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -196,13 +212,13 @@ const Landing = () => {
             { icon: Layers, label: 'Fields', value: totalFields, color: 'text-primary' },
             { icon: Zap, label: 'Integrations', value: withIntegrations, color: 'text-primary' },
           ].map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="flex items-center gap-3 rounded-xl border border-border/40 bg-card p-4">
-              <div className={`h-9 w-9 rounded-lg bg-primary/8 flex items-center justify-center ${color}`}>
+            <div key={label} className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/75 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)] backdrop-blur-md">
+              <div className={`h-10 w-10 rounded-xl bg-gradient-to-br from-cyan-50 to-sky-100 flex items-center justify-center ring-1 ring-sky-100 ${color}`}>
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <p className="text-xl font-bold text-foreground">{value}</p>
-                <p className="text-[10px] text-muted-foreground">{label}</p>
+                <p className="text-xl font-bold text-slate-900">{value}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">{label}</p>
               </div>
             </div>
           ))}
@@ -210,12 +226,12 @@ const Landing = () => {
 
         {/* Search */}
         {forms.length > 0 && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/70 bg-white/65 px-4 py-3 shadow-[0_14px_34px_rgba(15,23,42,0.05)] backdrop-blur-md">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input placeholder="Search forms…" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-9 h-9 rounded-xl border-border/50 bg-muted/20 text-[13px]" />
             </div>
-            <p className="text-[11px] text-muted-foreground">{filteredForms.length} of {forms.length}</p>
+            <p className="text-[11px] font-medium text-slate-500">{filteredForms.length} of {forms.length}</p>
           </div>
         )}
 
@@ -243,7 +259,7 @@ const Landing = () => {
               <FormDashboardCard key={form.id} form={form} onDelete={handleDelete} onDuplicate={handleDuplicate} />
             ))}
             <button onClick={handleCreateNew}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border/40 p-8 text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary transition-all min-h-[200px]">
+              className="flex min-h-[220px] flex-col items-center justify-center gap-2 rounded-[28px] border-2 border-dashed border-slate-300/70 bg-white/55 p-8 text-muted-foreground shadow-[0_14px_34px_rgba(15,23,42,0.04)] backdrop-blur-sm transition-all hover:border-primary/30 hover:bg-primary/5 hover:text-primary">
               <div className="h-10 w-10 rounded-xl border-2 border-current/20 flex items-center justify-center"><Plus className="h-5 w-5" /></div>
               <p className="text-[12px] font-medium">New Form</p>
             </button>
