@@ -13,6 +13,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Trash2, ExternalLink, Loader2, Sheet, Webhook, Globe, Key, Palette, Type, Layers, BarChart3, MapPin, FileText, Calendar, AlignLeft, AlignCenter, AlignRight, Sparkles, Image, Columns, Monitor, PanelLeft, PanelRight, Maximize2, ChevronRight, Settings2, Code2, Zap, Eye, Mail, Upload } from 'lucide-react';
 import { applyHeroImageForLayout } from '@/utils/layoutImageHelpers';
 import { getHeroImageUrl, hasHeroImage, normalizeHeroImageValue } from '@/utils/heroImageConfig';
+import { normalizeEmailNotificationConfig, persistMailtrapToken } from '@/lib/mailtrap';
 import { useState } from 'react';
 
 // Preset Webhook URLs
@@ -27,20 +28,6 @@ const TOKEN_PRESETS = [
   { label: 'DOjMVL37Q5 (Alt)', value: 'DOjMVL37Q5' },
   { label: 'Custom Token…', value: '__custom__' },
 ];
-
-const defaultEmailConfig: import('@/types/formField').EmailNotificationConfig = {
-  enabled: false,
-  mailtrapToken: '',
-  clientId: '',
-  clientSecret: '',
-  refreshToken: '',
-  from: '',
-  fromName: '',
-  to: '',
-  cc: '',
-  bcc: '',
-  subject: 'New Form Submission — {{formTitle}}',
-};
 
 type ButtonTarget = 'submit' | 'next' | 'back';
 type ButtonThemeSlot =
@@ -184,7 +171,18 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
   const updateAnimations = (updates: Partial<FormAnimations>) => onUpdate({ animations: { enabled: true, ...form.animations, ...updates } });
   const updateWebhook = (updates: Partial<WebhookConfig>) => onUpdate({ webhookConfig: { ...form.webhookConfig, ...updates } });
   const updatePixels = (updates: Partial<PixelConfig>) => onUpdate({ pixelConfig: { ...form.pixelConfig, ...updates } });
-  const updateEmail = (updates: Partial<EmailNotificationConfig>) => onUpdate({ emailNotificationConfig: { ...defaultEmailConfig, ...form.emailNotificationConfig, ...updates } });
+  const updateEmail = (updates: Partial<EmailNotificationConfig>) => {
+    if (typeof updates.mailtrapToken === 'string') {
+      persistMailtrapToken(updates.mailtrapToken);
+    }
+
+    onUpdate({
+      emailNotificationConfig: normalizeEmailNotificationConfig({
+        ...form.emailNotificationConfig,
+        ...updates,
+      }),
+    });
+  };
   const updateUtmDefaults = (key: string, value: string) => updateWebhook({ utmParamDefaults: { ...form.webhookConfig.utmParamDefaults, [key]: value } });
   const handleLayoutChange = (layout: FormConfig['layout']) => onUpdate(applyHeroImageForLayout(form, { layout }));
   const glassBlurValue = Number.parseInt(form.theme.formCardBlurAmount || '20', 10) || 20;
@@ -1727,7 +1725,7 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
 
         {/* ── Email Notifications ── */}
         {(() => {
-          const emailCfg = form.emailNotificationConfig ?? defaultEmailConfig;
+          const emailCfg = normalizeEmailNotificationConfig(form.emailNotificationConfig);
           return (
             <SettingsSection title="Email Notifications" icon={Mail} badge={
               <Badge variant={emailCfg.enabled ? 'default' : 'secondary'} className="text-[10px] h-5 rounded-full">{emailCfg.enabled ? 'Active' : 'Off'}</Badge>
@@ -1738,50 +1736,22 @@ export function FormSettingsPanel({ form, onUpdate, onCreateSheet, isCreatingShe
               {emailCfg.enabled && (
                 <div className="space-y-3">
                   <p className="text-[10px] text-muted-foreground leading-relaxed">
-                    Emails are sent via the <strong>Mailtrap Sending API</strong>. Use <code className="bg-muted px-1 rounded">{'{{fieldName}}'}</code> in Subject / To fields to insert form values.
+                    Emails are sent via <strong>Mailtrap SMTP</strong>. Use <code className="bg-muted px-1 rounded">{'{{fieldName}}'}</code> in Subject / To / CC / BCC fields to insert form values.
                   </p>
 
                   {/* Mailtrap credentials */}
                   <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">API Credentials</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+                      Only the Mailtrap API token is needed here — no client ID, refresh token, or OAuth dance number. It is saved locally for future sessions, and if <code className="bg-muted px-1 rounded">MAILTRAP_API_TOKEN</code> is configured in backend credentials, you can leave this blank.
+                    </p>
                     <div className="space-y-1">
                       <FieldLabel>Mailtrap API Token</FieldLabel>
                       <Input
                         type="password"
                         value={emailCfg.mailtrapToken}
                         onChange={e => updateEmail({ mailtrapToken: e.target.value })}
-                        placeholder="Enter your Mailtrap API token"
-                        className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <FieldLabel>Client ID</FieldLabel>
-                        <Input
-                          value={emailCfg.clientId ?? ''}
-                          onChange={e => updateEmail({ clientId: e.target.value })}
-                          placeholder="OAuth Client ID"
-                          className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <FieldLabel>Client Secret</FieldLabel>
-                        <Input
-                          type="password"
-                          value={emailCfg.clientSecret ?? ''}
-                          onChange={e => updateEmail({ clientSecret: e.target.value })}
-                          placeholder="OAuth Client Secret"
-                          className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <FieldLabel>Refresh Token</FieldLabel>
-                      <Input
-                        type="password"
-                        value={emailCfg.refreshToken ?? ''}
-                        onChange={e => updateEmail({ refreshToken: e.target.value })}
-                        placeholder="OAuth Refresh Token"
+                        placeholder="Optional if backend Mailtrap credential is configured"
                         className="rounded-lg border-border/40 bg-muted/20 h-8 text-[12px] font-mono"
                       />
                     </div>

@@ -1,5 +1,24 @@
+/// <reference path="../types.d.ts" />
+
+type SmtpConn = {
+  read(buffer: Uint8Array): Promise<number | null>;
+  write(data: Uint8Array): Promise<number>;
+  close(): void;
+};
+
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+  connectTls(options: { hostname: string; port: number }): Promise<SmtpConn>;
+};
+
+// @ts-ignore Deno edge functions support remote URL imports at runtime.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
 
 interface EmailField {
   label: string;
@@ -8,10 +27,7 @@ interface EmailField {
 }
 
 interface SendFormEmailRequest {
-  mailtrapToken: string;
-  clientId?: string;
-  clientSecret?: string;
-  refreshToken?: string;
+  mailtrapToken?: string;
   from: string;
   fromName?: string;
   to: string;
@@ -136,15 +152,176 @@ function interpolate(template: string, data: Record<string, string>): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => data[key] ?? "");
 }
 
-function toAddresses(raw: string): Array<{ email: string }> {
+function toAddressList(raw?: string): string[] {
+  if (!raw) return [];
+
   return raw
     .split(",")
     .map((s) => s.trim())
-    .filter(Boolean)
-    .map((email) => ({ email }));
+    .filter(Boolean);
 }
 
-serve(async (req) => {
+function resolveMailtrapToken(requestToken?: string): string {
+  return (
+    requestToken?.trim() ||
+    Deno.env.get("MAILTRAP_API_TOKEN")?.trim() ||
+    Deno.env.get("VITE_MAILTRAP_API_TOKEN")?.trim() ||
+    ""
+  );
+}
+
+function resolveSmtpUsers(): string[] {
+  const candidates = [
+    Deno.env.get("MAILTRAP_SMTP_USERNAME")?.trim(),
+    Deno.env.get("MAILTRAP_SMTP_USER")?.trim(),
+    "api",
+    "apismtp@mailtrap.io",
+  ].filter(Boolean) as string[];
+
+  return [...new Set(candidates)];
+}
+
+function toBase64(value: string): string {
+  return btoa(value);
+}
+
+async function readSmtpResponse(conn: SmtpConn): Promise<string> {
+  const chunks: string[] = [];
+  const buf = new Uint8Array(1024);
+
+  while (true) {
+    const n = await conn.read(buf);
+    if (n === null) break;
+    chunks.push(decoder.decode(buf.subarray(0, n)));
+    const full = chunks.join("");
+    const lines = full.split(/\r?\n/).filter(Boolean);
+    if (lines.length === 0) continue;
+    const last = lines[lines.length - 1];
+    if (/^\d{3} /.test(last)) return full;
+  }
+
+  return chunks.join("");
+}
+
+async function writeSmtpCommand(conn: SmtpConn, command: string, expectedCode: string): Promise<void> {
+  await conn.write(encoder.encode(`${command}\r\n`));
+  const response = await readSmtpResponse(conn);
+  if (!response.startsWith(expectedCode)) {
+    throw new Error(`SMTP ${command.split(" ")[0]} failed: ${response}`);
+  }
+}
+
+function sanitizeHeaderValue(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim();
+}
+
+function buildMimeMessage(args: {
+  from: string;
+  fromName: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  textBody: string;
+  htmlBody: string;
+}): string {
+  const boundary = `formcraft-boundary-${crypto.randomUUID()}`;
+  const headerLines = [
+    `From: ${sanitizeHeaderValue(args.fromName)} <${sanitizeHeaderValue(args.from)}>`,
+    `To: ${args.to.map(sanitizeHeaderValue).join(", ")}`,
+    ...(args.cc.length ? [`Cc: ${args.cc.map(sanitizeHeaderValue).join(", ")}`] : []),
+    `Subject: ${sanitizeHeaderValue(args.subject)}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary=\"${boundary}\"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="utf-8"',
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    args.textBody,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/html; charset="utf-8"',
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    args.htmlBody,
+    "",
+    `--${boundary}--`,
+    "",
+  ];
+
+  return headerLines.join("\r\n");
+}
+
+async function sendMailtrapEmail(args: {
+  from: string;
+  fromName: string;
+  to: string[];
+  cc: string[];
+  bcc: string[];
+  subject: string;
+  textBody: string;
+  htmlBody: string;
+  mailtrapToken: string;
+}): Promise<void> {
+  const host = "live.smtp.mailtrap.io";
+  const port = 465;
+  const smtpUsers = resolveSmtpUsers();
+  const rcptTo = [...new Set([...args.to, ...args.cc, ...args.bcc].map((email) => email.trim()).filter(Boolean))];
+
+  if (!rcptTo.length) {
+    throw new Error("At least one recipient address is required");
+  }
+
+  const message = buildMimeMessage(args);
+  let lastError: Error | null = null;
+
+  for (const smtpUser of smtpUsers) {
+    let conn: SmtpConn | null = null;
+    try {
+      conn = await Deno.connectTls({ hostname: host, port });
+      const banner = await readSmtpResponse(conn);
+      if (!banner.startsWith("220")) {
+        throw new Error(`SMTP banner error: ${banner}`);
+      }
+
+      await writeSmtpCommand(conn, "EHLO physique57india.com", "250");
+      await writeSmtpCommand(conn, "AUTH LOGIN", "334");
+      await writeSmtpCommand(conn, toBase64(smtpUser), "334");
+      await writeSmtpCommand(conn, toBase64(args.mailtrapToken), "235");
+      await writeSmtpCommand(conn, `MAIL FROM:<${args.from}>`, "250");
+
+      for (const recipient of rcptTo) {
+        await writeSmtpCommand(conn, `RCPT TO:<${recipient}>`, "250");
+      }
+
+      await writeSmtpCommand(conn, "DATA", "354");
+      await conn.write(encoder.encode(`${message}\r\n.\r\n`));
+
+      const dataResp = await readSmtpResponse(conn);
+      if (!dataResp.startsWith("250")) {
+        throw new Error(`SMTP DATA failed: ${dataResp}`);
+      }
+
+      await writeSmtpCommand(conn, "QUIT", "221");
+      conn.close();
+      return;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error("Unknown SMTP error");
+      if (conn) {
+        try {
+          conn.close();
+        } catch {
+          // no-op
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error("Failed to send Mailtrap email");
+}
+
+serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -152,7 +329,7 @@ serve(async (req) => {
   try {
     const body: SendFormEmailRequest = await req.json();
     const {
-      mailtrapToken,
+      mailtrapToken: requestedMailtrapToken,
       from,
       fromName,
       to,
@@ -165,9 +342,11 @@ serve(async (req) => {
       submittedAt,
     } = body;
 
+    const mailtrapToken = resolveMailtrapToken(requestedMailtrapToken);
+
     if (!mailtrapToken) {
       return new Response(
-        JSON.stringify({ error: "mailtrapToken is required" }),
+        JSON.stringify({ error: "Mailtrap API token is missing. Set MAILTRAP_API_TOKEN in backend credentials/secrets or provide one in the request." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -185,6 +364,8 @@ serve(async (req) => {
     }
 
     const resolvedTo = interpolate(to, fieldData);
+    const resolvedCc = interpolate(cc ?? "", fieldData);
+    const resolvedBcc = interpolate(bcc ?? "", fieldData);
     const resolvedSubject = interpolate(subject, fieldData);
     const ts = submittedAt
       ? new Date(submittedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full", timeStyle: "short" })
@@ -193,34 +374,17 @@ serve(async (req) => {
     const htmlBody = buildEmailHtml(formTitle, formId, fields, ts);
     const textBody = buildTextBody(formTitle, fields, ts);
 
-    const payload: Record<string, unknown> = {
-      from: { email: from, name: fromName || formTitle },
-      to: toAddresses(resolvedTo),
+    await sendMailtrapEmail({
+      from,
+      fromName: fromName || formTitle,
+      to: toAddressList(resolvedTo),
+      cc: toAddressList(resolvedCc),
+      bcc: toAddressList(resolvedBcc),
       subject: resolvedSubject,
-      html: htmlBody,
-      text: textBody,
-    };
-    if (cc) payload.cc = toAddresses(cc);
-    if (bcc) payload.bcc = toAddresses(bcc);
-
-    const res = await fetch("https://send.api.mailtrap.io/api/send", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${mailtrapToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+      textBody,
+      htmlBody,
+      mailtrapToken,
     });
-
-    const resBody = await res.text();
-
-    if (!res.ok) {
-      console.error("Mailtrap error:", res.status, resBody);
-      return new Response(
-        JSON.stringify({ error: "Mailtrap API error", status: res.status, detail: resBody }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     return new Response(
       JSON.stringify({ ok: true }),

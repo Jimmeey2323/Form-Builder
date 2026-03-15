@@ -6,10 +6,10 @@ import {
   WebhookConfig,
   PixelConfig,
   GoogleSheetsConfig,
-  EmailNotificationConfig,
   createDefaultField,
   FieldType,
 } from '@/types/formField';
+import { createDefaultEmailNotificationConfig, normalizeEmailNotificationConfig, stripDefaultMailtrapToken } from '@/lib/mailtrap';
 
 const defaultTheme: FormTheme = {
   primaryColor: '#667eea',
@@ -84,20 +84,6 @@ const defaultGoogleSheets: GoogleSheetsConfig = {
   enabled: true,
   spreadsheetId: '',
   sheetName: 'Form Submissions',
-};
-
-const defaultEmailNotification: EmailNotificationConfig = {
-  enabled: false,
-  mailtrapToken: '',
-  clientId: '',
-  clientSecret: '',
-  refreshToken: '',
-  from: '',
-  fromName: '',
-  to: '',
-  cc: '',
-  bcc: '',
-  subject: 'New Form Submission — {{formTitle}}',
 };
 
 function getDefaultFields(): FormField[] {
@@ -218,7 +204,7 @@ function createDefaultForm(): FormConfig {
     webhookConfig: { ...defaultWebhook },
     pixelConfig: { ...defaultPixels },
     googleSheetsConfig: { ...defaultGoogleSheets },
-    emailNotificationConfig: { ...defaultEmailNotification },
+    emailNotificationConfig: createDefaultEmailNotificationConfig(),
     isLocked: false,
     isTemplate: false,
     isPublished: false,
@@ -258,7 +244,7 @@ export function useFormBuilder() {
           },
         pixelConfig: f.pixelConfig || {},
         googleSheetsConfig: f.googleSheetsConfig || { enabled: false },
-        emailNotificationConfig: { ...defaultEmailNotification, ...(f.emailNotificationConfig || {}) },
+        emailNotificationConfig: normalizeEmailNotificationConfig(f.emailNotificationConfig),
       };
     });
   });
@@ -299,7 +285,7 @@ export function useFormBuilder() {
             id: row.id,
             publicationState,
             isPublished: config.isPublished ?? publicationState === 'published',
-            emailNotificationConfig: { ...defaultEmailNotification, ...(config.emailNotificationConfig || {}) },
+            emailNotificationConfig: normalizeEmailNotificationConfig(config.emailNotificationConfig),
           };
         });
 
@@ -315,15 +301,22 @@ export function useFormBuilder() {
   }, []);
 
   const save = useCallback((updatedForms: FormConfig[]) => {
+    const persistedForms = updatedForms.map(form => ({
+      ...form,
+      emailNotificationConfig: stripDefaultMailtrapToken(
+        normalizeEmailNotificationConfig(form.emailNotificationConfig),
+      ),
+    }));
+
     formsRef.current = updatedForms;
     setForms(updatedForms);
-    localStorage.setItem('formcraft_forms', JSON.stringify(updatedForms));
+    localStorage.setItem('formcraft_forms', JSON.stringify(persistedForms));
 
     const upsertToSupabase = async () => {
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const formsData = updatedForms.map(f => ({
+        const formsData = persistedForms.map(f => ({
           id: f.id,
           title: f.title,
           config: f as any,

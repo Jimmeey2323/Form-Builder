@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 import { FormField, FieldOption, ConditionalRule, FIELD_TYPE_LABELS, FieldType, DependentOptionsConfig, MomenceSearchConfig, MomenceSessionsConfig, AppointmentSlotsConfig, AppointmentInterval, AppointmentVacation, AppointmentSlot, AppointmentSlotExclusion, EmailOtpConfig, AppointmentService, AppointmentAvailableDate, LikertColumn, LikertColumnType, LikertRow } from '@/types/formField';
 import { Plus, Trash2, X, GitBranch, ChevronDown, ChevronUp, Eye, MapPin, Star, Heart, ThumbsUp, Flame, Smile, Award, Sun, Zap, Shield, Target, Dumbbell, Bike, Trophy, Activity, Image as ImageIcon, List, Table2 } from 'lucide-react';
+import { getStoredMailtrapToken, persistMailtrapToken } from '@/lib/mailtrap';
 import {
   getChoiceMatrixColumns,
   getFieldControlClassNames,
@@ -86,6 +87,26 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
 
   useEffect(() => {
     if (field) setDraft({ ...field });
+  }, [field]);
+
+  useEffect(() => {
+    if (!field || field.type !== 'email-otp') return;
+
+    const storedToken = getStoredMailtrapToken();
+    if (!storedToken) return;
+
+    setDraft(prev => {
+      const existingToken = prev.emailOtpConfig?.mailtrapToken?.trim();
+      if (existingToken) return prev;
+
+      return {
+        ...prev,
+        emailOtpConfig: {
+          ...(prev.emailOtpConfig || field.emailOtpConfig || {}),
+          mailtrapToken: storedToken,
+        },
+      };
+    });
   }, [field]);
 
   if (!field) return null;
@@ -281,6 +302,10 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
   };
 
   const updateEmailOtp = (updates: Partial<EmailOtpConfig>) => {
+    if (typeof updates.mailtrapToken === 'string') {
+      persistMailtrapToken(updates.mailtrapToken);
+    }
+
     const existing = draft.emailOtpConfig || {};
     update('emailOtpConfig', { ...existing, ...updates });
   };
@@ -1778,7 +1803,7 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
             {isEmailOtp && (
               <TabsContent value="verification" className="space-y-4 mt-4">
                 <p className="text-sm text-muted-foreground">
-                  Configure OTP email verification (Mailtrap SMTP token).
+                  Configure OTP email verification with Mailtrap. Only the API token is needed, and backend credentials are preferred when available.
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
@@ -1801,11 +1826,14 @@ export function FieldEditorDialog({ field, open, onClose, onSave, allFields, ini
                 </div>
                 <div className="space-y-1.5">
                   <Label>Mailtrap API Token</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Optional if <code className="rounded bg-muted px-1">MAILTRAP_API_TOKEN</code> is configured in backend credentials. Any token you enter here is saved locally for future sessions.
+                  </p>
                   <Input
                     type="password"
                     value={draft.emailOtpConfig?.mailtrapToken || ''}
                     onChange={e => updateEmailOtp({ mailtrapToken: e.target.value })}
-                    placeholder="Paste token used for SMTP authentication"
+                    placeholder="Optional if backend Mailtrap credential is configured"
                   />
                 </div>
                 <div className="space-y-1.5">

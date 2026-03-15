@@ -46,6 +46,27 @@ async function readSmtpResponse(conn: Deno.Conn): Promise<string> {
   return chunks.join("");
 }
 
+function resolveMailtrapToken(requestToken?: string): string {
+  return (
+    requestToken?.trim() ||
+    Deno.env.get("MAILTRAP_API_TOKEN")?.trim() ||
+    Deno.env.get("VITE_MAILTRAP_API_TOKEN")?.trim() ||
+    ""
+  );
+}
+
+function resolveSmtpUsers(requestUser?: string): string[] {
+  const candidates = [
+    requestUser?.trim(),
+    Deno.env.get("MAILTRAP_SMTP_USERNAME")?.trim(),
+    Deno.env.get("MAILTRAP_SMTP_USER")?.trim(),
+    "api",
+    "apismtp@mailtrap.io",
+  ].filter(Boolean) as string[];
+
+  return [...new Set(candidates)];
+}
+
 async function writeSmtpCommand(conn: Deno.Conn, command: string, expectedCode: string): Promise<void> {
   await conn.write(encoder.encode(`${command}\r\n`));
   const response = await readSmtpResponse(conn);
@@ -62,10 +83,10 @@ async function sendOtpEmail(payload: Required<Pick<OtpRequest, "to">> & OtpReque
   const fromName = payload.fromName || "Physique 57 India";
   const subject = payload.subject || "Your verification code";
   const expiryMinutes = Math.max(1, Math.min(30, payload.expiryMinutes || 10));
-  const token = payload.mailtrapToken || "";
+  const token = resolveMailtrapToken(payload.mailtrapToken);
   if (!token) throw new Error("Mailtrap token is required");
 
-  const smtpUsers = [payload.smtpUser || "api", "apismtp@mailtrap.io"];
+  const smtpUsers = resolveSmtpUsers(payload.smtpUser);
 
   let lastError: Error | null = null;
 

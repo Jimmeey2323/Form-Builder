@@ -483,12 +483,6 @@ export interface EmailNotificationConfig {
   enabled: boolean;
   /** Mailtrap API token (Bearer auth for send.api.mailtrap.io) */
   mailtrapToken: string;
-  /** Google OAuth Client ID (optional, for reference) */
-  clientId?: string;
-  /** Google OAuth Client Secret (optional, for reference) */
-  clientSecret?: string;
-  /** Google OAuth Refresh Token (optional, for reference) */
-  refreshToken?: string;
   /** Sender email address */
   from: string;
   /** Sender display name */

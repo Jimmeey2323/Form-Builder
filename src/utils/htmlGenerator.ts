@@ -2318,10 +2318,6 @@ function generateEmailOtpScript(config: FormConfig): string {
               }
 
               var token = wrap.dataset.mailtrapToken || '';
-              if (!token) {
-                status(statusEl, 'Missing Mailtrap token in field settings.', true);
-                return;
-              }
 
               sendBtn.disabled = true;
               sendBtn.textContent = 'Sending...';
@@ -2340,7 +2336,7 @@ function generateEmailOtpScript(config: FormConfig): string {
                   fromName: wrap.dataset.fromName || 'Physique 57 India',
                   subject: wrap.dataset.subject || 'Your verification code',
                   otpLength: Number(wrap.dataset.otpLength || '6'),
-                  mailtrapToken: token,
+                  mailtrapToken: token || undefined,
                   expiryMinutes: Number(wrap.dataset.otpExpiry || '10')
                 })
               })
@@ -3278,7 +3274,7 @@ function generateAppointmentSlotsScript(config: FormConfig): string {
 
 function generateEmailNotificationScript(config: FormConfig): string {
   const emailCfg = config.emailNotificationConfig;
-  if (!emailCfg?.enabled || !emailCfg.mailtrapToken || !emailCfg.to || !emailCfg.from) return '';
+  if (!emailCfg?.enabled || !emailCfg.to || !emailCfg.from) return '';
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oleiodivubhtcagrlfug.supabase.co';
 
@@ -3302,9 +3298,6 @@ function generateEmailNotificationScript(config: FormConfig): string {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       mailtrapToken: '${escapeHtml(emailCfg.mailtrapToken)}',
-                      clientId: '${escapeHtml(emailCfg.clientId || '')}',
-                      clientSecret: '${escapeHtml(emailCfg.clientSecret || '')}',
-                      refreshToken: '${escapeHtml(emailCfg.refreshToken || '')}',
                       from: '${escapeHtml(emailCfg.from)}',
                       fromName: '${escapeHtml(emailCfg.fromName || config.title)}',
                       to: '${escapeHtml(emailCfg.to)}',
